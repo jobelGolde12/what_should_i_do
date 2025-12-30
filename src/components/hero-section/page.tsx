@@ -75,7 +75,7 @@ export default function heroSection() {
           <MainInputArea />
           
           {/* Example Output Section */}
-          <div id="how-it-works" className="mb-16">
+          <div id="how-it-works" className="mb-16 mt-15">
             <h2 className="text-3xl font-bold text-gray-900 text-center mb-10">How It Works: Example Output</h2>
             
             <div className="flex flex-col lg:flex-row gap-8">

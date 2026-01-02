@@ -4,7 +4,7 @@ import { useState } from "react";
 import { analyzeText, AnalysisResult } from "@/app/actions/analyzeText";
 import mammoth from "mammoth";
 import Tesseract from "tesseract.js";
-
+import TranslatedResult from "../TranslatedResult/page";
 export default function MainInputArea() {
   const [text, setText] = useState("");
   const [result, setResult] = useState<AnalysisResult | null>(null);
@@ -158,12 +158,18 @@ export default function MainInputArea() {
 
         <div className="p-6 md:p-8">
           <div className="relative">
-            <textarea
-              className="w-full h-64 p-4 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none transition-all"
-              placeholder="Paste text or upload a document or image..."
-              value={text}
-              onChange={(e) => setText(e.target.value)}
-            />
+            <div className="p-[2px] rounded-xl focus-within:bg-gradient-to-r from-blue-500 to-purple-500">
+          <div className="p-[1px] rounded-xl focus-within:bg-gradient-to-r from-blue-500 to-purple-500">
+          <textarea
+            className="w-full h-64 p-4 bg-white rounded-[11px] border border-gray-300 
+                      focus:outline-none focus:ring-0 focus:border-transparent 
+                      resize-none block transition-all"
+            placeholder="Paste text..."
+            value={text}
+            onChange={(e) => setText(e.target.value)}
+          />
+        </div>
+          </div>
             
             {text && (
               <button
@@ -300,6 +306,8 @@ export default function MainInputArea() {
               />
             </div>
           </div>
+
+          <TranslatedResult result={result} />
         </div>
       )}
     </>

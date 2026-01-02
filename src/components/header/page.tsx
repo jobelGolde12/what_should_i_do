@@ -17,9 +17,9 @@ export default function Header() {
                 <a href="#how-it-works" className="hidden md:inline-block text-gray-600 hover:text-blue-600 font-medium">How it works</a>
               <a href="#features" className="hidden md:inline-block text-gray-600 hover:text-blue-600 font-medium">Features</a>
               </div>
-              <button className="bg-blue-600 hover:bg-blue-700 text-white font-medium px-4 py-2 rounded-lg transition">
+              <a href="#main-input-area" className="bg-blue-600 hover:bg-blue-700 text-white font-medium px-4 py-2 rounded-lg transition">
                 Try Now
-              </button>
+              </a>
             </div>
           </div>
         </div>

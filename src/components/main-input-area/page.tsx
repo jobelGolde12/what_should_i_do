@@ -5,6 +5,8 @@ import { analyzeText, AnalysisResult } from "@/app/actions/analyzeText";
 import mammoth from "mammoth";
 import Tesseract from "tesseract.js";
 import TranslatedResult from "../TranslatedResult/page";
+import ConfusingParts from "../ConfusingParts/page";
+
 export default function MainInputArea() {
   const [text, setText] = useState("");
   const [result, setResult] = useState<AnalysisResult | null>(null);
@@ -92,7 +94,7 @@ export default function MainInputArea() {
 
   return (
     <>
-      <div className="bg-white rounded-2xl shadow-xl overflow-hidden mb-12">
+      <div className="bg-white rounded-2xl shadow-xl overflow-hidden mb-12" id="main-input-area">
         <div className="p-1 bg-gradient-to-r from-blue-500 to-purple-500" />
         
         {/* Clear All Header */}
@@ -280,17 +282,7 @@ export default function MainInputArea() {
             </div>
 
             {result.confusingParts.length > 0 && (
-              <div>
-                <strong className="text-gray-700">Confusing Parts:</strong>
-                <div className="mt-3 space-y-4">
-                  {result.confusingParts.map((c, i) => (
-                    <div key={i} className="p-4 bg-yellow-50 rounded-lg border border-yellow-100">
-                      <p className="italic text-gray-700">"{c.sentence}"</p>
-                      <p className="mt-2 text-sm text-gray-600 pl-4 border-l-2 border-yellow-300">{c.explanation}</p>
-                    </div>
-                  ))}
-                </div>
-              </div>
+              <ConfusingParts data={result.confusingParts} />
             )}
 
             <div className="p-4 bg-blue-50 rounded-lg border border-blue-100">

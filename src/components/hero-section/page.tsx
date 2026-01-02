@@ -1,4 +1,5 @@
 import MainInputArea from "../main-input-area/page";
+import HowItWorks from "../HowItWorks/page";
 
 export default function heroSection() {
   return (
@@ -15,18 +16,12 @@ export default function heroSection() {
             
             {/* CTA Button */}
             <div className="flex flex-col sm:flex-row justify-center items-center gap-4 mb-12">
-              <button className="w-full sm:w-auto bg-blue-600 hover:bg-blue-700 text-white font-semibold text-lg px-8 py-4 rounded-xl pulse-animation transition flex items-center justify-center gap-3">
+              <a href="#main-input-area" className="w-full sm:w-auto bg-blue-600 hover:bg-blue-700 text-white font-semibold text-lg px-8 py-4 rounded-xl pulse-animation transition flex items-center justify-center gap-3">
                 <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
                   <path fillRule="evenodd" d="M11.3 1.046A1 1 0 0112 2v5h4a1 1 0 01.82 1.573l-7 10A1 1 0 018 18v-5H4a1 1 0 01-.82-1.573l7-10a1 1 0 011.12-.38z" clipRule="evenodd" />
                 </svg>
                 Analyze Your Text Now
-              </button>
-              <button className="w-full sm:w-auto bg-white hover:bg-gray-50 text-gray-800 font-semibold border border-gray-300 text-lg px-8 py-4 rounded-xl transition flex items-center justify-center gap-3">
-                <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
-                  <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z" clipRule="evenodd" />
-                </svg>
-                See How It Works
-              </button>
+              </a>
             </div>
             
             {/* User Flow Visualization */}
@@ -75,220 +70,7 @@ export default function heroSection() {
           <MainInputArea />
           
           {/* Example Output Section */}
-          <div id="how-it-works" className="mb-16 mt-15">
-            <h2 className="text-3xl font-bold text-gray-900 text-center mb-10">How It Works: Example Output</h2>
-            
-            <div className="flex flex-col lg:flex-row gap-8">
-              {/* English Output */}
-              <div className="lg:w-1/2">
-                <div className="bg-white rounded-2xl shadow-lg p-6 h-full">
-                  <div className="flex justify-between items-center mb-6">
-                    <h3 className="text-xl font-bold text-gray-800 flex items-center gap-2">
-                      <svg className="w-6 h-6 text-blue-600" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
-                        <path fillRule="evenodd" d="M7 2a1 1 0 011 1v1h3a1 1 0 110 2H9.578a18.87 18.87 0 01-1.724 4.78c.29.354.596.696.914 1.026a1 1 0 11-1.44 1.389c-.188-.196-.373-.396-.554-.6a19.098 19.098 0 01-3.107 3.567 1 1 0 01-1.334-1.49 17.087 17.087 0 003.13-3.733 18.992 18.992 0 01-1.487-2.494 1 1 0 111.79-.89c.234.47.489.928.764 1.372.417-.934.752-1.913.997-2.927H3a1 1 0 110-2h3V3a1 1 0 011-1zm6 6a1 1 0 01.894.553l2.991 5.982a.869.869 0 01.02.037l.99 1.98a1 1 0 11-1.79.895L15.383 16h-4.764l-.724 1.447a1 1 0 11-1.788-.894l.99-1.98.019-.038 2.99-5.982A1 1 0 0113 8zm-1.382 6h2.764L13 11.236 11.618 14z" clipRule="evenodd" />
-                      </svg>
-                      English Analysis
-                    </h3>
-                    <span className="bg-blue-100 text-blue-800 text-xs font-semibold px-3 py-1 rounded-full">Original</span>
-                  </div>
-                  
-                  <div className="space-y-6">
-                    {/* Actions Card */}
-                    <div className="action-card bg-blue-50 border border-blue-100 rounded-xl p-5">
-                      <div className="flex items-center gap-3 mb-2">
-                        <div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center">
-                          <svg className="w-5 h-5 text-blue-600" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
-                            <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
-                          </svg>
-                        </div>
-                        <h4 className="font-bold text-gray-800 text-lg">ACTIONS</h4>
-                      </div>
-                      <ul className="space-y-2 ml-3">
-                        <li className="flex items-start gap-2">
-                          <svg className="w-5 h-5 text-green-500 mt-0.5" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
-                            <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                          </svg>
-                          <span>Submit final project via online portal</span>
-                        </li>
-                        <li className="flex items-start gap-2">
-                          <svg className="w-5 h-5 text-green-500 mt-0.5" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
-                            <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                          </svg>
-                          <span>Attend mandatory project presentation</span>
-                        </li>
-                      </ul>
-                    </div>
-                    
-                    {/* Deadlines Card */}
-                    <div className="action-card bg-amber-50 border border-amber-100 rounded-xl p-5">
-                      <div className="flex items-center gap-3 mb-2">
-                        <div className="w-10 h-10 rounded-full bg-amber-100 flex items-center justify-center">
-                          <svg className="w-5 h-5 text-amber-600" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
-                            <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.415-1.415L11 9.586V6z" clipRule="evenodd" />
-                          </svg>
-                        </div>
-                        <h4 className="font-bold text-gray-800 text-lg">DEADLINES</h4>
-                      </div>
-                      <ul className="space-y-2 ml-3">
-                        <li className="flex items-start gap-2">
-                          <svg className="w-5 h-5 text-red-500 mt-0.5" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
-                            <path fillRule="evenodd" d="M6 2a1 1 0 00-1 1v1H4a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2h-1V3a1 1 0 10-2 0v1H7V3a1 1 0 00-1-1zm0 5a1 1 0 000 2h8a1 1 0 100-2H6z" clipRule="evenodd" />
-                          </svg>
-                          <span><strong>Today:</strong> Project presentation at 10:00 AM</span>
-                        </li>
-                        <li className="flex items-start gap-2">
-                          <svg className="w-5 h-5 text-amber-500 mt-0.5" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
-                            <path fillRule="evenodd" d="M6 2a1 1 0 00-1 1v1H4a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2h-1V3a1 1 0 10-2 0v1H7V3a1 1 0 00-1-1zm0 5a1 1 0 000 2h8a1 1 0 100-2H6z" clipRule="evenodd" />
-                          </svg>
-                          <span><strong>Friday, Nov 24:</strong> Final project submission before 5:00 PM</span>
-                        </li>
-                      </ul>
-                    </div>
-                    
-                    {/* Urgency Card */}
-                    <div className="action-card bg-red-50 border border-red-100 rounded-xl p-5">
-                      <div className="flex items-center gap-3 mb-2">
-                        <div className="w-10 h-10 rounded-full bg-red-100 flex items-center justify-center">
-                          <svg className="w-5 h-5 text-red-600" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
-                            <path d="M12.395 2.553a1 1 0 00-1.45-.385c-.345.23-.614.558-.822.88-.214.33-.403.713-.57 1.116-.334.804-.614 1.768-.84 2.734a31.365 31.365 0 00-.613 3.58 2.64 2.64 0 01-.945-1.067c-.328-.68-.398-1.534-.398-2.654A1 1 0 005.05 6.05 6.981 6.981 0 003 11a7 7 0 1011.95-4.95c-.592-.591-.98-.985-1.348-1.467-.363-.476-.724-1.063-1.207-2.03zM12.12 15.12A3 3 0 017 13s.879.5 2.5.5c0-1 .5-4 1.25-4.5.5 1 .786 1.293 1.371 1.879A2.99 2.99 0 0113 13a2.99 2.99 0 01-.879 2.121z" />
-                          </svg>
-                        </div>
-                        <h4 className="font-bold text-gray-800 text-lg">URGENCY LEVEL</h4>
-                      </div>
-                      <div className="ml-3">
-                        <div className="flex items-center gap-2 mb-2">
-                          <div className="w-4 h-4 rounded-full bg-red-500"></div>
-                          <span className="font-semibold text-red-700">Urgent</span>
-                        </div>
-                        <p className="text-gray-700">Project presentation is tomorrow, and late submission has penalties.</p>
-                      </div>
-                    </div>
-                    
-                    {/* Next Step Card */}
-                    <div className="action-card bg-green-50 border border-green-100 rounded-xl p-5">
-                      <div className="flex items-center gap-3 mb-2">
-                        <div className="w-10 h-10 rounded-full bg-green-100 flex items-center justify-center">
-                          <svg className="w-5 h-5 text-green-600" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
-                            <path fillRule="evenodd" d="M12 1.586l-4 4v12.828l4-4V1.586zM3.707 3.293A1 1 0 002 4v10a1 1 0 00.293.707L6 18.414V5.586L3.707 3.293zM17.707 5.293L14 1.586v12.828l2.293 2.293A1 1 0 0018 16V6a1 1 0 00-.293-.707z" clipRule="evenodd" />
-                          </svg>
-                        </div>
-                        <h4 className="font-bold text-gray-800 text-lg">NEXT STEP</h4>
-                      </div>
-                      <p className="ml-3 text-gray-800 font-medium">
-                        &quot;Your next step is to prepare for tomorrow&apos;s presentation and submit your final project before Friday.&quot;
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              </div>
-              
-              {/* Tagalog Output */}
-              <div className="lg:w-1/2">
-                <div className="bg-white rounded-2xl shadow-lg p-6 h-full border-2 border-blue-200">
-                  <div className="flex justify-between items-center mb-6">
-                    <h3 className="text-xl font-bold text-gray-800 flex items-center gap-2">
-                      <div className="tagalog-flag w-8 h-6 rounded flex items-center justify-center text-xs font-bold">PH</div>
-                      Tagalog Translation
-                    </h3>
-                    <button className="bg-gradient-to-r from-blue-500 to-purple-500 text-white font-medium px-4 py-2 rounded-lg flex items-center gap-2">
-                      <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
-                        <path fillRule="evenodd" d="M4 2a1 1 0 011 1v2.101a7.002 7.002 0 0111.601 2.566 1 1 0 11-1.885.666A5.002 5.002 0 005.999 7H9a1 1 0 010 2H4a1 1 0 01-1-1V3a1 1 0 011-1zm.008 9.057a1 1 0 011.276.61A5.002 5.002 0 0014.001 13H11a1 1 0 110-2h5a1 1 0 011 1v5a1 1 0 11-2 0v-2.101a7.002 7.002 0 01-11.601-2.566 1 1 0 01.61-1.276z" clipRule="evenodd" />
-                      </svg>
-                      Translate to Tagalog
-                    </button>
-                  </div>
-                  
-                  <div className="space-y-6">
-                    {/* Actions Card Tagalog */}
-                    <div className="action-card bg-blue-50 border border-blue-100 rounded-xl p-5">
-                      <div className="flex items-center gap-3 mb-2">
-                        <div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center">
-                          <svg className="w-5 h-5 text-blue-600" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
-                            <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
-                          </svg>
-                        </div>
-                        <h4 className="font-bold text-gray-800 text-lg">MGA KAILANGANG GAWIN</h4>
-                      </div>
-                      <ul className="space-y-2 ml-3">
-                        <li className="flex items-start gap-2">
-                          <svg className="w-5 h-5 text-green-500 mt-0.5" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
-                            <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                          </svg>
-                          <span>Isumite ang final project sa online portal</span>
-                        </li>
-                        <li className="flex items-start gap-2">
-                          <svg className="w-5 h-5 text-green-500 mt-0.5" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
-                            <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                          </svg>
-                          <span>Dumalo sa mandatoryong presentasyon ng proyekto</span>
-                        </li>
-                      </ul>
-                    </div>
-                    
-                    {/* Deadlines Card Tagalog */}
-                    <div className="action-card bg-amber-50 border border-amber-100 rounded-xl p-5">
-                      <div className="flex items-center gap-3 mb-2">
-                        <div className="w-10 h-10 rounded-full bg-amber-100 flex items-center justify-center">
-                          <svg className="w-5 h-5 text-amber-600" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
-                            <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.415-1.415L11 9.586V6z" clipRule="evenodd" />
-                          </svg>
-                        </div>
-                        <h4 className="font-bold text-gray-800 text-lg">MGA DEADLINE</h4>
-                      </div>
-                      <ul className="space-y-2 ml-3">
-                        <li className="flex items-start gap-2">
-                          <svg className="w-5 h-5 text-red-500 mt-0.5" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
-                            <path fillRule="evenodd" d="M6 2a1 1 0 00-1 1v1H4a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2h-1V3a1 1 0 10-2 0v1H7V3a1 1 0 00-1-1zm0 5a1 1 0 000 2h8a1 1 0 100-2H6z" clipRule="evenodd" />
-                          </svg>
-                          <span><strong>Ngayong araw:</strong> Presentasyon ng proyekto sa 10:00 AM</span>
-                        </li>
-                        <li className="flex items-start gap-2">
-                          <svg className="w-5 h-5 text-amber-500 mt-0.5" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
-                            <path fillRule="evenodd" d="M6 2a1 1 0 00-1 1v1H4a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2h-1V3a1 1 0 10-2 0v1H7V3a1 1 0 00-1-1zm0 5a1 1 0 000 2h8a1 1 0 100-2H6z" clipRule="evenodd" />
-                          </svg>
-                          <span><strong>Biyernes, Nob 24:</strong> Pagsusumite ng final project bago ang 5:00 PM</span>
-                        </li>
-                      </ul>
-                    </div>
-                    
-                    {/* Urgency Card Tagalog */}
-                    <div className="action-card bg-red-50 border border-red-100 rounded-xl p-5">
-                      <div className="flex items-center gap-3 mb-2">
-                        <div className="w-10 h-10 rounded-full bg-red-100 flex items-center justify-center">
-                          <svg className="w-5 h-5 text-red-600" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
-                            <path d="M12.395 2.553a1 1 0 00-1.45-.385c-.345.23-.614.558-.822.88-.214.33-.403.713-.57 1.116-.334.804-.614 1.768-.84 2.734a31.365 31.365 0 00-.613 3.58 2.64 2.64 0 01-.945-1.067c-.328-.68-.398-1.534-.398-2.654A1 1 0 005.05 6.05 6.981 6.981 0 003 11a7 7 0 1011.95-4.95c-.592-.591-.98-.985-1.348-1.467-.363-.476-.724-1.063-1.207-2.03zM12.12 15.12A3 3 0 017 13s.879.5 2.5.5c0-1 .5-4 1.25-4.5.5 1 .786 1.293 1.371 1.879A2.99 2.99 0 0113 13a2.99 2.99 0 01-.879 2.121z" />
-                          </svg>
-                        </div>
-                        <h4 className="font-bold text-gray-800 text-lg">ANTAS NG KAHALAGAHAN</h4>
-                      </div>
-                      <div className="ml-3">
-                        <div className="flex items-center gap-2 mb-2">
-                          <div className="w-4 h-4 rounded-full bg-red-500"></div>
-                          <span className="font-semibold text-red-700">Mahalaga</span>
-                        </div>
-                        <p className="text-gray-700">Ang presentasyon ng proyekto ay bukas, at may mga penalty ang late submission.</p>
-                      </div>
-                    </div>
-                    
-                    {/* Next Step Card Tagalog */}
-                    <div className="action-card bg-green-50 border border-green-100 rounded-xl p-5">
-                      <div className="flex items-center gap-3 mb-2">
-                        <div className="w-10 h-10 rounded-full bg-green-100 flex items-center justify-center">
-                          <svg className="w-5 h-5 text-green-600" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
-                            <path fillRule="evenodd" d="M12 1.586l-4 4v12.828l4-4V1.586zM3.707 3.293A1 1 0 002 4v10a1 1 0 00.293.707L6 18.414V5.586L3.707 3.293zM17.707 5.293L14 1.586v12.828l2.293 2.293A1 1 0 0018 16V6a1 1 0 00-.293-.707z" clipRule="evenodd" />
-                          </svg>
-                        </div>
-                        <h4 className="font-bold text-gray-800 text-lg">SUSUNOD NA HAKBANG</h4>
-                      </div>
-                      <p className="ml-3 text-gray-800 font-medium">
-                        &quot;Ang susunod mong hakbang ay maghanda para sa presentasyon bukas at isumite ang iyong final project bago ang Biyernes.&quot;
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
+          <HowItWorks />
           
           {/* Features Section */}
           <div id="features" className="mb-16">
@@ -471,12 +253,12 @@ export default function heroSection() {
           <div className="bg-gradient-to-r from-blue-600 to-purple-600 rounded-2xl shadow-xl p-8 md:p-10 text-center text-white mb-10">
             <h2 className="text-3xl font-bold mb-4">Stop guessing what to do next</h2>
             <p className="text-xl mb-8 opacity-90">Get clear actions from any confusing message in seconds</p>
-            <button className="bg-white text-blue-600 hover:bg-gray-100 font-bold text-lg px-10 py-4 rounded-xl transition flex items-center gap-3 mx-auto">
+            <a href="#main-input-area" className="bg-white w-[30%] text-center text-blue-600 hover:bg-gray-100 font-bold text-lg px-10 py-4 rounded-xl transition flex items-center gap-3 mx-auto">
               <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
                 <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z" clipRule="evenodd" />
               </svg>
               Start Analyzing Now
-            </button>
+            </a>
             <p className="mt-6 opacity-80 flex items-center justify-center gap-2">
               <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
                 <path fillRule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clipRule="evenodd" />

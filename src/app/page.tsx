@@ -7,6 +7,9 @@ import Footer from '../components/Footer';
 const inter = Inter({ subsets: ['latin'] });
 
 export const metadata = {
+  verification: {
+    google: 'uvUB7etXYP6BqtpgFi6CMlca1qlL7V6RMLVWn3HzO8M',
+  },
   title: 'What Should I Do - AI-Powered Task & Deadline Analyzer',
   description:
     'Upload text or files to automatically extract actionable items, detect deadlines, classify urgency, highlight confusing parts, and get personalized recommendations. Instantly translate analysis to any language including Tagalog.',

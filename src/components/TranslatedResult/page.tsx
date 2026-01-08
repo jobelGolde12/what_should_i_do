@@ -18,6 +18,25 @@ const LANGUAGES = [
   { code: "tl", label: "Filipino" },
 ];
 
+const MAX_CHARS = 480; // safe buffer under 500
+
+function splitIntoChunks(text: string): string[] {
+  const chunks: string[] = [];
+  let current = "";
+
+  for (const sentence of text.split(/(?<=[.!?])\s+/)) {
+    if ((current + sentence).length > MAX_CHARS) {
+      chunks.push(current.trim());
+      current = sentence;
+    } else {
+      current += " " + sentence;
+    }
+  }
+
+  if (current.trim()) chunks.push(current.trim());
+  return chunks;
+}
+
 export default function TranslatedResult({ result }: Props) {
   const [language, setLanguage] = useState("en");
   const [translatedText, setTranslatedText] = useState(result.summary);
@@ -38,19 +57,27 @@ export default function TranslatedResult({ result }: Props) {
 
       try {
         const cleanText = result.summary.replace(/<[^>]*>/g, "");
-        const encoded = encodeURIComponent(cleanText);
+        const chunks = splitIntoChunks(cleanText);
 
-        const res = await fetch(
-          `https://api.mymemory.translated.net/get?q=${encoded}&langpair=en|${language}`
-        );
+        const translatedChunks: string[] = [];
 
-        const data = await res.json();
+        for (const chunk of chunks) {
+          const encoded = encodeURIComponent(chunk);
 
-        if (!data?.responseData?.translatedText) {
-          throw new Error("No translation returned");
+          const res = await fetch(
+            `https://api.mymemory.translated.net/get?q=${encoded}&langpair=en|${language}`
+          );
+
+          const data = await res.json();
+
+          if (!data?.responseData?.translatedText) {
+            throw new Error("No translation returned");
+          }
+
+          translatedChunks.push(data.responseData.translatedText);
         }
 
-        setTranslatedText(data.responseData.translatedText);
+        setTranslatedText(translatedChunks.join(" "));
       } catch (err) {
         console.error(err);
         setError("Translation failed. Please try again.");
@@ -85,7 +112,7 @@ export default function TranslatedResult({ result }: Props) {
               </option>
             ))}
           </select>
-          <ChevronDown className="absolute right-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-500 pointer-events-none" />
+          <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500 pointer-events-none" />
         </div>
       </div>
 
@@ -93,7 +120,7 @@ export default function TranslatedResult({ result }: Props) {
         <div className="mt-4 p-4 bg-white rounded-xl border border-gray-200 shadow-sm">
           {loading && (
             <div className="flex items-center justify-center py-8">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500" />
             </div>
           )}
 

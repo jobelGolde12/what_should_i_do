@@ -78,70 +78,82 @@ export default function heroSection() {
             
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {/* Feature 1 */}
-              <div className="bg-white rounded-2xl shadow-lg p-6 action-card">
-                <div className="w-14 h-14 rounded-xl bg-blue-100 flex items-center justify-center mb-4">
+               <div className="bg-white rounded-2xl shadow-lg p-6 action-card sm:flex sm:justify-center sm:items-center">
+                 <div className="w-14 h-14 rounded-xl bg-blue-100 flex items-center justify-center mb-4 sm:mb-0 sm:mr-4">
                   <svg className="w-8 h-8 text-blue-600" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
                     <path fillRule="evenodd" d="M11.3 1.046A1 1 0 0112 2v5h4a1 1 0 01.82 1.573l-7 10A1 1 0 018 18v-5H4a1 1 0 01-.82-1.573l7-10a1 1 0 011.12-.38z" clipRule="evenodd" />
                   </svg>
                 </div>
-                <h3 className="text-xl font-bold text-gray-800 mb-3">Action Extractor</h3>
-                <p className="text-gray-600">Detects verbs like submit, attend, pay, respond and turns them into clear action items.</p>
-              </div>
+                 <div>
+                   <h3 className="text-xl font-bold text-gray-800 mb-3">Action Extractor</h3>
+                   <p className="text-gray-600">Detects verbs like submit, attend, pay, respond and turns them into clear action items.</p>
+                 </div>
+               </div>
               
               {/* Feature 2 */}
-              <div className="bg-white rounded-2xl shadow-lg p-6 action-card">
-                <div className="w-14 h-14 rounded-xl bg-green-100 flex items-center justify-center mb-4">
+               <div className="bg-white rounded-2xl shadow-lg p-6 action-card sm:flex sm:justify-center sm:items-center">
+                 <div className="w-14 h-14 rounded-xl bg-green-100 flex items-center justify-center mb-4 sm:mb-0 sm:mr-4">
                   <svg className="w-8 h-8 text-green-600" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
                     <path fillRule="evenodd" d="M6 2a1 1 0 00-1 1v1H4a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2h-1V3a1 1 0 10-2 0v1H7V3a1 1 0 00-1-1zm0 5a1 1 0 000 2h8a1 1 0 100-2H6z" clipRule="evenodd" />
                   </svg>
                 </div>
-                <h3 className="text-xl font-bold text-gray-800 mb-3">Deadline Detector</h3>
-                <p className="text-gray-600">Converts &quot;by end of week&quot; → actual date with clear visual indicators.</p>
-              </div>
+                 <div>
+                   <h3 className="text-xl font-bold text-gray-800 mb-3">Deadline Detector</h3>
+                   <p className="text-gray-600">Converts &quot;by end of week&quot; → actual date with clear visual indicators.</p>
+                 </div>
+               </div>
               
               {/* Feature 3 */}
-              <div className="bg-white rounded-2xl shadow-lg p-6 action-card">
-                <div className="w-14 h-14 rounded-xl bg-red-100 flex items-center justify-center mb-4">
+               <div className="bg-white rounded-2xl shadow-lg p-6 action-card sm:flex sm:justify-center sm:items-center">
+                 <div className="w-14 h-14 rounded-xl bg-red-100 flex items-center justify-center mb-4 sm:mb-0 sm:mr-4">
                   <svg className="w-8 h-8 text-red-600" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
                     <path fillRule="evenodd" d="M12.395 2.553a1 1 0 00-1.45-.385c-.345.23-.614.558-.822.88-.214.33-.403.713-.57 1.116-.334.804-.614 1.768-.84 2.734a31.365 31.365 0 00-.613 3.58 2.64 2.64 0 01-.945-1.067c-.328-.68-.398-1.534-.398-2.654A1 1 0 005.05 6.05 6.981 6.981 0 003 11a7 7 0 1011.95-4.95c-.592-.591-.98-.985-1.348-1.467-.363-.476-.724-1.063-1.207-2.03zM12.12 15.12A3 3 0 017 13s.879.5 2.5.5c0-1 .5-4 1.25-4.5.5 1 .786 1.293 1.371 1.879A2.99 2.99 0 0113 13a2.99 2.99 0 01-.879 2.121z" clipRule="evenodd" />
                   </svg>
                 </div>
-                <h3 className="text-xl font-bold text-gray-800 mb-3">Urgency Classifier</h3>
-                <p className="text-gray-600">Visual color indicators (green/yellow/red) to show how urgent an action is.</p>
-              </div>
+                 <div>
+                   <h3 className="text-xl font-bold text-gray-800 mb-3">Urgency Classifier</h3>
+                   <p className="text-gray-600">Visual color indicators (green/yellow/red) to show how urgent an action is.</p>
+                 </div>
+               </div>
               
               {/* Feature 4 */}
-              <div className="bg-white rounded-2xl shadow-lg p-6 action-card">
-                <div className="w-14 h-14 rounded-xl bg-purple-100 flex items-center justify-center mb-4">
+               <div className="bg-white rounded-2xl shadow-lg p-6 action-card sm:flex sm:justify-center sm:items-center">
+                 <div className="w-14 h-14 rounded-xl bg-purple-100 flex items-center justify-center mb-4 sm:mb-0 sm:mr-4">
                   <svg className="w-8 h-8 text-purple-600" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
                     <path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z" />
                   </svg>
                 </div>
-                <h3 className="text-xl font-bold text-gray-800 mb-3">Confusion Highlighter</h3>
-                <p className="text-gray-600">Marks sentences that cause misunderstanding and explains them in simple words.</p>
-              </div>
+                 <div>
+                   <h3 className="text-xl font-bold text-gray-800 mb-3">Confusion Highlighter</h3>
+                   <p className="text-gray-600">Marks sentences that cause misunderstanding and explains them in simple words.</p>
+                 </div>
+               </div>
               
               {/* Feature 5 */}
-              <div className="bg-white rounded-2xl shadow-lg p-6 action-card">
-                <div className="w-14 h-14 rounded-xl bg-amber-100 flex items-center justify-center mb-4">
+               <div className="bg-white rounded-2xl shadow-lg p-6 action-card sm:flex sm:justify-center sm:items-center">
+                 <div className="w-14 h-14 rounded-xl bg-amber-100 flex items-center justify-center mb-4 sm:mb-0 sm:mr-4">
                   <svg className="w-8 h-8 text-amber-600" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
                     <path fillRule="evenodd" d="M12.395 2.553a1 1 0 00-1.45-.385c-.345.23-.614.558-.822.88-.214.33-.403.713-.57 1.116-.334.804-.614 1.768-.84 2.734a31.365 31.365 0 00-.613 3.58 2.64 2.64 0 01-.945-1.067c-.328-.68-.398-1.534-.398-2.654A1 1 0 005.05 6.05 6.981 6.981 0 003 11a7 7 0 1011.95-4.95c-.592-.591-.98-.985-1.348-1.467-.363-.476-.724-1.063-1.207-2.03zM12.12 15.12A3 3 0 017 13s.879.5 2.5.5c0-1 .5-4 1.25-4.5.5 1 .786 1.293 1.371 1.879A2.99 2.99 0 0113 13a2.99 2.99 0 01-.879 2.121z" clipRule="evenodd" />
                   </svg>
                 </div>
-                <h3 className="text-xl font-bold text-gray-800 mb-3">One-Sentence Guidance</h3>
-                <p className="text-gray-600">&quot;If you do only one thing, do this.&quot; Clear next step recommendation.</p>
-              </div>
+                 <div>
+                   <h3 className="text-xl font-bold text-gray-800 mb-3">One-Sentence Guidance</h3>
+                   <p className="text-gray-600">&quot;If you do only one thing, do this.&quot; Clear next step recommendation.</p>
+                 </div>
+               </div>
               
               {/* Feature 6 */}
-              <div className="bg-white rounded-2xl shadow-lg p-6 action-card">
-                <div className="w-14 h-14 rounded-xl bg-indigo-100 flex items-center justify-center mb-4">
+               <div className="bg-white rounded-2xl shadow-lg p-6 action-card sm:flex sm:justify-center sm:items-center">
+                 <div className="w-14 h-14 rounded-xl bg-indigo-100 flex items-center justify-center mb-4 sm:mb-0 sm:mr-4">
                   <svg className="w-8 h-8 text-indigo-600" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
                     <path fillRule="evenodd" d="M7 2a1 1 0 011 1v1h3a1 1 0 110 2H9.578a18.87 18.87 0 01-1.724 4.78c.29.354.596.696.914 1.026a1 1 0 11-1.44 1.389c-.188-.196-.373-.396-.554-.6a19.098 19.098 0 01-3.107 3.567 1 1 0 01-1.334-1.49 17.087 17.087 0 003.13-3.733 18.992 18.992 0 01-1.487-2.494 1 1 0 111.79-.89c.234.47.489.928.764 1.372.417-.934.752-1.913.997-2.927H3a1 1 0 110-2h3V3a1 1 0 011-1zm6 6a1 1 0 01.894.553l2.991 5.982a.869.869 0 01.02.037l.99 1.98a1 1 0 11-1.79.895L15.383 16h-4.764l-.724 1.447a1 1 0 11-1.788-.894l.99-1.98.019-.038 2.99-5.982A1 1 0 0113 8zm-1.382 6h2.764L13 11.236 11.618 14z" clipRule="evenodd" />
                   </svg>
                 </div>
-                <h3 className="text-xl font-bold text-gray-800 mb-3">Tagalog Translation</h3>
-                <p className="text-gray-600">One-click translation of the analyzed results into Tagalog for Filipino users.</p>
-              </div>
+                 <div>
+                   <h3 className="text-xl font-bold text-gray-800 mb-3">Tagalog Translation</h3>
+                   <p className="text-gray-600">One-click translation of the analyzed results into Tagalog for Filipino users.</p>
+                 </div>
+               </div>
             </div>
           </div>
           

@@ -8,7 +8,8 @@ export default function HowItWorks() {
       <div className="flex flex-col gap-8">
         {/* English Output */}
         <div className="w-[90%] mx-auto">
-          <div className="bg-white rounded-2xl shadow-lg p-6 h-full">
+          <div className="bg-white rounded-2xl shadow-lg p-6 h-full sm:flex sm:justify-center sm:items-center">
+            <div>
             <h3 className="text-xl font-bold text-gray-800 mb-6">
               English Analysis
             </h3>
@@ -60,16 +61,18 @@ export default function HowItWorks() {
                   <p className="text-sm text-gray-700">
                     Immediate action is required due to tight deadlines and an upcoming presentation.
                   </p>
-                </div>
               </div>
             </div>
+            </div>
           </div>
+        </div>
         </div>
 
         {/* Tagalog Summary Translation */}
 
         <div className="w-[90%] mx-auto">
-                <div className="bg-white rounded-2xl shadow-lg p-6 h-full border-2 border-blue-200">
+                <div className="bg-white rounded-2xl shadow-lg p-6 h-full border-2 border-blue-200 sm:flex sm:justify-center sm:items-center">
+                  <div>
                   <div className="flex justify-between items-center mb-6">
                     <h3 className="text-xl font-bold text-gray-800 flex items-center gap-2">
                       Translate to any Language
@@ -92,7 +95,8 @@ export default function HowItWorks() {
                             Kinakailangan ang agarang aksyon dahil sa nalalapit na presentasyon at mahigpit na mga deadline.
                         </p>
                         </div>
-                   
+                    
+                  </div>
                   </div>
                 </div>
               </div>

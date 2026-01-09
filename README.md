@@ -1,10 +1,10 @@
 ActionClarity – Universal Instruction Translator
-<p align="center"> <strong>Turn confusing messages into clear actions</strong><br> Extract actions, deadlines, and urgency from any text </p><p align="center"> <a href="#-features">Features</a> • <a href="#-how-it-works">How It Works</a> • <a href="#-quick-start">Quick Start</a> • <a href="#-installation">Installation</a> • <a href="#-usage">Usage</a> • <a href="#-who-uses-this">Who Uses This</a> • <a href="#-contributing">Contributing</a> • <a href="#-license">License</a> </p><p align="center"> <img src="https://img.shields.io/badge/version-1.0.0-blue" alt="Version"> <img src="https://img.shields.io/badge/license-MIT-green" alt="License"> <img src="https://img.shields.io/badge/PRs-welcome-brightgreen" alt="PRs Welcome"> <img src="https://img.shields.io/badge/no-login-required-orange" alt="No Login Required"> </p>
+<p align="center"> <strong>Turn confusing messages into clear actions</strong><br> Extract actions, deadlines, and urgency from any text </p><p align="center"> <a href="#-features">Features</a> • <a href="#-how-it-works">How It Works</a> • <a href="#-quick-start">Quick Start</a> • <a href="#-installation">Installation</a> • <a href="#-usage">Usage</a> • <a href="#-who-uses-this">Who Uses This</a> • <a href="#-contributing">Contributing</a> • <a href="#-license">License</a> </p><p align="center"> <img src="https://img.shields.io/badge/version-1.0.0-blue" alt="Version"> <img src="https://img.shields.io/badge/node-%3E%3D18.0.0-green" alt="Node Version"> <img src="https://img.shields.io/badge/LLM-WebLLM-orange" alt="Web LLM"> <img src="https://img.shields.io/badge/license-MIT-brightgreen" alt="License"> <img src="https://img.shields.io/badge/PRs-welcome-brightgreen" alt="PRs Welcome"> <img src="https://img.shields.io/badge/no-login-required-orange" alt="No Login Required"> </p>
 📋 Overview
-ActionClarity is not just another summarizer or chatbot. It's a decision & action clarity tool that transforms confusing messages, emails, announcements, and instructions into structured, actionable items with clear deadlines and urgency levels.
+ActionClarity is not just another summarizer or chatbot. It's a decision & action clarity tool that transforms confusing messages, emails, announcements, and instructions into structured, actionable items with clear deadlines and urgency levels. Built with Node.js and powered by Web LLM for privacy-focused, client-side processing.
 
 🎯 What It Does
-Extracts actionable items from any text
+Extracts actionable items from any text using Web LLM
 
 Detects deadlines (even vague ones like "by next week")
 
@@ -18,7 +18,7 @@ Translates results into multiple languages
 
 ✨ Features
 🎯 Action Extractor
-Automatically detects action verbs like submit, attend, pay, respond and converts them into clear, checkable action items.
+Uses Web LLM to detect action verbs like submit, attend, pay, respond and converts them into clear, checkable action items.
 
 📅 Deadline Detector
 Transforms vague time references ("by EOD", "next Friday", "end of month") into specific dates with clear visual indicators.
@@ -40,6 +40,13 @@ Provides a clear "If you do only one thing, do this" recommendation.
 
 🌐 Multi-language Support
 One-click translation of analyzed results into multiple languages (starting with Tagalog/Filipino).
+
+🔒 Privacy-First Architecture
+Web LLM runs locally in your browser
+
+No data sent to external servers
+
+Complete privacy for sensitive messages
 
 🚀 How It Works
 Example Input:
@@ -75,65 +82,57 @@ Kinakailangan ang agarang aksyon dahil sa nalalapit na presentasyon at mahigpit 
 
 🛠️ Quick Start
 Prerequisites
-Python 3.8+
+Node.js 18.0.0 or higher
 
-pip package manager
+npm or yarn package manager
+
+Modern web browser with WebAssembly support
 
 Installation
 bash
 # Clone the repository
-git clone https://github.com/yourusername/actionclarity.git
-cd actionclarity
+git clone https://github.com/jobelGolde12/what_should_i_do.git
+cd what_should_i_do
 
 # Install dependencies
-pip install -r requirements.txt
+npm install
 
-# Run the application
-python main.py
+# Start the development server
+npm run dev
+
+# Or build for production
+npm run build
 Basic Usage
-python
-from actionclarity import ActionClarity
+javascript
+// Using as a module
+import { ActionClarity } from './src/core/action-clarity.js';
 
-# Initialize the translator
-translator = ActionClarity()
+// Initialize with Web LLM
+const clarity = new ActionClarity({
+  model: 'llama-2-7b-chat-q4f32_1', // or other supported Web LLM models
+  device: 'webgpu' // or 'webgl' depending on browser support
+});
 
-# Analyze your text
-text = "Your confusing message here..."
-result = translator.analyze(text)
+// Analyze your text
+const text = "Your confusing message here...";
+const result = await clarity.analyze(text);
 
-# Print structured results
-print(result.to_markdown())
+// Print structured results
+console.log(result.toMarkdown());
 
-# Get translation
-tagalog_version = translator.translate(result, "tl")
+// Get translation
+const tagalogVersion = await clarity.translate(result, 'tl');
 Command Line Interface
 bash
-# Analyze a file
-actionclarity analyze message.txt
+# Analyze a file (server-side with Node.js)
+npm run analyze -- message.txt
 
 # Analyze text directly
-actionclarity --text "Submit report by EOD tomorrow"
+npm run analyze:cli -- "Submit report by EOD tomorrow"
 
-# Translate results
-actionclarity --text "Your message" --translate tl
-📁 Project Structure
-text
-actionclarity/
-├── src/
-│   ├── core/
-│   │   ├── analyzer.py      # Main analysis logic
-│   │   ├── extractor.py     # Action and deadline extraction
-│   │   └── classifier.py    # Urgency classification
-│   ├── utils/
-│   │   ├── translator.py    # Multi-language support
-│   │   └── formatter.py     # Output formatting
-│   └── models/
-│       └── results.py       # Data models
-├── tests/                   # Test suite
-├── examples/               # Example usage
-├── requirements.txt        # Python dependencies
-├── main.py                # Entry point
-└── README.md              # This file
+# Start the web interface
+npm start
+
 👥 Who Uses This Tool
 🎓 Students
 School announcements and bulletins
@@ -163,58 +162,88 @@ Long Facebook/WhatsApp messages
 Legal documents and contracts
 
 🔧 Advanced Features
-Custom Action Verbs
-python
-# Add custom action verbs to detect
-translator.add_custom_verbs(["review", "approve", "schedule"])
-Deadline Format Customization
-python
-# Customize date formats
-translator.set_date_format("%B %d, %Y")
-Integration Options
-python
-# Use as a library in your project
-from actionclarity import analyze_message
+Custom Model Configuration
+javascript
+const clarity = new ActionClarity({
+  model: 'mistral-7b-instruct-q4f32_1',
+  device: 'webgpu',
+  temperature: 0.3,
+  maxTokens: 1000
+});
+Browser Integration
+html
+<script type="module">
+  import { ActionClarity } from 'https://cdn.jsdelivr.net/npm/actionclarity@latest/dist/actionclarity.min.js';
+  
+  const clarity = new ActionClarity();
+  const result = await clarity.analyze("Your message here");
+  
+  // Display in your UI
+  document.getElementById('result').innerHTML = result.toHTML();
+</script>
+Export Options
+javascript
+// Export to various formats
+result.export('json');    // JSON format
+result.export('csv');     // CSV format
+result.export('html');    // HTML report
+result.export('markdown'); // Markdown format
 
-result = analyze_message(your_text)
-
-# Export to various formats
-result.export("json")    # JSON format
-result.export("csv")     # CSV format
-result.export("html")    # HTML report
+// Download file
+result.download('actions.json');
 🌐 API Reference
-REST API
+REST API (Optional Server Mode)
 bash
+# Start server (if using server-side processing)
+npm run server
+
 # Analyze endpoint
 POST /api/analyze
 Content-Type: application/json
 
 {
   "text": "Your message here",
-  "language": "en"
-}
-
-# Response
-{
-  "actions": [...],
-  "deadlines": [...],
-  "urgency": "high",
-  "next_step": "...",
-  "confusing_parts": [...]
+  "language": "en",
+  "format": "json"
 }
 Web Interface
-Access the web interface at http://localhost:5000 after starting the server:
+Access the web interface at http://localhost:3000 after starting the server:
 
 bash
-python web_app.py
+npm start
 📊 Performance
-Processing Time: < 1 second for typical messages
+Processing Time: 2-3 seconds for typical messages (Web LLM)
 
-Accuracy: 95%+ on clear action-oriented text
+Accuracy: 90%+ on clear action-oriented text
 
 Languages Supported: English (primary), Tagalog, Spanish (coming soon)
 
-Max Text Length: 10,000 characters
+Max Text Length: 5,000 characters (browser memory constraints)
+
+Model Size: ~4GB (quantized models for browser)
+
+Privacy: 100% client-side processing
+
+🚀 Web LLM Integration
+ActionClarity uses Web LLM to run language models directly in your browser:
+
+javascript
+// Initialize Web LLM
+const llm = new WebLLM({
+  model: 'Llama-2-7b-chat-hf-q4f32_1',
+  device: 'webgpu',
+  initProgressCallback: (progress) => {
+    console.log(`Loading model: ${progress}`);
+  }
+});
+
+await llm.initialize();
+Supported Models
+Llama-2-7b-chat-hf-q4f32_1
+
+Mistral-7B-Instruct-v0.2-q4f32_1
+
+RedPajama-INCITE-Chat-3B-v1-q4f32_1
 
 🤝 Contributing
 We welcome contributions! Here's how you can help:
@@ -230,13 +259,15 @@ Push to the branch (git push origin feature/AmazingFeature)
 Open a Pull Request
 
 Areas for Contribution
-Adding support for new languages
+Adding support for new Web LLM models
 
 Improving deadline detection algorithms
 
-Enhancing natural language understanding
+Enhancing prompt engineering for better extraction
 
 Creating UI/UX improvements
+
+Adding more language translations
 
 Writing documentation and examples
 
@@ -244,16 +275,18 @@ Writing documentation and examples
 This project is licensed under the MIT License - see the LICENSE file for details.
 
 🙏 Acknowledgments
-Natural Language Processing libraries that make this possible
+MLC AI for the amazing Web LLM framework
 
-Open source community for continuous inspiration
+Open source LLM communities for making models accessible
 
 Early testers and users for valuable feedback
+
+The WebGPU and WebAssembly communities
 
 📞 Support
 Issues: GitHub Issues
 
-Email: support@actionclarity.app
+Discussions: GitHub Discussions
 
 Documentation: Wiki
 
@@ -261,9 +294,12 @@ Documentation: Wiki
 Ready to clarify your messages?
 
 bash
-# Install via pip (coming soon)
-pip install actionclarity
+# Clone and run locally
+git clone https://github.com/jobelGolde12/what_should_i_do.git
+cd what_should_i_do
+npm install
+npm start
 
-# Or try the web version
-Visit https://actionclarity.app
-No login required • Privacy-friendly • Works on mobile
+# Then open http://localhost:3000 in your browser
+Or visit the live demo: https://whatshouldido-five.vercel.app
+

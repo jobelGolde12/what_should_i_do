@@ -10,7 +10,7 @@ export default function Dashboard() {
           <p className="text-gray-600 mb-6">
             Analyze your text and files to extract actionable items, detect deadlines, and get personalized recommendations.
           </p>
-          
+
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {/* Quick Stats */}
             <div className="bg-blue-50 rounded-lg p-4 border border-blue-200">
@@ -18,13 +18,13 @@ export default function Dashboard() {
               <div className="text-blue-900 font-medium">Tasks Analyzed</div>
               <div className="text-blue-700 text-sm mt-1">This month</div>
             </div>
-            
+
             <div className="bg-green-50 rounded-lg p-4 border border-green-200">
               <div className="text-green-600 text-2xl font-bold mb-2">0</div>
               <div className="text-green-900 font-medium">Deadlines Found</div>
               <div className="text-green-700 text-sm mt-1">This month</div>
             </div>
-            
+
             <div className="bg-purple-50 rounded-lg p-4 border border-purple-200">
               <div className="text-purple-600 text-2xl font-bold mb-2">0</div>
               <div className="text-purple-900 font-medium">Files Processed</div>
@@ -38,7 +38,7 @@ export default function Dashboard() {
           <h3 className="text-lg font-semibold text-gray-900 mb-4">Quick Actions</h3>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <a
-              href="/dashboard/analyze"
+              href="/text-analyzer"
               className="flex items-center p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition"
             >
               <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center mr-4">
@@ -51,7 +51,7 @@ export default function Dashboard() {
                 <div className="text-sm text-gray-500">Upload or paste text to analyze</div>
               </div>
             </a>
-            
+
             <a
               href="/dashboard/history"
               className="flex items-center p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition"

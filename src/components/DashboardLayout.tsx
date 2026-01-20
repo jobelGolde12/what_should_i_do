@@ -3,7 +3,6 @@
 import { useState } from 'react';
 import Image from 'next/image';
 import { Home, FileText, BarChart3, Settings, User, Bell, Menu, X } from 'lucide-react';
-import { AdContainer, NewsletterSignup, adUnits } from './AdsManager';
 
 interface SidebarItem {
   id: string;
@@ -14,16 +13,10 @@ interface SidebarItem {
 
 const sidebarItems: SidebarItem[] = [
   {
-    id: 'dashboard',
-    label: 'Dashboard',
-    icon: <Home size={20} />,
-    href: '/dashboard'
-  },
-  {
     id: 'analyze',
     label: 'Analyze Text',
     icon: <FileText size={20} />,
-    href: '/dashboard/analyze'
+    href: '/dashboard'
   },
   {
     id: 'history',
@@ -51,12 +44,12 @@ interface DashboardLayoutProps {
 
 export default function DashboardLayout({ children }: DashboardLayoutProps) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [activeItem, setActiveItem] = useState('dashboard');
+  const [activeItem, setActiveItem] = useState('analyze');
 
   return (
-    <div className="min-h-screen bg-gray-50 flex">
-      {/* Sidebar */}
-      <div className={`${sidebarOpen ? 'translate-x-0' : '-translate-x-full'} lg:translate-x-0 fixed lg:static inset-y-0 left-0 z-50 w-64 bg-white shadow-lg transition-transform duration-300 ease-in-out`}>
+     <div className="h-screen bg-gray-50 flex overflow-hidden">
+       {/* Sidebar */}
+       <div className={`${sidebarOpen ? 'translate-x-0' : '-translate-x-full'} lg:translate-x-0 fixed lg:static inset-y-0 left-0 z-50 w-64 bg-white shadow-lg transition-transform duration-300 ease-in-out`}>
         <div className="flex flex-col h-full">
           {/* Header */}
           <div className="p-4 border-b border-gray-200">
@@ -116,8 +109,8 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
         </div>
       </div>
 
-      {/* Main Content Area */}
-      <div className="flex-1 lg:ml-0">
+       {/* Main Content Area */}
+       <div className="flex-1 lg:ml-0 flex flex-col overflow-hidden">
         {/* Mobile Header */}
         <div className="lg:hidden bg-white shadow-sm p-4 flex items-center justify-between">
           <button
@@ -130,40 +123,68 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
           <div className="w-10"></div>
         </div>
 
-        {/* Desktop Header */}
-        <div className="hidden lg:block bg-white shadow-sm p-4 border-b border-gray-200">
-          <div className="flex items-center justify-between">
-            <h1 className="text-2xl font-bold text-gray-900">Dashboard</h1>
-            <div className="flex items-center space-x-4">
-              <button className="p-2 hover:bg-gray-100 rounded-lg">
-                <Bell size={20} />
-              </button>
-              <div className="w-10 h-10 bg-blue-600 rounded-full flex items-center justify-center text-white font-medium">
-                U
-              </div>
-            </div>
-          </div>
-        </div>
+         {/* Desktop Header */}
+         <div className="hidden lg:block bg-white shadow-sm p-4 border-b border-gray-200">
+           <div className="flex items-center justify-between">
+             <h1 className="text-2xl font-bold text-gray-900">Dashboard</h1>
+             <div className="flex items-center space-x-4">
+               <button className="p-2 hover:bg-gray-100 rounded-lg">
+                 <Bell size={20} />
+               </button>
+             </div>
+           </div>
+         </div>
 
-        {/* Main Content with Ads Container */}
-        <div className="flex">
-          {/* Page Content */}
-          <main className="flex-1 p-4 lg:p-6">
-            {children}
-          </main>
+         {/* Main Content with Ads Container */}
+         <div className="flex flex-1 overflow-hidden">
+           {/* Page Content */}
+           <main className="flex-1 p-4 lg:p-6 overflow-y-auto">
+             {children}
+           </main>
 
-          {/* Ads Container - Desktop Only */}
-          <aside className="hidden xl:block w-80 p-6">
-            <div className="sticky top-6 space-y-6">
-              {/* AdSense Ads */}
-              <AdContainer adUnit={adUnits[0]} />
-              <AdContainer adUnit={adUnits[1]} />
-              
-              {/* Newsletter Signup */}
-              <NewsletterSignup />
-            </div>
-          </aside>
-        </div>
+           {/* Ads Container - Desktop Only */}
+           <aside className="hidden xl:block w-80 p-6">
+             <div className="sticky top-6 space-y-6">
+               {/* Ad Space 1 */}
+               <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
+                 <div className="text-center text-gray-500 text-sm font-medium mb-2">Advertisement</div>
+                 <div className="bg-gray-100 rounded-lg h-64 flex items-center justify-center">
+                   <div className="text-gray-400 text-center">
+                     <p className="text-sm">Ad Space 300x250</p>
+                     <p className="text-xs mt-1">Google AdSense</p>
+                   </div>
+                 </div>
+               </div>
+
+               {/* Ad Space 2 */}
+               <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
+                 <div className="text-center text-gray-500 text-sm font-medium mb-2">Sponsored</div>
+                 <div className="bg-gray-100 rounded-lg h-48 flex items-center justify-center">
+                   <div className="text-gray-400 text-center">
+                     <p className="text-sm">Ad Space 300x200</p>
+                     <p className="text-xs mt-1">Custom Ad</p>
+                   </div>
+                 </div>
+               </div>
+
+               {/* Newsletter Signup */}
+               <div className="bg-blue-50 rounded-lg p-4 border border-blue-200">
+                 <h3 className="font-medium text-blue-900 mb-2">Stay Updated</h3>
+                 <p className="text-sm text-blue-700 mb-3">Get productivity tips and updates</p>
+                 <div className="space-y-2">
+                   <input
+                     type="email"
+                     placeholder="Enter your email"
+                     className="w-full px-3 py-2 border border-blue-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                   />
+                   <button className="w-full bg-blue-600 text-white py-2 rounded-lg text-sm font-medium hover:bg-blue-700 transition">
+                     Subscribe
+                   </button>
+                 </div>
+               </div>
+             </div>
+           </aside>
+         </div>
       </div>
 
       {/* Mobile Sidebar Overlay */}

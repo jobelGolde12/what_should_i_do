@@ -61,6 +61,14 @@ export const metadata = {
 export default function Home() {
   return (
     <>
+      {/* Google AdSense Script */}
+      <Script
+        async
+        src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js"
+        crossOrigin="anonymous"
+        strategy="afterInteractive"
+      />
+      
       {/* Structured Data: WebApplication */}
       <Script
         id="webapp-schema"

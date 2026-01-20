@@ -6,6 +6,7 @@ import mammoth from "mammoth";
 import Tesseract from "tesseract.js";
 import TranslatedResult from "../TranslatedResult/page";
 import ConfusingParts from "../ConfusingParts/page";
+import AdsContainer from "../AdsContainer/page";
 
 export default function MainInputArea() {
   const [text, setText] = useState("");
@@ -246,6 +247,9 @@ export default function MainInputArea() {
           </div>
         </div>
       </div>
+
+      {/* Ads Container - shows only when results are available */}
+      <AdsContainer showAd={!!result} />
 
       {result && (
         <div className="bg-white rounded-xl shadow-lg p-6 space-y-6">

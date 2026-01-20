@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { pipeline } from '@xenova/transformers';
+import { pipeline, SummarizationPipeline, SummarizationOutput } from '@xenova/transformers';
 
-// Simple cache variable with explicit type
-let summarizerCache: any = null;
+// Simple cache variable
+let summarizerCache: SummarizationPipeline | null = null;
 
 export async function POST(request: NextRequest) {
   try {
@@ -28,14 +28,12 @@ export async function POST(request: NextRequest) {
       max_length: Math.min(max_length, 150),
       min_length: Math.min(min_length, 50),
       do_sample: false,
-    });
+    }) as SummarizationOutput;
 
     // Extract summary safely
     let summary: string;
-    if (Array.isArray(result) && result[0]?.summary_text) {
+    if (Array.isArray(result) && result.length > 0 && result[0].summary_text) {
       summary = result[0].summary_text;
-    } else if (result?.summary_text) {
-      summary = result.summary_text;
     } else {
       summary = 'Could not generate summary';
     }
@@ -45,9 +43,10 @@ export async function POST(request: NextRequest) {
       model: 'distilbart-cnn-12-6',
     });
     
-  } catch (error: any) {
+  } catch (error: unknown) {
+    const errorMessage = error instanceof Error ? error.message : 'Summarization failed';
     return NextResponse.json(
-      { error: error.message || 'Summarization failed' },
+      { error: errorMessage },
       { status: 500 }
     );
   }

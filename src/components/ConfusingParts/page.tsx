@@ -42,7 +42,7 @@ export default function ConfusingParts({ data }: ConfusingPartsProps) {
             key={i}
             className="p-4 bg-yellow-50 rounded-lg border border-yellow-100"
           >
-            <p className="italic text-gray-700">"{c.sentence}"</p>
+            <p className="italic text-gray-700">&ldquo;{c.sentence}&rdquo;</p>
             <p className="mt-2 text-sm text-gray-600 pl-4 border-l-2 border-yellow-300">
               {c.explanation}
             </p>

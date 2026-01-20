@@ -27,9 +27,16 @@ export default function MainInputArea() {
     if (!finalText.trim()) return;
 
     setLoading(true);
-    const res = await analyzeText(finalText);
-    setResult(res);
-    setLoading(false);
+    try {
+      const res = await analyzeText(finalText);
+      setResult(res);
+    } catch (error) {
+      console.error('Analysis failed:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      alert(`Analysis failed: ${errorMessage}`);
+    } finally {
+      setLoading(false);
+    }
   }
 
   async function handleFileUpload(file: File) {
@@ -46,6 +53,12 @@ export default function MainInputArea() {
       // PDF (FIXED)
       else if (file.type === "application/pdf") {
         const pdfjsLib = await import("pdfjs-dist");
+        type TextItem = {
+          str: string;
+        };
+        type TextMarkedContent = {
+          type: string;
+        };
 
         pdfjsLib.GlobalWorkerOptions.workerSrc =
           `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.js`;
@@ -59,7 +72,7 @@ export default function MainInputArea() {
 
           extractedText +=
             content.items
-              .map((item: any) => item.str)
+              .map((item: TextItem | TextMarkedContent) => 'str' in item ? item.str : '')
               .join(" ") + "\n";
         }
       }

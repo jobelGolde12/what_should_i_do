@@ -1,3 +1,4 @@
+import Image from 'next/image';
 
 export default function Header() {
   return (
@@ -6,7 +7,7 @@ export default function Header() {
           <div className="flex justify-between items-center">
             <div className="flex items-center space-x-2">
               <div className="w-8 h-9 flex items-center justify-center">
-                <img src="favicon.ico" alt="Icon" className="rounded-full"/>
+                <Image src="/favicon.ico" alt="Icon" width={32} height={32} className="rounded-full"/>
               </div>
               <span className="text-xl font-bold text-gray-800">What Should I Do?</span>
             </div>

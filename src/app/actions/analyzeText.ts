@@ -1,6 +1,7 @@
 "use server";
 
-import { CreateMLCEngine, MLCEngine } from "@mlc-ai/web-llm";
+import { openRouterAPI } from "@/lib/openrouter";
+import { createError, ERROR_CODES, getErrorMessage, AnalysisError } from "@/lib/errors";
 
 /* =========================================================
    TYPES
@@ -34,8 +35,8 @@ const DEADLINE_REGEX =
   /\b(today|tomorrow|until lifted|effective\s+\d{1,2}:\d{2}|\bnovember\s+\d{1,2},\s*\d{4})\b/i;
 
 /* =========================================================
-   TEXT CLEANING (OCR + LETTERHEAD SAFE)
-========================================================= */
+   TEXT CLEANING AND NORMALIZATION (ENHANCED)
+ ========================================================= */
 function cleanText(text: string): string {
   return text
     .replace(/\n+/g, " ")
@@ -46,73 +47,101 @@ function cleanText(text: string): string {
     .replace(/email:.*?\s/gi, "")
     .replace(/s&f office memorandum no\..*?series of \d{4}/gi, "")
     .replace(/\b[A-Z]{2,}\s*&\s*[A-Z]{2,}\b/g, "")
+    .replace(/\b\d{1,2}:\d{2}\s*(?:am|pm|a\.m\.|p\.m\.)\b/gi, "")
+    .replace(/\b(?:monday|tuesday|wednesday|thursday|friday|saturday|sunday)\b/gi, "")
+    .replace(/\b(?:jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*\s*\d{1,2},?\s*\d{4}\b/gi, "")
     .trim();
 }
 
 /* =========================================================
-   WEB LLM (MLC) SETUP
-========================================================= */
-let engine: MLCEngine | null = null;
-
-async function getWebLLMEngine(): Promise<MLCEngine> {
-  if (!engine) {
-    engine = await CreateMLCEngine("Llama-3-8B-Instruct-q4f32_1");
-  }
-  return engine;
-}
-
-/* =========================================================
-   WEB LLM ANALYSIS (PRIMARY)
-========================================================= */
-async function analyzeWithWebLLM(input: string): Promise<AnalysisResult> {
-  const systemPrompt = `You analyze official government announcements.
-
-Return ONLY valid JSON with:
-actions, deadlines, urgency, confusingParts, nextStep, summary.
-
-The summary must be concise, decision-focused, and free of headers.`;
-
-  const engine = await getWebLLMEngine();
-
-  const response = await engine.chat.completions.create({
-    messages: [
-      { role: "system", content: systemPrompt },
-      { role: "user", content: input }
-    ],
-    temperature: 0.1,
-    max_tokens: 900,
-  });
-
-  const content = response.choices?.[0]?.message?.content;
-  if (!content) throw new Error("Empty WebLLM response");
-
-  const parsed = JSON.parse(content);
-
-  return {
-    actions: Array.isArray(parsed.actions) ? parsed.actions : [],
-    deadlines: Array.isArray(parsed.deadlines) ? parsed.deadlines : [],
-    urgency: ["Urgent", "Important", "Informational"].includes(parsed.urgency)
-      ? parsed.urgency
-      : "Informational",
-    confusingParts: Array.isArray(parsed.confusingParts) ? parsed.confusingParts : [],
-    nextStep: typeof parsed.nextStep === "string" ? parsed.nextStep : "No action specified",
-    summary: highlightImportantPhrases(
-      typeof parsed.summary === "string" ? parsed.summary : ""
-    ),
+   INPUT ENHANCEMENT FOR MESSY TEXT
+ ========================================================= */
+function enhanceInput(input: string): string {
+  let enhanced = input;
+  
+  // Fix common OCR errors
+  const ocrFixes: { [key: string]: string } = {
+    'c1asses': 'classes',
+    'dass': 'class',
+    'rn': 'm',
+    'cl': 'd',
+    't0': 'to',
+    't0day': 'today',
+    't0m0rr0w': 'tomorrow',
+    'immediatly': 'immediately',
+    'asap': 'as soon as possible',
+    'w/': 'with',
+    'b/c': 'because',
+    'w/o': 'without',
+    'tl;dr': 'in summary',
+    'pls': 'please',
+    'plz': 'please',
+    'u': 'you',
+    'ur': 'your',
+    'r': 'are',
+    'dont': "don't",
+    'wont': "won't",
+    'cant': "can't",
+    'im': "i'm",
+    'ive': "i've",
+    'id': "i'd",
   };
+  
+  for (const [wrong, correct] of Object.entries(ocrFixes)) {
+    enhanced = enhanced.replace(new RegExp(`\\b${wrong}\\b`, 'gi'), correct);
+  }
+  
+  // Normalize punctuation and spacing
+  enhanced = enhanced
+    .replace(/\s*[.,;:!?]+\s*/g, '. ')
+    .replace(/\s+/g, ' ')
+    .replace(/\.+\s*\.+/g, '.')
+    .trim();
+  
+  // Add context if the input is extremely short or unclear
+  if (enhanced.length < 30) {
+    enhanced += " (Please analyze this brief message for any actions, deadlines, or urgency)";
+  }
+  
+  return enhanced;
 }
 
 /* =========================================================
-   RULE-BASED FALLBACK (HARDENED)
-========================================================= */
+   OPENROUTER ANALYSIS (PRIMARY)
+ ========================================================= */
+async function analyzeWithOpenRouter(input: string): Promise<AnalysisResult> {
+  try {
+    const result = await openRouterAPI.analyzeText(input);
+    
+    return {
+      actions: Array.isArray(result.actions) ? result.actions : [],
+      deadlines: Array.isArray(result.deadlines) ? result.deadlines : [],
+      urgency: ["Urgent", "Important", "Informational"].includes(result.urgency as string)
+        ? (result.urgency as "Urgent" | "Important" | "Informational")
+        : "Informational",
+      confusingParts: Array.isArray(result.confusingParts) ? result.confusingParts : [],
+      nextStep: typeof result.nextStep === "string" ? result.nextStep : "No action specified",
+      summary: highlightImportantPhrases(typeof result.summary === "string" ? result.summary : "")
+    };
+  } catch (error: unknown) {
+    const errorMessage = getErrorMessage(error);
+    const isRetryable = error instanceof Error && 'retryable' in error ? (error as AnalysisError).retryable : false;
+    throw createError(`OpenRouter analysis failed: ${errorMessage}`, 'UNKNOWN_ERROR', isRetryable);
+  }
+}
+
+/* =========================================================
+   RULE-BASED FALLBACK (ENHANCED FOR MESSY INPUT)
+ ========================================================= */
 function analyzeWithRules(input: string): AnalysisResult {
   const cleaned = cleanText(input);
+  const enhanced = enhanceInput(cleaned);
 
-  const sentences = cleaned
+  const sentences = enhanced
     .split(/(?<=[.!?])\s+/)
     .map(s => s.trim())
     .filter(s =>
-      s.length > 40 &&
+      s.length > 20 &&
       !/^(to|from|re|date)\s*:/i.test(s) &&
       !s.toLowerCase().includes("office of the") &&
       !s.toLowerCase().includes("memorandum")
@@ -259,28 +288,38 @@ function highlightImportantPhrases(text: string): string {
 }
 
 /* =========================================================
-   MAIN ANALYSIS FUNCTION
-========================================================= */
+   MAIN ANALYSIS FUNCTION (ENHANCED)
+ ========================================================= */
 export async function analyzeText(input: string): Promise<AnalysisResult> {
   const cleaned = cleanText(input);
-  if (cleaned.length < 10) throw new Error("Text too short");
-
-  if (cleaned.length > 200) {
-    try {
-      return await analyzeWithWebLLM(cleaned);
-    } catch {
-      return analyzeWithRules(cleaned);
-    }
+  const enhanced = enhanceInput(cleaned);
+  
+  if (enhanced.length < 10) {
+    throw createError("Text too short - please provide more content", 'INPUT_TOO_SHORT');
   }
 
-  return analyzeWithRules(cleaned);
+  // Try OpenRouter first for better understanding of messy/ambiguous input
+  try {
+    return await analyzeWithOpenRouter(enhanced);
+  } catch (error: unknown) {
+    const errorMessage = getErrorMessage(error);
+    console.warn('OpenRouter failed, falling back to rules:', errorMessage);
+    
+    if (error instanceof AnalysisError && error.code === ERROR_CODES.ALL_KEYS_EXHAUSTED) {
+      throw error;
+    }
+    
+    return analyzeWithRules(enhanced);
+  }
 }
 
 /* =========================================================
    FAST MODE
 ========================================================= */
 export async function analyzeTextFast(input: string): Promise<AnalysisResult> {
-  return analyzeWithRules(cleanText(input));
+  const cleaned = cleanText(input);
+  const enhanced = enhanceInput(cleaned);
+  return analyzeWithRules(enhanced);
 }
 
 /* =========================================================
@@ -294,8 +333,12 @@ export async function analyzeTextsBatch(
   for (const text of texts) {
     try {
       results.push(await analyzeText(text));
-    } catch {
-      results.push(analyzeWithRules(text));
+    } catch (error: unknown) {
+      const errorMessage = getErrorMessage(error);
+      console.warn('Failed to analyze text:', errorMessage);
+      const cleaned = cleanText(text);
+      const enhanced = enhanceInput(cleaned);
+      results.push(analyzeWithRules(enhanced));
     }
   }
 

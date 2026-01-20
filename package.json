@@ -16,6 +16,7 @@
     "node-summarizer": "^1.0.7",
     "pdfjs-dist": "^5.4.530",
     "react": "^18.2.0",
+    "react-cookie-consent": "^10.0.1",
     "react-dom": "^18.2.0",
     "tesseract.js": "^7.0.0"
   },

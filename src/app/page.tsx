@@ -10,11 +10,11 @@ export const metadata = {
   verification: {
     google: 'uvUB7etXYP6BqtpgFi6CMlca1qlL7V6RMLVWn3HzO8M',
   },
-  title: 'What Should I Do - AI-Powered Task & Deadline Analyzer',
+  title: 'TaskMind - AI-Powered Task & Deadline Analyzer',
   description:
     'Upload text or files to automatically extract actionable items, detect deadlines, classify urgency, highlight confusing parts, and get personalized recommendations. Instantly translate analysis to any language including Tagalog.',
 
-  applicationName: 'What Should I Do',
+  applicationName: 'TaskMind',
 
   robots: {
     index: true,
@@ -29,7 +29,7 @@ export const metadata = {
   openGraph: {
     type: 'website',
     url: 'https://whatshouldido.app/',
-    title: 'What Should I Do - AI-Powered Task & Deadline Analyzer',
+    title: 'TaskMind - AI-Powered Task & Deadline Analyzer',
     description:
       'Transform your text/files into clear action plans with AI analysis. Get deadlines, urgency levels, and translations instantly.',
     images: [
@@ -45,7 +45,7 @@ export const metadata = {
 
   twitter: {
     card: 'summary_large_image',
-    title: 'What Should I Do - AI-Powered Task & Deadline Analyzer',
+    title: 'TaskMind - AI-Powered Task & Deadline Analyzer',
     description:
       'Upload text or files to automatically extract actionable items, detect deadlines, classify urgency, and get translations.',
     images: ['https://whatshouldido.app/twitter-image.png'],
@@ -78,7 +78,7 @@ export default function Home() {
           __html: JSON.stringify({
             '@context': 'https://schema.org',
             '@type': 'WebApplication',
-            name: 'What Should I Do',
+              name: 'TaskMind',
             url: 'https://whatshouldido.app/',
             description:
               'AI-powered tool that analyzes text and documents to extract actionable tasks, detect deadlines, and provide urgency classifications with multilingual support.',
@@ -99,7 +99,7 @@ export default function Home() {
             ],
             author: {
               '@type': 'Organization',
-              name: 'What Should I Do',
+            name: 'TaskMind',
             },
           }),
         }}

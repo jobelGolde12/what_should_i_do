@@ -72,7 +72,7 @@ class OpenRouterAPI {
           'Authorization': `Bearer ${apiKey}`,
           'Content-Type': 'application/json',
           'HTTP-Referer': process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000',
-          'X-Title': 'What Should I Do - Text Analysis',
+          'X-Title': 'TaskMind - Text Analysis',
         },
         body: JSON.stringify({
           model: this.MODEL,

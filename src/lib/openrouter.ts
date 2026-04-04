@@ -121,28 +121,37 @@ class OpenRouterAPI {
 
     const normalizedInput = this.normalizeInput(input);
     
-    const systemPrompt = `You analyze official government announcements and confusing messages.
+    const systemPrompt = `You analyze any type of message - official announcements, lost & found notices, meeting invitations, instructions, or confusing communications.
 
-Your task:
-1. Interpret messy, incomplete, or poorly structured input
-2. Handle ambiguous, confusing, or mixed-intent messages
-3. Work with grammar issues, shorthand, or informal language
-4. Normalize and restructure into clear intent
-5. Infer missing context when reasonable
-6. Explicitly clarify assumptions before generating response
+Your task is to extract key information and provide a clear summary:
+1. Identify the TYPE of message (announcement, lost item, meeting, instruction, etc.)
+2. Interpret the intent even if the message is humorous, vague, or poorly written
+3. Extract actionable items regardless of how they're phrased
+4. Identify deadlines, times, and dates
+5. Determine urgency appropriately - lost items are NOT urgent unless stated
+6. Summarize what happened and what action to take (if any)
 
 Return ONLY valid JSON with these exact fields:
 {
-  "actions": ["array of specific actions required"],
-  "deadlines": ["array of deadlines or timeframes"],
+  "actions": ["array of specific actions required - empty if none"],
+  "deadlines": ["array of deadlines or timeframes - empty if none"],
   "urgency": "Urgent" | "Important" | "Informational",
   "confusingParts": [{"sentence": "confusing text", "explanation": "why it's confusing"}],
-  "nextStep": "clear next action statement",
-  "summary": "concise, decision-focused summary"
+  "nextStep": "clear next action statement or 'No action required' if none",
+  "summary": "2-3 sentence concise summary that answers: What happened? What should I do? When?"
 }
 
-The summary must be concise, decision-focused, and free of headers.
-Assume official announcement context when unclear.`;
+CRITICAL RULES FOR URGENCY:
+- Lost item notices = "Informational" (not urgent)
+- Meeting invitations = "Informational" or "Important"
+- Only "Urgent" for actual emergencies, deadlines within 24h, safety alerts
+- Default to "Informational" if unclear
+
+The summary is MANDATORY and must be:
+- Concise (under 100 characters if possible)
+- Decision-focused (answers what action to take)
+- Free of headers, bullet points, or formatting
+- In plain sentences, not lists`;
 
     const messages: OpenRouterMessage[] = [
       { role: 'system', content: systemPrompt },
@@ -201,6 +210,12 @@ Assume official announcement context when unclear.`;
   }
 
   private validateAndNormalizeResponse(response: Record<string, unknown>): Record<string, unknown> {
+    const summary = typeof response.summary === "string" ? response.summary : "";
+    
+    if (!summary || summary.length < 10) {
+      console.warn("OpenRouter response missing or has weak summary, will use fallback summary logic");
+    }
+
     return {
       actions: Array.isArray(response.actions) ? response.actions : [],
       deadlines: Array.isArray(response.deadlines) ? response.deadlines : [],
@@ -209,7 +224,7 @@ Assume official announcement context when unclear.`;
         : "Informational",
       confusingParts: Array.isArray(response.confusingParts) ? response.confusingParts : [],
       nextStep: typeof response.nextStep === "string" ? response.nextStep : "No action specified",
-      summary: typeof response.summary === "string" ? response.summary : ""
+      summary: summary || ""
     };
   }
 

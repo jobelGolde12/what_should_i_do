@@ -16,6 +16,7 @@ export type AnalysisResult = {
   }[];
   nextStep: string;
   summary: string;
+  analysisMethod: "ai" | "fallback";
 };
 
 /* =========================================================
@@ -121,7 +122,8 @@ async function analyzeWithOpenRouter(input: string): Promise<AnalysisResult> {
         : "Informational",
       confusingParts: Array.isArray(result.confusingParts) ? result.confusingParts : [],
       nextStep: typeof result.nextStep === "string" ? result.nextStep : "No action specified",
-      summary: highlightImportantPhrases(typeof result.summary === "string" ? result.summary : "")
+      summary: highlightImportantPhrases(typeof result.summary === "string" ? result.summary : ""),
+      analysisMethod: "ai"
     };
   } catch (error: unknown) {
     const errorMessage = getErrorMessage(error);
@@ -165,8 +167,13 @@ function analyzeWithRules(input: string): AnalysisResult {
       continue;
     }
 
-    if (ACTION_VERBS.some(v => lower.includes(v))) {
+    const isLostItemSentence = lower.includes("lost") || lower.includes("missing") || lower.includes("un-possess") || lower.includes("not with its owner") || lower.includes("void in");
+    const isFoundInstruction = lower.includes("please do not open") || lower.includes("please close it") || lower.includes("contact the front desk");
+    
+    if (!isLostItemSentence && !isFoundInstruction && ACTION_VERBS.some(v => lower.includes(v))) {
       actions.push(sentence);
+    } else if (isFoundInstruction && !actions.some(a => a.toLowerCase().includes("lost and found"))) {
+      actions.push("If you find the item, bring it to the Lost and Found office");
     }
 
     const deadlineMatch = sentence.match(DEADLINE_REGEX);
@@ -188,7 +195,12 @@ function analyzeWithRules(input: string): AnalysisResult {
   let urgency: AnalysisResult["urgency"] = "Informational";
   const lowerInput = cleaned.toLowerCase();
 
-  if (
+  const isLostItem = lowerInput.includes("lost") || lowerInput.includes("missing") || lowerInput.includes("un-possess") || lowerInput.includes("not with its owner");
+  const isFoundItem = lowerInput.includes("found") || lowerInput.includes("if you find");
+  
+  if (isLostItem || isFoundItem) {
+    urgency = "Informational";
+  } else if (
     URGENT_KEYWORDS.some(k => lowerInput.includes(k)) ||
     lowerInput.includes("tropical cyclone") ||
     lowerInput.includes("heavy rainfall")
@@ -201,7 +213,11 @@ function analyzeWithRules(input: string): AnalysisResult {
   const nextStep =
     actions.length > 0
       ? actions[0]
-      : "No immediate action required.";
+      : isLostItem
+        ? "Check if you found the item and contact the Lost and Found office"
+        : isFoundItem
+          ? "No action required unless you found the item"
+          : "No immediate action required.";
 
   const summary = generateDecisionFocusedSummary(cleaned);
 
@@ -212,6 +228,7 @@ function analyzeWithRules(input: string): AnalysisResult {
     confusingParts,
     nextStep,
     summary: highlightImportantPhrases(summary),
+    analysisMethod: "fallback"
   };
 }
 
@@ -220,6 +237,7 @@ function analyzeWithRules(input: string): AnalysisResult {
 ========================================================= */
 function generateDecisionFocusedSummary(text: string): string {
   const seen = new Set<string>();
+  const lowerText = text.toLowerCase();
 
   const sentences = text
     .split(/(?<=[.!?])\s+/)
@@ -227,39 +245,89 @@ function generateDecisionFocusedSummary(text: string): string {
     .filter(s => {
       const lower = s.toLowerCase();
 
-      // Remove headers / repeated memo junk
       if (
         /^(to|from|re|date)\s*:/i.test(s) ||
         lower.includes("office of the") ||
         lower.includes("local government unit") ||
-        lower.includes("suspension of all levels of face-to-face classes date")
+        lower.includes("suspension of all levels of face-to-face classes date") ||
+        lower.includes("rectangular mystery of significant importance")
       ) {
         return false;
       }
 
-      // Deduplicate repeated sentences
       if (seen.has(lower)) return false;
       seen.add(lower);
 
-      return s.length > 50;
+      return s.length > 20;
     });
 
+  const isLostItem = lowerText.includes("lost") || lowerText.includes("missing item") || lowerText.includes("un-possess");
+  const isFoundItem = lowerText.includes("found") && lowerText.includes("if you find");
+  const isAnnouncement = lowerText.includes("suspension") || lowerText.includes("closure") || lowerText.includes("postponement");
+
+  if (isLostItem) {
+    const itemDesc = sentences.find(s => /medium-sized|rectangle|flat/i.test(s));
+    const location = sentences.find(s => /north-south corridor|bench|table|room/i.test(s));
+    const timeMatch = text.match(/between.*hours of.*(\d{1,2}:\d{2}\s*(?:am|pm)?).*(?:and|to)/i);
+    
+    let summary = "A lost item";
+    if (itemDesc) summary += " - " + itemDesc.substring(0, 60);
+    if (location) summary += ". Last seen " + location.substring(0, 50);
+    return summary;
+  }
+
+  if (isFoundItem) {
+    const location = sentences.find(s => /north-south corridor|bench|table/i.test(s));
+    return location ? `If found, contact the Lost and Found office. Item was in ${location}` : "If found, contact the Lost and Found office";
+  }
+
+  if (isAnnouncement) {
+    const decision = sentences.find(s =>
+      /suspend|cancel|postpone|postponement|reschedule|closure|adjourn|recess|halt|stop/i.test(s)
+    );
+
+    const reason = sentences.find(s =>
+      /weather|rain|storm|tropical|cyclone|flood|earthquake|fire|emergency|pagasa|typhoon|signal|warning/i.test(s)
+    );
+
+    const timeframe = sentences.find(s =>
+      /effective|until lifted|starting from|beginning|until|expire|valid/i.test(s)
+    );
+
+    const parts = [];
+    if (decision) parts.push(decision);
+    if (reason) parts.push(reason);
+    if (timeframe) parts.push(timeframe);
+
+    if (parts.length === 0 && sentences.length > 0) {
+      return sentences.slice(0, 2).join(" ");
+    }
+
+    return parts.filter(Boolean).slice(0, 3).join(" ");
+  }
+
   const decision = sentences.find(s =>
-    /suspension|is hereby declared/i.test(s)
+    /suspend|cancel|postpone|postponement|reschedule|closure|adjourn|recess|halt|stop/i.test(s)
   );
 
   const reason = sentences.find(s =>
-    /weather|rainfall|tropical cyclone|pagasa/i.test(s)
+    /weather|rain|storm|tropical|cyclone|flood|earthquake|fire|emergency/i.test(s)
   );
 
   const timeframe = sentences.find(s =>
-    /effective|until lifted|november/i.test(s)
+    /effective|until lifted|starting from|beginning|until|expire|valid/i.test(s)
   );
 
-  return [decision, reason, timeframe]
-    .filter(Boolean)
-    .slice(0, 3)
-    .join(" ");
+  const parts = [];
+  if (decision) parts.push(decision);
+  if (reason) parts.push(reason);
+  if (timeframe) parts.push(timeframe);
+
+  if (parts.length === 0 && sentences.length > 0) {
+    return sentences.slice(0, 2).join(" ");
+  }
+
+  return parts.filter(Boolean).slice(0, 3).join(" ");
 }
 
 

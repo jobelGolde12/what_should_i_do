@@ -1,69 +1,42 @@
-You are an AI engineer tasked with refactoring and improving an existing project.
+The AI response is not well accurate, This is the sample input:
 
-Primary Objectives
+## **LOST: A Rectangular Mystery of Significant Importance**
 
-Replace WebLLM Completely
+**Date:** April 3, 2026
+**To:** The Student Body (specifically those who were present where they were)
+**Subject:** Concerning the Absence of a Present Object
 
-Remove WebLLM and all related logic, dependencies, and configurations from the project.
+Attention, everyone. It has come to the administration's attention that a student has managed to un-possess an item of great personal value, which was last seen exactly where it was before it wasn't.
 
-Ensure the application uses only the OpenRouter API for all LLM interactions.
+If you have encountered a **medium-sized, somewhat heavy (but deceptively light) object** that appears to be a shade of "Industrial Dusk" or perhaps "Muted Midnight," please come forward. It is shaped like a rectangle, provided you look at it from the right angle; otherwise, it may appear quite flat.
 
-OpenRouter API Integration with Fallback Logic
+### **Distinguishing Features:**
+* **The Surface:** It feels smooth to the touch, except for the parts that are slightly textured.
+* **The Sound:** When dropped, it makes a noise similar to a "thud," but more intellectual.
+* **Unique Mark:** There is a small, silver-ish logo on the back that looks like a bird if you squint, or a very stylized letter 'Q' if you turn it upside down and close one eye.
+* **Current State:** It is currently not with its owner, which is its most defining characteristic at this time.
 
-The project already contains three OpenRouter API keys stored in the .env file:
+### **Last Known Coordinates:**
+The item was last seen in the **North-South Corridor**, likely near the bench that faces the wall, or perhaps on the table that used to be in the other room. It was definitely there between the hours of **10:15 AM** and **whenever it was noticed to be gone**.
 
-OPENROUTER_API_KEY1
+---
 
-OPENROUTER_API_KEY2
+> **Note:** If you find this object, please do not open it, as it does not open. However, if it is already open, please close it before bringing it to the Lost and Found office.
 
-OPENROUTER_API_KEY3
+If you believe you have found this specific void in the student’s backpack, please contact the front desk immediately. The owner is very attached to its presence and is currently struggling with its absence.
 
-Implement a robust API key rotation mechanism with the following behavior:
+**Reward:** The eternal gratitude of a very confused peer and a lukewarm high-five.
 
-Attempt requests using OPENROUTER_API_KEY1.
+And this is the output:
 
-If the request fails due to credit exhaustion, rate limits, authentication errors, or network failures, automatically retry using OPENROUTER_API_KEY2.
+Urgency:Urgent
+Actions:
+please close it before bringing it to the Lost and Found office.
+Deadlines:
+No deadline mentioned
+Next Step:
+please close it before bringing it to the Lost and Found office.
 
-If the second key fails, retry with OPENROUTER_API_KEY3.
-
-Gracefully handle the case where all keys fail by returning a clear and user-friendly error message.
-
-Ensure the retry logic avoids infinite loops and logs which key failed and why (without exposing secrets).
-
-Improved Analysis and Understanding Logic
-
-Enhance the AI’s analysis pipeline so it can reliably interpret:
-
-Messy, incomplete, or poorly structured user input
-
-Ambiguous, confusing, or mixed-intent messages
-
-Inputs with grammar issues, shorthand, or informal language
-
-The AI should:
-
-Normalize and restructure the input into a clear, understandable intent
-
-Infer missing context when reasonable
-
-Explicitly clarify assumptions in the analysis before generating a response
-
-Ensure the final output meets the original user requirements as accurately as possible
-
-Reliability and Quality Guarantees
-
-Validate user requirements during analysis before generating a final answer.
-
-If requirements conflict or are unclear, resolve them logically instead of failing silently.
-
-Prioritize correctness, stability, and graceful error handling over speed.
-
-Expected Outcome
-
-The project fully relies on OpenRouter API with automatic API key fallback.
-
-WebLLM is fully removed.
-
-The AI produces clear, structured, and accurate responses, even when user input is confusing or poorly written.
-
-The system is production-ready, maintainable, and resilient to API failures.
+Summary
+Basic Analysis
+A Rectangular Mystery of Significant Importance** **Date. ** The Student Body (specifically those who were present where they were) **Subject.

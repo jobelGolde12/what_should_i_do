@@ -12,6 +12,7 @@ export default function MainInputArea() {
   const [text, setText] = useState("");
   const [result, setResult] = useState<AnalysisResult | null>(null);
   const [loading, setLoading] = useState(false);
+  const [regenerating, setRegenerating] = useState(false);
   const [uploadedFileName, setUploadedFileName] = useState<string | null>(null);
 
   const handleClearAll = () => {
@@ -255,15 +256,46 @@ export default function MainInputArea() {
         <div className="bg-white rounded-xl shadow-lg p-6 space-y-6">
           <div className="flex items-center justify-between border-b pb-4">
             <h3 className="text-xl font-bold text-gray-800">Analysis Results</h3>
-            <button
-              onClick={() => setResult(null)}
-              className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
-            >
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
-              </svg>
-              Close results
-            </button>
+            <div className="flex items-center gap-2">
+              {result.analysisMethod === "fallback" && (
+                <button
+                  onClick={async () => {
+                    if (regenerating || !text.trim()) return;
+                    setRegenerating(true);
+                    try {
+                      const res = await analyzeText(text);
+                      setResult(res);
+                    } catch (error) {
+                      console.error('Regenerate failed:', error);
+                    } finally {
+                      setRegenerating(false);
+                    }
+                  }}
+                  disabled={regenerating || !text.trim()}
+                  className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-blue-600 hover:text-blue-700 hover:bg-blue-50 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {regenerating ? (
+                    <svg className="w-4 h-4 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                    </svg>
+                  ) : (
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                    </svg>
+                  )}
+                  {regenerating ? "Regenerating..." : "Retry AI"}
+                </button>
+              )}
+              <button
+                onClick={() => setResult(null)}
+                className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+                Close results
+              </button>
+            </div>
           </div>
           
           <div className="space-y-4">
@@ -308,7 +340,18 @@ export default function MainInputArea() {
             </div>
 
             <div className="p-4 bg-green-50 rounded-lg border border-green-100">
-              <strong className="text-green-700">Summary:</strong>
+              <div className="flex items-center justify-between mb-2">
+                <strong className="text-green-700">Summary</strong>
+                {result.analysisMethod === "ai" ? (
+                  <span className="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full font-medium">
+                    AI Analysis
+                  </span>
+                ) : (
+                  <span className="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full font-medium">
+                    Basic Analysis
+                  </span>
+                )}
+              </div>
               <div
                 className="mt-2 text-gray-800 leading-relaxed prose max-w-none"
                 dangerouslySetInnerHTML={{ __html: result.summary }}

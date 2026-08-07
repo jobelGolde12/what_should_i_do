@@ -1,4 +1,6 @@
 
+import Image from 'next/image';
+
 export default function Footer() {
     return (
         <footer className="bg-gray-900 text-white py-8">
@@ -7,9 +9,15 @@ export default function Footer() {
             <div className="mb-6 md:mb-0">
               <div className="flex items-center space-x-2 mb-4">
                 <div className=" flex items-center justify-center">
-                  <img src="favicon.ico" alt="Logo" className="w-8 h-8 rounded-full" />
+                  <Image
+                    src="/favicon.ico"
+                    alt="TaskMind"
+                    width={32}
+                    height={32}
+                    className=""
+                  />
                 </div>
-                <span className="text-xl font-bold">What Should I Do?</span>
+<span className="text-xl font-bold">TaskMind</span>
               </div>
               <p className="text-gray-400">Clear actions from confusing messages.</p>
             </div>

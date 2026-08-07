@@ -7,9 +7,9 @@ export default function Header() {
           <div className="flex justify-between items-center">
             <div className="flex items-center space-x-2">
               <div className="w-8 h-9 flex items-center justify-center">
-                <Image src="/favicon.ico" alt="Icon" width={32} height={32} className="rounded-full"/>
+                <Image src="/favicon.ico" alt="TaskMind" width={32} height={32} className="" />
               </div>
-              <span className="text-xl font-bold text-gray-800">What Should I Do?</span>
+<span className="text-xl font-bold text-gray-800">TaskMind</span>
             </div>
             <div className="flex space-x-4">
               <div className="flex gap-3 mt-2">

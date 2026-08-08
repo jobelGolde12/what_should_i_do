@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import {
   AD_CLIENT,
   AD_SLOT,
+  ADS_CONSENT_EVENT,
   hasAdsConfig,
   adsConsented,
   loadAdSenseScript,
@@ -21,6 +22,21 @@ function AdUnit({ className = "", id = "ad-unit" }: AdUnitProps) {
     () =>
       typeof window !== "undefined" && !("IntersectionObserver" in window)
   );
+  // Bumped whenever the visitor's consent changes so the unit re-evaluates
+  // (once consent is granted we can render + fill the real ad, and we stop if
+  // consent is revoked later).
+  const [consentTick, setConsentTick] = useState(0);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const onConsent = () => setConsentTick((t) => t + 1);
+    window.addEventListener(ADS_CONSENT_EVENT, onConsent);
+    window.addEventListener("storage", onConsent);
+    return () => {
+      window.removeEventListener(ADS_CONSENT_EVENT, onConsent);
+      window.removeEventListener("storage", onConsent);
+    };
+  }, []);
 
   useEffect(() => {
     const node = ref.current;
@@ -39,6 +55,8 @@ function AdUnit({ className = "", id = "ad-unit" }: AdUnitProps) {
   }, [visible]);
 
   const configReady = hasAdsConfig();
+  // Re-read on every render (including after a consent change) so the correct
+  // branch renders immediately when the visitor enables or revokes ads.
   const consented = adsConsented();
 
   // When visible and configured + consented, inject the loader lazily and
@@ -53,7 +71,9 @@ function AdUnit({ className = "", id = "ad-unit" }: AdUnitProps) {
       if (ins) pushAd(ins);
     }, 120);
     return () => clearTimeout(timer);
-  }, [visible, configReady, consented]);
+    // `consentTick` is included so the unit re-attempts fill (and stops)
+    // whenever the visitor's consent state changes.
+  }, [visible, configReady, consented, consentTick]);
 
   const label = (
     <p className="mb-2 font-mono text-xxs uppercase tracking-label text-muted">

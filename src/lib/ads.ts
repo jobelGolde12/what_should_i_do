@@ -9,6 +9,16 @@ declare global {
 export const AD_CLIENT = process.env.NEXT_PUBLIC_ADSENSE_CLIENT ?? "";
 export const AD_SLOT = process.env.NEXT_PUBLIC_ADSENSE_SLOT ?? "";
 
+/**
+ * Custom event name broadcast whenever the visitor's ad consent changes.
+ * Components that render ad units subscribe to this so they can re-evaluate
+ * and start loading ads the moment consent is granted (or stop if revoked).
+ */
+export const ADS_CONSENT_EVENT = "taskmind:ads-consent-changed";
+
+/** Storage key flag used to hide the consent banner after it is dismissed. */
+export const ADS_BANNER_DISMISSED_KEY = "taskmind:ads-banner-dismissed";
+
 export function hasAdsConfig(): boolean {
   return Boolean(AD_CLIENT && AD_SLOT);
 }

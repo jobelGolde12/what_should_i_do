@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useRef, useState, useEffect } from "react";
 import Link from "next/link";
 import {
   Monitor,
@@ -17,10 +17,17 @@ import {
   CloudDownload,
   LogIn,
   Loader2,
+  Megaphone,
 } from "lucide-react";
 import { useTheme } from "@/context/ThemeProvider";
 import { useAuth } from "@/context/AuthContext";
 import { useTask } from "@/context/TaskContext";
+import {
+  ADS_CONSENT_EVENT,
+  hasAdsConfig,
+  adsConsented,
+  setAdsConsent,
+} from "@/lib/ads";
 import type { ThemePreference } from "@/lib/types";
 import type { AnalysisRecord, Template, BoardItem } from "@/lib/types";
 import { downloadJson, readJsonFile } from "@/lib/backup";
@@ -83,6 +90,33 @@ export default function SettingsView() {
   const [importError, setImportError] = useState<string | null>(null);
   const [syncing, setSyncing] = useState<"push" | "pull" | null>(null);
   const [syncMessage, setSyncMessage] = useState<string | null>(null);
+  const [adsEnabled, setAdsEnabled] = useState(false);
+
+  // Keep the ad toggle in sync with the consent flag, which can be changed by
+  // the consent banner on any other page (or in another tab via "storage").
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const evaluate = () => setAdsEnabled(hasAdsConfig() && adsConsented());
+    const onAdsConsent = () => evaluate();
+    evaluate();
+    window.addEventListener(ADS_CONSENT_EVENT, onAdsConsent);
+    window.addEventListener("storage", onAdsConsent);
+    return () => {
+      window.removeEventListener(ADS_CONSENT_EVENT, onAdsConsent);
+      window.removeEventListener("storage", onAdsConsent);
+    };
+  }, []);
+
+  const adsConfigured = hasAdsConfig();
+
+  function toggleAds() {
+    const next = !adsEnabled;
+    setAdsConsent(next);
+    setAdsEnabled(next);
+    window.dispatchEvent(
+      new CustomEvent(ADS_CONSENT_EVENT, { detail: { consented: next } })
+    );
+  }
 
   const totalRecords = history.length + templates.length + board.length;
 
@@ -357,6 +391,56 @@ export default function SettingsView() {
             locally. Share links embed the result in the URL and are not
             encrypted. Cleared data cannot be recovered.
           </p>
+        </div>
+      </section>
+
+      <section className="mt-6 border border-line">
+        <div className="flex items-center gap-2 border-b border-line px-5 py-4">
+          <Megaphone className="h-4 w-4 text-muted" />
+          <h2 className="text-sm font-semibold text-ink">Advertising</h2>
+        </div>
+        <div className="px-5 py-4">
+          {adsConfigured ? (
+            <div className="flex items-center justify-between gap-4">
+              <div className="min-w-0 flex-1">
+                <p className="text-sm text-ink">
+                  Show ads to support the free tier
+                </p>
+                <p className="mt-1 text-xs leading-relaxed text-muted">
+                  Ads only load after you opt in; no ads are shown until you
+                  enable them. You can turn this off at any time.{" "}
+                  <Link href="/privacy" className="underline hover:text-ink">
+                    Privacy
+                  </Link>{" "}
+                  ·{" "}
+                  <Link href="/terms" className="underline hover:text-ink">
+                    Terms
+                  </Link>
+                </p>
+              </div>
+              <button
+                type="button"
+                role="switch"
+                aria-checked={adsEnabled}
+                aria-label="Ads enabled"
+                onClick={toggleAds}
+                className={`relative h-6 w-11 shrink-0 rounded-full transition-colors ${
+                  adsEnabled ? "bg-accent" : "bg-line"
+                }`}
+              >
+                <span
+                  className={`absolute top-0.5 h-5 w-5 rounded-full bg-white shadow transition-all ${
+                    adsEnabled ? "left-[22px]" : "left-0.5"
+                  }`}
+                />
+              </button>
+            </div>
+          ) : (
+            <p className="text-sm leading-relaxed text-muted">
+              Advertising has not been configured for this deployment
+              (missing AdSense credentials). No ad slots will render.
+            </p>
+          )}
         </div>
       </section>
 

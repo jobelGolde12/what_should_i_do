@@ -4,27 +4,23 @@ import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
-  LayoutDashboard,
-  SquareKanban,
-  History,
-  Folder,
-  Settings,
   PanelLeftClose,
   PanelLeftOpen,
   Zap,
+  LogIn,
+  LogOut,
+  UserRound,
+  Settings,
 } from "lucide-react";
 import Logo from "./Logo";
-
-const NAV_ITEMS = [
-  { name: "New Analysis", href: "/", icon: LayoutDashboard },
-  { name: "My Actions", href: "/actions", icon: SquareKanban },
-  { name: "History", href: "/history", icon: History },
-  { name: "Saved", href: "/saved", icon: Folder },
-];
+import { useAuth } from "@/context/AuthContext";
+import { NAV_ITEMS, isNavItemActive } from "@/lib/nav";
 
 export default function Sidebar() {
   const pathname = usePathname();
   const [collapsed, setCollapsed] = useState(false);
+  const { user, status, logout } = useAuth();
+  const loading = status === "loading";
 
   return (
     <aside
@@ -48,7 +44,7 @@ export default function Sidebar() {
           type="button"
           onClick={() => setCollapsed((v) => !v)}
           aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
-          className="rounded-[3px] p-1.5 text-muted transition-colors hover:bg-surface-2 hover:text-ink"
+          className="rounded-tm p-1.5 text-muted transition-colors hover:bg-surface-2 hover:text-ink"
         >
           {collapsed ? (
             <PanelLeftOpen className="h-4 w-4" />
@@ -60,17 +56,16 @@ export default function Sidebar() {
 
       <nav className="flex-1 space-y-0.5 overflow-y-auto p-2">
         {NAV_ITEMS.map((item) => {
-          const active =
-            item.href === "/"
-              ? pathname === "/"
-              : pathname.startsWith(item.href);
+          const active = isNavItemActive(item.href, pathname);
           const Icon = item.icon;
           return (
             <Link
               key={item.name}
               href={item.href}
+              aria-current={active ? "page" : undefined}
+              aria-label={collapsed ? item.name : undefined}
               title={collapsed ? item.name : undefined}
-              className={`group flex items-center gap-3 rounded-[3px] px-3 py-2.5 text-sm transition-colors ${
+              className={`group flex items-center gap-3 rounded-tm px-3 py-2.5 text-sm transition-colors ${
                 collapsed ? "justify-center" : ""
               } ${
                 active
@@ -91,8 +86,8 @@ export default function Sidebar() {
 
       <div className="border-t border-line p-3">
         {!collapsed && (
-          <div className="mb-3 rounded-[3px] border border-line bg-background p-3">
-            <p className="text-[11px] uppercase tracking-wide text-muted">
+          <div className="mb-3 rounded-tm border border-line bg-background p-3">
+            <p className="text-2xs uppercase tracking-wide text-muted">
               Workspace
             </p>
             <p className="mt-1 text-sm font-medium text-ink">Free plan</p>
@@ -105,10 +100,45 @@ export default function Sidebar() {
             </Link>
           </div>
         )}
+
+        {!loading &&
+          (user ? (
+            <div className="mb-3 flex items-center gap-2 rounded-tm border border-line bg-background p-3">
+              <UserRound className="h-4 w-4 shrink-0 text-muted" />
+              {!collapsed && (
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-sm font-medium text-ink">
+                    {user.email}
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => void logout()}
+                    className="mt-0.5 inline-flex items-center gap-1 text-xs text-muted hover:text-ink"
+                  >
+                    <LogOut className="h-3 w-3" /> Sign out
+                  </button>
+                </div>
+              )}
+            </div>
+          ) : (
+            <Link
+              href="/auth/login"
+              aria-label={collapsed ? "Sign in" : undefined}
+              title={collapsed ? "Sign in" : undefined}
+              className={`group mb-3 flex items-center gap-3 rounded-tm border border-line bg-background px-3 py-2.5 text-sm text-muted transition-colors hover:border-ink hover:text-ink ${
+                collapsed ? "justify-center" : ""
+              }`}
+            >
+              <LogIn className="h-4 w-4 shrink-0 text-muted group-hover:text-ink" />
+              {!collapsed && <span>Sign in to sync</span>}
+            </Link>
+          ))}
+
         <Link
           href="/settings"
+          aria-label={collapsed ? "Settings" : undefined}
           title={collapsed ? "Settings" : undefined}
-          className={`group flex items-center gap-3 rounded-[3px] px-3 py-2.5 text-sm text-muted transition-colors hover:bg-surface-2 hover:text-ink ${
+          className={`group flex items-center gap-3 rounded-tm px-3 py-2.5 text-sm text-muted transition-colors hover:bg-surface-2 hover:text-ink ${
             collapsed ? "justify-center" : ""
           }`}
         >

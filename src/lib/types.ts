@@ -34,4 +34,6 @@ export type SharePayload = {
   timestamp: number;
   input: string;
   output: AnalysisResult;
+  includeInput?: boolean;
+  sensitive?: boolean;
 };

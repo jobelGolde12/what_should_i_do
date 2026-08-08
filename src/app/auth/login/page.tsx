@@ -1,4 +1,11 @@
+import type { Metadata } from "next";
+import AuthForm from "@/components/auth/AuthForm";
 
-export default function Login(){
-    return <div>Login Page</div>;
+export const metadata: Metadata = {
+  title: "Sign in",
+  robots: { index: false, follow: false },
+};
+
+export default function LoginPage() {
+  return <AuthForm mode="login" />;
 }

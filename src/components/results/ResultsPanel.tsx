@@ -2,11 +2,11 @@
 
 import { useEffect, useState } from "react";
 import type { ReactNode } from "react";
-import { Share2, Trash2, Check, ScanLine } from "lucide-react";
+import { Share2, Trash2, Check, ScanLine, Square } from "lucide-react";
 import type { AnalysisRecord } from "@/lib/types";
 import type { AnalysisResult } from "@/app/actions/analyzeText";
 import { formatDateTime } from "@/lib/format";
-import { copyShareLink } from "@/lib/share";
+import ShareDialog from "@/components/share/ShareDialog";
 import { UrgencyBadge, Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import UrgencyMeter from "./UrgencyMeter";
@@ -15,9 +15,17 @@ import DeadlineList from "./DeadlineList";
 import ConfusingList from "./ConfusingList";
 import NextStepCard from "./NextStepCard";
 import TranslationBlock from "./TranslationBlock";
+import SummaryText from "./SummaryText";
 
 type Stage = "streaming" | "settling" | "settled";
-type Field = Exclude<keyof AnalysisResult, "analysisMethod">;
+type Field = Exclude<
+  keyof AnalysisResult,
+  | "analysisMethod"
+  | "urgencyReason"
+  | "urgencyConfidence"
+  | "nextStepReason"
+  | "nextStepActionIndex"
+>;
 
 const FIELDS: Field[] = [
   "actions",
@@ -38,7 +46,7 @@ const FIELD_LABELS: Record<Field, string> = {
 };
 function SectionHeading({ children }: { children: ReactNode }) {
   return (
-    <h3 className="mb-3 flex items-center gap-2 font-mono text-[11px] font-medium uppercase tracking-[0.18em] text-muted">
+    <h3 className="mb-3 flex items-center gap-2 font-mono text-2xs font-medium uppercase tracking-label text-muted">
       <span className="inline-block h-px w-6 bg-accent" aria-hidden="true" />
       {children}
     </h3>
@@ -65,8 +73,8 @@ function FieldProgress({
         return (
           <span
             key={field}
-            className={`inline-flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-[0.16em] transition-colors ${
-              done ? "text-ink" : "text-muted/50"
+            className={`inline-flex items-center gap-1.5 font-mono text-xxs uppercase tracking-label-tight transition-colors ${
+              done ? "text-ink" : "text-muted"
             }`}
           >
             <span
@@ -88,11 +96,15 @@ export default function ResultsPanel({
   streaming = null,
   animate = true,
   onDelete,
+  onToggleAction,
+  onCancel,
 }: {
   record: AnalysisRecord | null;
   streaming?: Partial<AnalysisResult> | null;
   animate?: boolean;
   onDelete?: () => void;
+  onToggleAction?: (index: number, done: boolean) => void;
+  onCancel?: () => void;
 }) {
   const result = record?.output ?? null;
   const isStreaming = !!streaming;
@@ -100,7 +112,7 @@ export default function ResultsPanel({
     isStreaming ? "streaming" : animate ? "settling" : "settled"
   );
   const [prevStreaming, setPrevStreaming] = useState(isStreaming);
-  const [copied, setCopied] = useState(false);
+  const [showShare, setShowShare] = useState(false);
 
   // When a streaming panel finishes (streaming prop dropped), run the
   // one-shot scanline settle so the resolved content locks in. Adjusted
@@ -124,13 +136,9 @@ export default function ResultsPanel({
     return acc;
   }, {} as Record<Field, boolean>);
 
-  async function handleShare() {
+  function handleShare() {
     if (!record) return;
-    const ok = await copyShareLink(record);
-    if (ok) {
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
-    }
+    setShowShare(true);
   }
 
   const urgency = result?.urgency ?? streaming?.urgency;
@@ -154,19 +162,21 @@ export default function ResultsPanel({
                   {result.analysisMethod === "ai" ? "AI analysis" : "Rule-based"}
                 </Badge>
               )}
-              <Badge tone={stage === "settled" ? "accent" : "neutral"}>
-                {stage === "settled" ? (
-                  <>
-                    <Check className="h-3 w-3" /> Resolved
-                  </>
-                ) : (
-                  <>
-                    <ScanLine className="h-3 w-3 animate-pulse" /> Resolving…
-                  </>
-                )}
-              </Badge>
+              <span aria-live="polite">
+                <Badge tone={stage === "settled" ? "accent" : "neutral"}>
+                  {stage === "settled" ? (
+                    <>
+                      <Check className="h-3 w-3" /> Resolved
+                    </>
+                  ) : (
+                    <>
+                      <ScanLine className="h-3 w-3 animate-pulse" /> Resolving…
+                    </>
+                  )}
+                </Badge>
+              </span>
             </div>
-            <p className="mt-1.5 font-mono text-[11px] text-muted">
+            <p className="mt-1.5 font-mono text-2xs text-muted">
               {record ? formatDateTime(record.timestamp) : "Streaming results…"}
             </p>
           </div>
@@ -174,15 +184,7 @@ export default function ResultsPanel({
           {record && (
             <div className="flex items-center gap-2">
               <Button variant="outline" size="sm" onClick={handleShare}>
-                {copied ? (
-                  <>
-                    <Check className="h-3.5 w-3.5" /> Copied
-                  </>
-                ) : (
-                  <>
-                    <Share2 className="h-3.5 w-3.5" /> Share
-                  </>
-                )}
+                <Share2 className="h-3.5 w-3.5" /> Share
               </Button>
               {onDelete && (
                 <Button variant="ghost" size="sm" onClick={onDelete}>
@@ -190,6 +192,12 @@ export default function ResultsPanel({
                 </Button>
               )}
             </div>
+          )}
+
+          {isStreaming && onCancel && (
+            <Button variant="ghost" size="sm" onClick={onCancel}>
+              <Square className="h-3.5 w-3.5" /> Cancel
+            </Button>
           )}
         </div>
 
@@ -200,10 +208,18 @@ export default function ResultsPanel({
         )}
       </header>
 
-      <div className="space-y-8 px-5 py-6 sm:px-6">
+      <div
+        className="space-y-8 px-5 py-6 sm:px-6"
+        aria-live="polite"
+        aria-atomic="false"
+      >
         <section className={resolved.actions ? "settle-section revealed" : "settle-section"}>
           <SectionHeading>Actions</SectionHeading>
-          <ActionList actions={result?.actions ?? streaming?.actions ?? []} />
+          <ActionList
+            key={record?.id ?? "streaming"}
+            actions={result?.actions ?? streaming?.actions ?? []}
+            onToggle={onToggleAction}
+          />
         </section>
 
         <section className={resolved.deadlines ? "settle-section revealed" : "settle-section"}>
@@ -213,7 +229,14 @@ export default function ResultsPanel({
 
         <section className={resolved.urgency ? "settle-section revealed" : "settle-section"}>
           <SectionHeading>Urgency</SectionHeading>
-          <UrgencyMeter level={urgency ?? "Informational"} />
+          <UrgencyMeter
+            level={urgency ?? "Informational"}
+            reason={
+              result?.urgencyReason ??
+              streaming?.urgencyReason ??
+              undefined
+            }
+          />
         </section>
 
         <section className={resolved.confusingParts ? "settle-section revealed" : "settle-section"}>
@@ -225,20 +248,37 @@ export default function ResultsPanel({
 
         <section className={resolved.nextStep ? "settle-section revealed" : "settle-section"}>
           <SectionHeading>Next step</SectionHeading>
-          <NextStepCard nextStep={result?.nextStep ?? streaming?.nextStep ?? ""} />
+          <NextStepCard
+            nextStep={result?.nextStep ?? streaming?.nextStep ?? ""}
+            reason={
+              result?.nextStepReason ??
+              streaming?.nextStepReason ??
+              undefined
+            }
+            actionIndex={
+              result?.nextStepActionIndex ??
+              streaming?.nextStepActionIndex ??
+              undefined
+            }
+            actionCount={
+              (result?.actions ?? streaming?.actions ?? []).length
+            }
+            onToggleDone={onToggleAction}
+          />
         </section>
 
         <section className={resolved.summary ? "settle-section revealed" : "settle-section"}>
           <SectionHeading>Summary</SectionHeading>
-          <div
-            className="max-w-none text-sm leading-relaxed text-ink [&_mark]:bg-med-bg [&_mark]:text-med [&_mark]:px-1"
-            dangerouslySetInnerHTML={{ __html: result?.summary ?? streaming?.summary ?? "" }}
-          />
+          <SummaryText summary={result?.summary ?? streaming?.summary ?? ""} />
           <div className="mt-4">
             <TranslationBlock summary={result?.summary ?? streaming?.summary ?? ""} />
           </div>
         </section>
       </div>
+
+      {showShare && record && (
+        <ShareDialog record={record} onClose={() => setShowShare(false)} />
+      )}
     </div>
   );
 }

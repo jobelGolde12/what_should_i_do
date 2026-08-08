@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { ChevronDown, Languages } from "lucide-react";
+import { sanitizeSummary } from "@/lib/analyzeRules";
 
 const LANGUAGES = [
   { code: "en", label: "English" },
@@ -12,23 +13,6 @@ const LANGUAGES = [
   { code: "it", label: "Italian" },
   { code: "pt", label: "Portuguese" },
 ];
-
-const MAX_CHARS = 480;
-
-function splitIntoChunks(text: string): string[] {
-  const chunks: string[] = [];
-  let current = "";
-  for (const sentence of text.split(/(?<=[.!?])\s+/)) {
-    if ((current + sentence).length > MAX_CHARS) {
-      chunks.push(current.trim());
-      current = sentence;
-    } else {
-      current += " " + sentence;
-    }
-  }
-  if (current.trim()) chunks.push(current.trim());
-  return chunks;
-}
 
 export default function TranslationBlock({
   summary,
@@ -52,21 +36,20 @@ export default function TranslationBlock({
     setLoading(true);
     setError(null);
     try {
-      const clean = summary.replace(/<[^>]*>/g, "");
-      const chunks = splitIntoChunks(clean);
-      const out: string[] = [];
-      for (const chunk of chunks) {
-        const encoded = encodeURIComponent(chunk);
-        const res = await fetch(
-          `https://api.mymemory.translated.net/get?q=${encoded}&langpair=en|${target}`
-        );
-        const data = await res.json();
-        if (!data?.responseData?.translatedText) {
-          throw new Error("No translation returned");
-        }
-        out.push(data.responseData.translatedText);
+      const clean = sanitizeSummary(summary);
+      const res = await fetch("/api/translate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ text: clean, target }),
+      });
+      const data = (await res.json()) as {
+        translated?: string;
+        error?: string;
+      };
+      if (!res.ok || !data.translated) {
+        throw new Error(data.error ?? "Translation failed");
       }
-      setTranslated(out.join(" "));
+      setTranslated(data.translated);
     } catch {
       setError("Translation failed. Try again.");
     } finally {
@@ -84,6 +67,7 @@ export default function TranslationBlock({
         }}
         className="flex w-full items-center justify-between px-4 py-3 text-left"
         aria-expanded={open}
+        aria-controls="translation-panel"
       >
         <span className="inline-flex items-center gap-2 text-xs font-semibold text-ink">
           <Languages className="h-4 w-4 text-muted" />
@@ -91,21 +75,23 @@ export default function TranslationBlock({
         </span>
         <ChevronDown
           className={`h-4 w-4 text-muted transition-transform ${open ? "rotate-180" : ""}`}
+          aria-hidden="true"
         />
       </button>
 
       {open && (
-        <div className="border-t border-line px-4 py-4">
+        <div id="translation-panel" className="border-t border-line px-4 py-4">
           <div className="flex flex-wrap items-center gap-1.5">
             {LANGUAGES.map((l) => (
               <button
                 key={l.code}
                 type="button"
+                aria-pressed={language === l.code}
                 onClick={() => {
                   setLanguage(l.code);
                   void translate(l.code);
                 }}
-                className={`rounded-[3px] px-2.5 py-1.5 text-xs font-medium transition-colors ${
+                className={`rounded-tm px-2.5 py-1.5 text-xs font-medium transition-colors ${
                   language === l.code
                     ? "bg-accent text-white"
                     : "border border-line bg-background text-muted hover:text-ink"
@@ -116,13 +102,17 @@ export default function TranslationBlock({
             ))}
           </div>
 
-          <div className="mt-4 min-h-10">
+          <div className="mt-4 min-h-10" aria-live="polite" aria-atomic="true">
             {loading && (
               <p className="font-mono text-xs text-muted">
                 Translating…
               </p>
             )}
-            {error && <p className="text-xs text-high">{error}</p>}
+            {error && (
+              <p role="alert" className="text-xs text-high">
+                {error}
+              </p>
+            )}
             {!loading && !error && translated && (
               <p className="whitespace-pre-line text-sm leading-relaxed text-ink">
                 {translated}

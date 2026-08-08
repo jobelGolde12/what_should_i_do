@@ -3,7 +3,7 @@ import DashboardLayout from "@/components/layout/DashboardLayout";
 import SavedView from "@/components/saved/SavedView";
 
 export const metadata: Metadata = {
-  title: "Saved templates - TaskMind",
+  title: "Saved templates",
   robots: { index: false, follow: false },
 };
 

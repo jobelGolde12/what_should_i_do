@@ -16,6 +16,7 @@ import type {
   BoardStatus,
 } from "@/lib/types";
 import { readStorage, writeStorage, storageKeys, uid } from "@/lib/storage";
+import { urgencyForAction } from "@/lib/urgency";
 
 type TaskContextValue = {
   history: AnalysisRecord[];
@@ -27,9 +28,19 @@ type TaskContextValue = {
   ) => AnalysisRecord;
   deleteAnalysis: (id: string) => void;
   clearHistory: () => void;
+  clearBoard: () => void;
+  clearTemplates: () => void;
+  importHistory: (records: AnalysisRecord[]) => void;
+  importTemplates: (templates: Template[]) => void;
+  importBoard: (items: BoardItem[]) => void;
   loadRecord: (id: string) => AnalysisRecord | null;
   saveTemplate: (name: string, content: string) => void;
   deleteTemplate: (id: string) => void;
+  updateTemplate: (
+    id: string,
+    updates: { name?: string; content?: string }
+  ) => void;
+  duplicateTemplate: (id: string) => void;
   setItemStatus: (id: string, status: BoardStatus) => void;
   reorderItem: (
     sourceId: string,
@@ -85,7 +96,7 @@ export function TaskProvider({ children }: { children: ReactNode }) {
         sourceId: record.id,
         sourceIndex: index,
         text: action,
-        urgency: output.urgency,
+        urgency: urgencyForAction(action),
         status: "todo" as BoardStatus,
         createdAt: record.timestamp,
       }));
@@ -104,6 +115,53 @@ export function TaskProvider({ children }: { children: ReactNode }) {
   const clearHistory = useCallback(() => {
     setHistory([]);
     setBoard([]);
+  }, []);
+
+  const clearBoard = useCallback(() => {
+    setBoard([]);
+  }, []);
+
+  const clearTemplates = useCallback(() => {
+    setTemplates([]);
+  }, []);
+
+  const importHistory = useCallback((records: AnalysisRecord[]) => {
+    setHistory((prev) => {
+      const existing = new Set(prev.map((r) => r.id));
+      const fresh = records.filter((r) => !existing.has(r.id));
+      return [...fresh, ...prev];
+    });
+    setBoard((prev) => {
+      const existing = new Set(prev.map((i) => i.id));
+      const freshItems = records.flatMap((record) =>
+        record.output.actions.map((action, index) => ({
+          id: `${record.id}:${index}`,
+          sourceId: record.id,
+          sourceIndex: index,
+          text: action,
+          urgency: urgencyForAction(action),
+          status: "todo" as BoardStatus,
+          createdAt: record.timestamp,
+        }))
+      );
+      return [...freshItems.filter((i) => !existing.has(i.id)), ...prev];
+    });
+  }, []);
+
+  const importTemplates = useCallback((incoming: Template[]) => {
+    setTemplates((prev) => {
+      const existing = new Set(prev.map((t) => t.id));
+      const fresh = incoming.filter((t) => !existing.has(t.id));
+      return [...fresh, ...prev];
+    });
+  }, []);
+
+  const importBoard = useCallback((items: BoardItem[]) => {
+    setBoard((prev) => {
+      const existing = new Set(prev.map((i) => i.id));
+      const fresh = items.filter((i) => !existing.has(i.id));
+      return [...fresh, ...prev];
+    });
   }, []);
 
   const loadRecord = useCallback(
@@ -127,6 +185,31 @@ export function TaskProvider({ children }: { children: ReactNode }) {
 
   const deleteTemplate = useCallback((id: string) => {
     setTemplates((prev) => prev.filter((t) => t.id !== id));
+  }, []);
+
+  const updateTemplate = useCallback(
+    (id: string, updates: { name?: string; content?: string }) => {
+      setTemplates((prev) =>
+        prev.map((t) =>
+          t.id === id ? { ...t, ...updates } : t
+        )
+      );
+    },
+    []
+  );
+
+  const duplicateTemplate = useCallback((id: string) => {
+    setTemplates((prev) => {
+      const source = prev.find((t) => t.id === id);
+      if (!source) return prev;
+      const copy: Template = {
+        id: uid(),
+        name: `${source.name} (copy)`,
+        content: source.content,
+        createdAt: Date.now(),
+      };
+      return [copy, ...prev];
+    });
   }, []);
 
   const setItemStatus = useCallback((id: string, status: BoardStatus) => {
@@ -159,9 +242,16 @@ export function TaskProvider({ children }: { children: ReactNode }) {
         saveAnalysis,
         deleteAnalysis,
         clearHistory,
+        clearBoard,
+        clearTemplates,
+        importHistory,
+        importTemplates,
+        importBoard,
         loadRecord,
         saveTemplate,
         deleteTemplate,
+        updateTemplate,
+        duplicateTemplate,
         setItemStatus,
         reorderItem,
       }}

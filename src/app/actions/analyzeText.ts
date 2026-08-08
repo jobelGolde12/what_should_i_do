@@ -17,15 +17,31 @@ import {
 /* =========================================================
    TYPES
 ========================================================= */
+export type ConfusingPartReason =
+  | "missing-info"
+  | "ambiguity"
+  | "contradiction"
+  | "jargon"
+  | "incomplete";
+
+export type ConfusingPart = {
+  sentence: string;
+  explanation: string;
+  reason?: ConfusingPartReason;
+  suggestion?: string;
+  severity?: "low" | "medium" | "high";
+};
+
 export type AnalysisResult = {
   actions: string[];
   deadlines: string[];
   urgency: "Urgent" | "Important" | "Informational";
-  confusingParts: {
-    sentence: string;
-    explanation: string;
-  }[];
+  urgencyReason?: string;
+  urgencyConfidence?: number;
+  confusingParts: ConfusingPart[];
   nextStep: string;
+  nextStepReason?: string;
+  nextStepActionIndex?: number;
   summary: string;
   analysisMethod: "ai" | "fallback";
 };

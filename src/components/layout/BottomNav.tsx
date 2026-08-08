@@ -2,15 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LayoutDashboard, SquareKanban, History, Folder, Settings } from "lucide-react";
-
-const NAV_ITEMS = [
-  { name: "New", href: "/", icon: LayoutDashboard },
-  { name: "Actions", href: "/actions", icon: SquareKanban },
-  { name: "History", href: "/history", icon: History },
-  { name: "Saved", href: "/saved", icon: Folder },
-  { name: "Settings", href: "/settings", icon: Settings },
-];
+import { NAV_ITEMS, isNavItemActive } from "@/lib/nav";
 
 export default function BottomNav() {
   const pathname = usePathname();
@@ -23,20 +15,19 @@ export default function BottomNav() {
     >
       <div className="grid grid-cols-5">
         {NAV_ITEMS.map((item) => {
-          const active =
-            item.href === "/" ? pathname === "/" : pathname.startsWith(item.href);
+          const active = isNavItemActive(item.href, pathname);
           const Icon = item.icon;
           return (
             <Link
               key={item.name}
               href={item.href}
               aria-current={active ? "page" : undefined}
-              className={`flex flex-col items-center gap-1 py-2 text-[10px] font-medium transition-colors ${
+              className={`flex flex-col items-center gap-1 py-2 text-xxs font-medium transition-colors ${
                 active ? "text-accent" : "text-muted"
               }`}
             >
               <span
-                className={`flex h-10 w-12 items-center justify-center rounded-[3px] ${
+                className={`flex h-10 w-12 items-center justify-center rounded-tm ${
                   active ? "bg-accent-soft" : ""
                 }`}
               >

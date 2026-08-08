@@ -1,10 +1,11 @@
 "use client";
 
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { analyzeText, type AnalysisResult } from "@/app/actions/analyzeText";
 import type { AnalysisRecord } from "@/lib/types";
 import { useTask } from "@/context/TaskContext";
-import { streamAnalysis } from "@/lib/stream";
+import { streamAnalysis, StreamCancelledError } from "@/lib/stream";
+import { consumePendingTemplate } from "@/lib/applyTemplate";
 import {
   Sparkles,
   ArrowDown,
@@ -32,7 +33,7 @@ const SPECS: { label: string; hint: string; icon: LucideIcon }[] = [
 ];
 
 export function DashboardHome() {
-  const { saveAnalysis, deleteAnalysis } = useTask();
+  const { saveAnalysis, deleteAnalysis, setItemStatus } = useTask();
   const [text, setText] = useState("");
   const [partial, setPartial] = useState<Partial<AnalysisResult> | null>(null);
   const [result, setResult] = useState<AnalysisResult | null>(null);
@@ -41,12 +42,26 @@ export function DashboardHome() {
   const [error, setError] = useState<string | null>(null);
   const [streamed, setStreamed] = useState(false);
   const pendingTextRef = useRef("");
+  const abortRef = useRef<AbortController | null>(null);
+
+  // A template applied from another page (Saved / QuickSearch) fills the input.
+  useEffect(() => {
+    const pending = consumePendingTemplate();
+    if (pending) setText(pending);
+  }, []);
+
+  const cancelAnalysis = useCallback(() => {
+    abortRef.current?.abort();
+  }, []);
 
   const runAnalyze = useCallback(
     async (inputText: string) => {
       const finalText = inputText.trim();
       if (!finalText) return;
       pendingTextRef.current = finalText;
+      abortRef.current?.abort();
+      const controller = new AbortController();
+      abortRef.current = controller;
       setLoading(true);
       setError(null);
       setResult(null);
@@ -56,13 +71,21 @@ export function DashboardHome() {
 
       // Primary path: streaming analysis (sections appear progressively).
       try {
-        const res = await streamAnalysis(finalText, (field, value) => {
-          setPartial((prev) => ({ ...prev, [field]: value }));
-        });
+        const res = await streamAnalysis(
+          finalText,
+          (field, value) => {
+            setPartial((prev) => ({ ...prev, [field]: value }));
+          },
+          { signal: controller.signal }
+        );
         setResult(res);
         setRecord(saveAnalysis(finalText, res));
         setStreamed(true);
-      } catch {
+      } catch (streamErr) {
+        if (streamErr instanceof StreamCancelledError) {
+          setError(streamErr.message);
+          return;
+        }
         // Fallback: the blocking server action (OpenRouter → rule-based).
         try {
           const res = await analyzeText(finalText);
@@ -109,7 +132,7 @@ export function DashboardHome() {
       <header className="dot-grid-fade relative border-b border-line">
         <div className="grid gap-10 py-10 sm:py-14 lg:grid-cols-[1.55fr_1fr] lg:gap-14 lg:py-20">
           <div>
-            <p className="flex items-center gap-2 font-mono text-[11px] uppercase tracking-[0.2em]">
+            <p className="flex items-center gap-2 font-mono text-2xs uppercase tracking-label-wide">
               <span className="text-accent">TaskMind</span>
               <span className="h-px w-6 bg-line" aria-hidden="true" />
               <span className="text-muted">Clarity engine</span>
@@ -138,7 +161,7 @@ export function DashboardHome() {
               </LinkButton>
             </div>
 
-            <p className="mt-8 inline-flex items-center gap-2.5 font-mono text-[11px] uppercase tracking-[0.18em] text-muted">
+            <p className="mt-8 inline-flex items-center gap-2.5 font-mono text-2xs uppercase tracking-label text-muted">
               <ArrowDown className="h-3.5 w-3.5 text-accent" aria-hidden="true" />
               Paste or drop a document to begin
             </p>
@@ -146,7 +169,7 @@ export function DashboardHome() {
 
           <div className="hidden self-end border border-line bg-background lg:block">
             <div className="flex items-center justify-between border-b border-line px-4 py-3">
-              <p className="font-mono text-[10px] uppercase tracking-[0.18em] text-muted">
+              <p className="font-mono text-xxs uppercase tracking-label text-muted">
                 Extracted from any text
               </p>
               <span className="h-1.5 w-1.5 rounded-full bg-accent" aria-hidden="true" />
@@ -159,14 +182,14 @@ export function DashboardHome() {
                     key={spec.label}
                     className="flex items-center gap-3 px-4 py-2.5"
                   >
-                    <span className="font-mono text-[10px] text-muted/60">
+                    <span className="font-mono text-xxs text-muted">
                       {String(i + 1).padStart(2, "0")}
                     </span>
                     <Icon className="h-3.5 w-3.5 shrink-0 text-accent" />
                     <span className="min-w-0 flex-1 text-sm font-medium text-ink">
                       {spec.label}
                     </span>
-                    <span className="font-mono text-[10px] uppercase tracking-[0.12em] text-muted">
+                    <span className="font-mono text-xxs uppercase tracking-label-mono text-muted">
                       {spec.hint}
                     </span>
                   </li>
@@ -199,11 +222,20 @@ export function DashboardHome() {
               streaming={loading ? partial : null}
               animate={!streamed}
               onDelete={handleDelete}
+              onCancel={loading ? cancelAnalysis : undefined}
+              onToggleAction={(index, done) => {
+                if (record) {
+                  setItemStatus(
+                    `${record.id}:${index}`,
+                    done ? "done" : "todo"
+                  );
+                }
+              }}
             />
           )}
           {!loading && !error && !result && !text.trim() && <EmptyState />}
           {!loading && !error && !result && text.trim() && (
-            <p className="mt-8 border border-dashed border-line py-10 text-center font-mono text-xs uppercase tracking-[0.18em] text-muted">
+            <p className="mt-8 border border-dashed border-line py-10 text-center font-mono text-xs uppercase tracking-label text-muted">
               Press ⌘ Enter or hit Analyze to run
             </p>
           )}

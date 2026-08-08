@@ -5,12 +5,13 @@ import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 import { useTask } from "@/context/TaskContext";
 import ResultsPanel from "@/components/results/ResultsPanel";
+import HighlightedInput from "@/components/results/HighlightedInput";
 import { EmptyState } from "@/components/ui/States";
 import { snippet } from "@/lib/format";
 
 export default function AnalysisView() {
   const params = useParams<{ id: string }>();
-  const { loadRecord } = useTask();
+  const { loadRecord, setItemStatus } = useTask();
   const record = params.id ? loadRecord(params.id) : null;
 
   if (!record) {
@@ -41,21 +42,30 @@ export default function AnalysisView() {
         >
           <ArrowLeft className="h-4 w-4" /> New analysis
         </Link>
-        <p className="hidden font-mono text-[11px] uppercase tracking-[0.18em] text-muted sm:block">
+        <p className="hidden font-mono text-2xs uppercase tracking-label text-muted sm:block">
           /analysis/{record.id.slice(0, 8)}
         </p>
       </header>
 
       <div className="mb-6 border-l-2 border-line bg-surface px-4 py-3">
-        <p className="font-mono text-[10px] uppercase tracking-[0.18em] text-muted">
+        <p className="font-mono text-xxs uppercase tracking-label text-muted">
           Original input
         </p>
         <p className="mt-1.5 text-sm leading-relaxed text-ink">
-          {snippet(record.input, 320)}
+          <HighlightedInput
+            text={snippet(record.input, 320)}
+            sentences={record.output.confusingParts.map((p) => p.sentence)}
+          />
         </p>
       </div>
 
-      <ResultsPanel record={record} animate={false} />
+      <ResultsPanel
+        record={record}
+        animate={false}
+        onToggleAction={(index, done) => {
+          setItemStatus(`${record.id}:${index}`, done ? "done" : "todo");
+        }}
+      />
     </div>
   );
 }

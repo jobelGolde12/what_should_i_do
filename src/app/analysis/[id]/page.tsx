@@ -3,7 +3,7 @@ import DashboardLayout from "@/components/layout/DashboardLayout";
 import AnalysisView from "@/components/analysis/AnalysisView";
 
 export const metadata: Metadata = {
-  title: "Analysis - TaskMind",
+  title: "Analysis",
   robots: { index: false, follow: false },
 };
 

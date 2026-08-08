@@ -1,7 +1,7 @@
 TaskMind – Universal Instruction Translator
-<p align="center"> <strong>Turn confusing messages into clear actions</strong><br> Extract actions, deadlines, and urgency from any text </p><p align="center"> <a href="#-features">Features</a> • <a href="#-how-it-works">How It Works</a> • <a href="#-quick-start">Quick Start</a> • <a href="#-installation">Installation</a> • <a href="#-usage">Usage</a> • <a href="#-who-uses-this">Who Uses This</a> • <a href="#-contributing">Contributing</a> • <a href="#-license">License</a> </p><p align="center"> <img src="https://img.shields.io/badge/version-1.0.0-blue" alt="Version"> <img src="https://img.shields.io/badge/node-%3E%3D18.0.0-green" alt="Node Version"> <img src="https://img.shields.io/badge/LLM-WebLLM-orange" alt="Web LLM"> <img src="https://img.shields.io/badge/license-MIT-brightgreen" alt="License"> <img src="https://img.shields.io/badge/PRs-welcome-brightgreen" alt="PRs Welcome"> <img src="https://img.shields.io/badge/no-login-required-orange" alt="No Login Required"> </p>
+<p align="center"> <strong>Turn confusing messages into clear actions</strong><br> Extract actions, deadlines, and urgency from any text </p><p align="center"> <a href="#-features">Features</a> • <a href="#-how-it-works">How It Works</a> • <a href="#-quick-start">Quick Start</a> • <a href="#-installation">Installation</a> • <a href="#-usage">Usage</a> • <a href="#-who-uses-this">Who Uses This</a> • <a href="#-contributing">Contributing</a> • <a href="#-license">License</a> </p><p align="center"> <img src="https://img.shields.io/badge/version-1.0.0-blue" alt="Version"> <img src="https://img.shields.io/badge/node-%3E%3D18.0.0-green" alt="Node Version"> <img src="https://img.shields.io/badge/LLM-OpenRouter-orange" alt="LLM"> <img src="https://img.shields.io/badge/license-MIT-brightgreen" alt="License"> <img src="https://img.shields.io/badge/PRs-welcome-brightgreen" alt="PRs Welcome"> <img src="https://img.shields.io/badge/no-login-required-orange" alt="No Login Required"> </p>
 📋 Overview
-TaskMind is not just another summarizer or chatbot. It's a decision & action clarity tool that transforms confusing messages, emails, announcements, and instructions into structured, actionable items with clear deadlines and urgency levels. Built with Node.js and powered by Web LLM for privacy-focused, client-side processing.
+TaskMind is not just another summarizer or chatbot. It's a decision & action clarity tool that transforms confusing messages, emails, announcements, and instructions into structured, actionable items with clear deadlines and urgency levels. Built with Next.js and powered by a server-side LLM (OpenRouter) with rule-based fallbacks, local-first storage, and a privacy policy.
 
 🎯 What It Does
 Extracts actionable items from any text using Web LLM
@@ -42,11 +42,13 @@ Provides a clear "If you do only one thing, do this" recommendation.
 One-click translation of analyzed results into multiple languages (starting with Tagalog/Filipino).
 
 🔒 Privacy-First Architecture
-Web LLM runs locally in your browser
+Local-first storage: history, templates, and your action board live in your browser
 
-No data sent to external servers
+Only the text you analyze is sent to the AI provider to generate results, then stored locally
 
-Complete privacy for sensitive messages
+Share links and sensitive analysis details are in your control, with a full privacy policy
+
+Optional login lets you back up data to your own account
 
 🚀 How It Works
 Example Input:

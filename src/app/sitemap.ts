@@ -1,12 +1,10 @@
-// app/sitemap.ts
-import { MetadataRoute } from 'next';
+import type { MetadataRoute } from "next";
+import { SITE_URL } from "@/lib/site";
 
 export default function sitemap(): MetadataRoute.Sitemap {
+  const now = new Date();
   return [
-    {
-      url: 'https://taskmind.ai/',
-      lastModified: new Date(),
-      priority: 1.0,
-    },
+    { url: SITE_URL, lastModified: now, changeFrequency: "monthly", priority: 1.0 },
+    { url: `${SITE_URL}/actions`, lastModified: now, changeFrequency: "weekly", priority: 0.6 },
   ];
 }

@@ -14,12 +14,21 @@ export function readStorage<T>(key: string, fallback: T): T {
   }
 }
 
-export function writeStorage<T>(key: string, value: T): void {
-  if (typeof window === "undefined") return;
+export function writeStorage<T>(key: string, value: T): boolean {
+  if (typeof window === "undefined") return true;
   try {
     window.localStorage.setItem(key, JSON.stringify(value));
+    return true;
   } catch {
-    // Storage full or unavailable — degrade silently.
+    // Storage full or unavailable — notify the UI so the user can back up.
+    try {
+      window.dispatchEvent(
+        new CustomEvent("taskmind:storage-error", { detail: { key } })
+      );
+    } catch {
+      /* ignore */
+    }
+    return false;
   }
 }
 
@@ -29,6 +38,7 @@ export function storageKeys() {
     templates: TEMPLATES_KEY,
     board: BOARD_KEY,
     theme: THEME_KEY,
+    adsConsent: "taskmind:ads-consent",
   };
 }
 

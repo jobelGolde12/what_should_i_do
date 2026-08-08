@@ -17,7 +17,7 @@ export default function PageHeader({
     <header className="dot-grid-fade relative mb-8 border-b border-line pb-8">
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div className="max-w-2xl">
-          <p className="flex items-center gap-2 font-mono text-[11px] uppercase tracking-[0.2em]">
+          <p className="flex items-center gap-2 font-mono text-2xs uppercase tracking-label-wide">
             <span className="text-accent">{eyebrow}</span>
             <span className="h-px w-6 bg-line" aria-hidden="true" />
           </p>

@@ -1,39 +1,39 @@
+import { URGENCY_LEVELS } from "@/lib/urgency";
 import type { UrgencyLevel } from "@/lib/types";
 
-const LEVELS: { key: UrgencyLevel; label: string; bar: string; fill: string }[] = [
-  { key: "Informational", label: "Info", bar: "bg-low-bg", fill: "bg-low" },
-  { key: "Important", label: "Important", bar: "bg-med-bg", fill: "bg-med" },
-  { key: "Urgent", label: "Urgent", bar: "bg-high-bg", fill: "bg-high" },
-];
-
-export default function UrgencyMeter({ level }: { level: UrgencyLevel }) {
-  const activeIndex = LEVELS.findIndex((l) => l.key === level);
+export default function UrgencyMeter({
+  level,
+  reason,
+}: {
+  level: UrgencyLevel;
+  reason?: string;
+}) {
+  const activeIndex = URGENCY_LEVELS.findIndex((l) => l.key === level);
+  const active = URGENCY_LEVELS[activeIndex];
 
   return (
     <div>
       <div className="grid grid-cols-3 gap-1.5">
-        {LEVELS.map((l, i) => (
+        {URGENCY_LEVELS.map((l, i) => (
           <div
             key={l.key}
             aria-hidden="true"
+            title={l.help}
             className={`h-1.5 ${i <= activeIndex ? l.fill : "bg-line"}`}
           />
         ))}
       </div>
-      <div className="mt-2 flex items-baseline justify-between">
+      <div className="mt-2 flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
         <span className="text-sm font-medium text-ink">Urgency</span>
-        <span
-          className={`font-mono text-xs ${
-            level === "Urgent"
-              ? "text-high"
-              : level === "Important"
-                ? "text-med"
-                : "text-low"
-          }`}
-        >
-          {level}
+        <span className={`font-mono text-xs ${active.color}`}>
+          {active.label}
         </span>
       </div>
+      {(reason || active) && (
+        <p className="mt-1 font-mono text-2xs text-muted">
+          {reason ?? active.help}
+        </p>
+      )}
     </div>
   );
 }

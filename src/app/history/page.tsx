@@ -3,7 +3,7 @@ import DashboardLayout from "@/components/layout/DashboardLayout";
 import HistoryView from "@/components/history/HistoryView";
 
 export const metadata: Metadata = {
-  title: "History - TaskMind",
+  title: "History",
   robots: { index: false, follow: false },
 };
 

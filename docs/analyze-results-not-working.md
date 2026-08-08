@@ -22,7 +22,7 @@ OPENROUTER_API_KEY2=sk-or-v1-yyyyy  # Optional, for failover
 OPENROUTER_API_KEY3=sk-or-v1-zzzzz  # Optional, for failover
 ```
 
-**Location in code:** `src/lib/openrouter.ts:28-32`
+**Location in code:** `src/lib/openrouter.ts` (the `API_KEYS` list in the `OpenRouterAPI` class).
 
 ---
 
@@ -37,7 +37,7 @@ OPENROUTER_API_KEY3=sk-or-v1-zzzzz  # Optional, for failover
 2. Add credits to your account
 3. Or wait for the rate limit to reset (typically 1 minute)
 
-**Location in code:** `src/lib/openrouter.ts:106-112`
+**Location in code:** `src/lib/openrouter.ts` — key status tracking + `throwIfAllKeysExhausted()`.
 
 The application automatically detects when keys are exhausted via:
 - Error messages containing "credit", "quota", "exhausted"
@@ -53,9 +53,9 @@ The application automatically detects when keys are exhausted via:
 
 **Solution:**
 - Wait 30-60 seconds before retrying
-- The app has automatic failover to secondary API keys
+- The app has automatic failover to secondary API keys (exponential backoff + jitter)
 
-**Location in code:** `src/lib/openrouter.ts:43-60`
+**Location in code:** `src/lib/openrouter.ts` — `withRetry()`, `isRetryableError()`.
 
 ---
 
@@ -69,7 +69,7 @@ The application automatically detects when keys are exhausted via:
 - Provide at least 10 characters of meaningful text
 - The cleaning process removes special characters and extra whitespace
 
-**Location in code:** `src/app/actions/analyzeText.ts:297-299`
+**Location in code:** `src/app/actions/analyzeText.ts`.
 
 ---
 
@@ -77,7 +77,7 @@ The application automatically detects when keys are exhausted via:
 
 **Symptom:** Requests timeout or fail to connect
 
-**Cause:** 
+**Cause:**
 - No internet connection
 - Firewall blocking OpenRouter requests
 - DNS resolution issues
@@ -87,7 +87,7 @@ The application automatically detects when keys are exhausted via:
 - Ensure `https://openrouter.ai` is accessible
 - The app automatically falls back to rule-based analysis
 
-**Location in code:** `src/app/actions/analyzeText.ts:304-313`
+**Location in code:** `src/lib/openrouter.ts` — `fetchWithTimeout()` (60s timeout, 2 retries).
 
 ---
 
@@ -101,7 +101,7 @@ The application automatically detects when keys are exhausted via:
 - This is usually transient; retry the request
 - The app has error handling that should retry automatically
 
-**Location in code:** `src/lib/openrouter.ts:166-170`
+**Location in code:** `src/lib/openrouter.ts` (`analyzeText`) and `src/lib/streamParse.ts` (streaming parser).
 
 ---
 
@@ -115,20 +115,43 @@ The application automatically detects when keys are exhausted via:
 - Retry the request
 - Check if OpenRouter is experiencing outages
 
-**Location in code:** `src/lib/openrouter.ts:96-98`
+**Location in code:** `src/lib/openrouter.ts` (`makeRequest` / `streamFromKey`).
 
 ---
 
 ## Fallback Mechanism
 
-The application has a **rule-based fallback system** that activates when OpenRouter fails. This fallback:
+The application has a **rule-based fallback system** that activates when OpenRouter fails (`src/app/actions/analyzeText.ts`):
 
-1. **Cleans and normalizes input** (`src/app/actions/analyzeText.ts:40-54`)
+1. **Cleans and normalizes input**
 2. **Extracts actions** using keyword matching for verbs like: submit, attend, pay, respond, bring, fill out, register, watch, send, reply
-3. **Detects deadlines** using regex patterns for: today, tomorrow, until lifted, effective dates
-4. **Classifies urgency** based on keywords: urgent, asap, immediately, tropical cyclone, heavy rainfall
+3. **Detects deadlines** using `src/lib/deadline.ts` (chrono-node + regex fallbacks for today/tomorrow/bukas/weekdays/months)
+4. **Classifies urgency** using `src/lib/urgency.ts` (deadline-horizon aware)
 
 **Note:** The rule-based fallback is less accurate than AI but ensures the app remains functional.
+
+---
+
+## Debug Endpoints
+
+Debug endpoints let you verify the analysis pipeline directly. They run on the dev server at `http://localhost:3001`.
+
+| Endpoint | Method | Purpose |
+|----------|--------|---------|
+| `/api/debug/openrouter` | POST | Runs `openRouterAPI.analyzeText` directly (raw AI path) |
+| `/api/debug/server-action` | POST | Runs the full `analyzeText` server action (AI + rule fallback) |
+| `/api/debug/health` | GET | Uptime + OpenRouter key health |
+
+Both POST endpoints accept an optional JSON body to override the sample input:
+```bash
+curl -X POST http://localhost:3001/api/debug/server-action \
+  -H "Content-Type: application/json" \
+  -d '{"input":"Submit the report by end of day Friday"}'
+```
+
+**Production gating:** debug routes return `404` when `NODE_ENV === "production"` unless an `ADMIN_TOKEN` env var is set. When set, requests must include `Authorization: Bearer <ADMIN_TOKEN>`. The `/api/debug/health` endpoint is public.
+
+Responses include `latencyMs` and `keyStatuses` (per-key error/exhausted/rate-limited/working state).
 
 ---
 
@@ -139,15 +162,16 @@ The application has a **rule-based fallback system** that activates when OpenRou
 | `OPENROUTER_API_KEY1` | Yes | Primary OpenRouter API key |
 | `OPENROUTER_API_KEY2` | No | Failover key |
 | `OPENROUTER_API_KEY3` | No | Failover key |
-| `NEXT_PUBLIC_APP_URL` | No | App URL for API requests |
+| `OPENROUTER_MODEL` | No | Model id (default `anthropic/claude-sonnet-5`) |
+| `OPENROUTER_TEMPERATURE` | No | Sampling temperature (default `0.1`) |
+| `OPENROUTER_MAX_TOKENS` | No | Max output tokens (default `900`) |
+| `NEXT_PUBLIC_APP_URL` | No | App URL for API requests / canonical URLs |
+| `AUTH_SECRET` | Yes (prod) | HMAC secret for session tokens |
+| `ADMIN_TOKEN` | No | Bearer token guarding debug endpoints in production |
 
 ---
 
 ## Debugging
-
-### Enable Verbose Logging
-
-The application logs errors to the console. Check your terminal/console for detailed error messages.
 
 ### Test API Keys Manually
 
@@ -155,7 +179,7 @@ The application logs errors to the console. Check your terminal/console for deta
 curl -X POST https://openrouter.ai/api/v1/chat/completions \
   -H "Authorization: Bearer YOUR_API_KEY" \
   -H "Content-Type: application/json" \
-  -d '{"model": "anthropic/claude-3.5-sonnet", "messages": [{"role": "user", "content": "Hello"}]}'
+  -d '{"model": "anthropic/claude-sonnet-5", "messages": [{"role": "user", "content": "Hello"}]}'
 ```
 
 ### Check API Key Status
@@ -165,6 +189,8 @@ The `OpenRouterAPI` class tracks key statuses. Access via:
 import { openRouterAPI } from '@/lib/openrouter';
 const statuses = openRouterAPI.getKeyStatuses();
 ```
+
+Or via the health endpoint: `curl http://localhost:3001/api/debug/health`.
 
 ---
 
@@ -193,9 +219,12 @@ src/app/actions/analyzeText.ts
 | File | Purpose |
 |------|---------|
 | `src/lib/openrouter.ts` | OpenRouter API integration |
-| `src/app/actions/analyzeText.ts` | Main analysis logic |
+| `src/lib/stream.ts` | Streaming analysis orchestration (cancel/timeout) |
+| `src/lib/streamParse.ts` | Streaming SSE parser |
+| `src/app/actions/analyzeText.ts` | Main analysis logic (AI + fallback) |
+| `src/lib/analyzeRules.ts` | Rule-based analysis |
 | `src/lib/errors.ts` | Error handling utilities |
-| `src/components/main-input-area/page.tsx` | UI component |
+| `src/components/input/InputArea.tsx` | Input UI component |
 
 ---
 
@@ -206,3 +235,4 @@ If issues persist after trying the solutions above:
 2. Verify your API key has active credits
 3. Check the browser console for JavaScript errors
 4. Review server logs for detailed error messages
+5. Run the debug endpoints to isolate which path is failing

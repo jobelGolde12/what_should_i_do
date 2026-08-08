@@ -17,6 +17,9 @@
 /.next/
 /out/
 
+# local auth data store (never commit user accounts)
+/.data/
+
 # production
 /build
 

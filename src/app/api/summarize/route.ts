@@ -1,56 +1,118 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { pipeline, SummarizationPipeline, SummarizationOutput } from '@xenova/transformers';
+import { NextRequest, NextResponse } from "next/server";
+import { pipeline, SummarizationPipeline } from "@xenova/transformers";
+import { getClientIp, rateLimit } from "@/lib/rateLimit";
 
-// Simple cache variable
+export const runtime = "nodejs";
+
+const MAX_TEXT_CHARS = 20_000;
+const MODEL_ID = "Xenova/distilbart-cnn-12-6";
+
 let summarizerCache: SummarizationPipeline | null = null;
 
-export async function POST(request: NextRequest) {
-  try {
-    const { text, max_length = 100, min_length = 30 } = await request.json();
-    
-    if (!text || text.trim().length < 20) {
-      return NextResponse.json(
-        { error: 'Text must be at least 20 characters' },
-        { status: 400 }
-      );
-    }
+// Text-hash → summary cache with a small cap so memory stays bounded.
+const cache = new Map<string, { summary: string; model: string }>();
+const CACHE_LIMIT = 200;
 
-    // Load model if not cached
-    if (!summarizerCache) {
-      summarizerCache = await pipeline(
-        'summarization',
-        'Xenova/distilbart-cnn-12-6',
-        { quantized: true }
-      );
-    }
-
-    const result = await summarizerCache(text.trim(), {
-      max_length: Math.min(max_length, 150),
-      min_length: Math.min(min_length, 50),
-      do_sample: false,
-    }) as SummarizationOutput;
-
-    // Extract summary safely
-    let summary: string;
-    if (Array.isArray(result) && result.length > 0 && result[0].summary_text) {
-      summary = result[0].summary_text;
-    } else {
-      summary = 'Could not generate summary';
-    }
-
-    return NextResponse.json({
-      summary,
-      model: 'distilbart-cnn-12-6',
-    });
-    
-  } catch (error: unknown) {
-    const errorMessage = error instanceof Error ? error.message : 'Summarization failed';
-    return NextResponse.json(
-      { error: errorMessage },
-      { status: 500 }
-    );
+function hashText(text: string): string {
+  let hash = 0;
+  for (let i = 0; i < text.length; i++) {
+    hash = (hash * 31 + text.charCodeAt(i)) >>> 0;
   }
+  return hash.toString(36);
 }
 
-// Export runtime configuration
-export const runtime = 'edge';
+function cacheSet(key: string, value: { summary: string; model: string }) {
+  if (cache.size >= CACHE_LIMIT) {
+    const oldest = cache.keys().next().value;
+    if (oldest !== undefined) cache.delete(oldest);
+  }
+  cache.set(key, value);
+}
+
+/** Extractive fallback used when the model can't load: first 2-3 sentences. */
+function extractiveFallback(text: string): string {
+  const sentences = text
+    .replace(/\s+/g, " ")
+    .trim()
+    .split(/(?<=[.!?])\s+/)
+    .map((s) => s.trim())
+    .filter(Boolean);
+  const picked = sentences.slice(0, 3).join(" ");
+  return picked.length > 40 ? picked : text.trim().slice(0, 280);
+}
+
+export async function POST(request: NextRequest) {
+  const rl = rateLimit(getClientIp(request), 10);
+  if (!rl.allowed) {
+    return NextResponse.json(
+      { error: "Too many requests. Try again in a minute." },
+      { status: 429 }
+    );
+  }
+
+  let body: { text?: unknown; max_length?: unknown; min_length?: unknown };
+  try {
+    body = (await request.json()) as typeof body;
+  } catch {
+    return NextResponse.json({ error: "Invalid body." }, { status: 400 });
+  }
+
+  const text = typeof body.text === "string" ? body.text.trim() : "";
+  if (text.length < 20) {
+    return NextResponse.json(
+      { error: "Text must be at least 20 characters." },
+      { status: 400 }
+    );
+  }
+  if (text.length > MAX_TEXT_CHARS) {
+    return NextResponse.json(
+      { error: `Text must be at most ${MAX_TEXT_CHARS} characters.` },
+      { status: 413 }
+    );
+  }
+
+  const maxLength = Math.min(
+    typeof body.max_length === "number" ? body.max_length : 100,
+    150
+  );
+  const minLength = Math.min(
+    typeof body.min_length === "number" ? body.min_length : 30,
+    50
+  );
+
+  const key = hashText(`${text}:${maxLength}:${minLength}`);
+  const cached = cache.get(key);
+  if (cached) {
+    return NextResponse.json({ ...cached, cached: true });
+  }
+
+  try {
+    if (!summarizerCache) {
+      summarizerCache = await pipeline("summarization", MODEL_ID, {
+        quantized: true,
+      });
+    }
+    const result = (await summarizerCache(text, {
+      max_length: maxLength,
+      min_length: minLength,
+      do_sample: false,
+    })) as { summary_text?: string }[];
+
+    const summary = result?.[0]?.summary_text?.trim();
+    if (!summary) {
+      throw new Error("Model returned an empty summary.");
+    }
+
+    const value = { summary, model: "distilbart-cnn-12-6" };
+    cacheSet(key, value);
+    return NextResponse.json({ ...value, cached: false });
+  } catch (error) {
+    // Graceful degradation: the offline model may be unavailable on some
+    // platforms; still deliver a usable summary instead of failing.
+    console.error("[summarize] Model failed, using extractive fallback:", error);
+    const summary = extractiveFallback(text);
+    const value = { summary, model: "extractive-fallback" };
+    cacheSet(key, value);
+    return NextResponse.json({ ...value, cached: false });
+  }
+}

@@ -27,9 +27,15 @@ interface APIKeyStatus {
   error?: string;
   isExhausted?: boolean;
   isRateLimited?: boolean;
+  isWorking?: boolean;
 }
 
 import { createError, getErrorMessage } from './errors';
+
+const REQUEST_TIMEOUT_MS = 60_000;
+const RETRY_COUNT = 2;
+const RETRY_BASE_MS = 500;
+const MAX_INPUT_CHARS = 20_000;
 
 class OpenRouterAPI {
   private readonly API_KEYS = [
@@ -39,7 +45,14 @@ class OpenRouterAPI {
   ].filter(Boolean);
 
   private readonly BASE_URL = 'https://openrouter.ai/api/v1';
-  private readonly MODEL = 'anthropic/claude-sonnet-5';
+  private readonly MODEL =
+    process.env.OPENROUTER_MODEL || 'anthropic/claude-sonnet-5';
+  private readonly TEMPERATURE = Number(
+    process.env.OPENROUTER_TEMPERATURE ?? 0.1
+  );
+  private readonly MAX_TOKENS = Number(
+    process.env.OPENROUTER_MAX_TOKENS ?? 900
+  );
 
   private keyStatuses: APIKeyStatus[] = [];
 
@@ -66,6 +79,69 @@ class OpenRouterAPI {
     );
   }
 
+  /** Transient errors (timeout/network) that warrant a same-key retry. */
+  private isTransientError(error: Error & { status?: number; code?: string }): boolean {
+    if (!error) return false;
+    const message = error.message?.toLowerCase() || '';
+    return (
+      error.name === 'AbortError' ||
+      error.code === 'aborted' ||
+      message.includes('timeout') ||
+      message.includes('timed out') ||
+      message.includes('network') ||
+      message.includes('fetch failed') ||
+      error.status === 503 ||
+      error.status === 504
+    );
+  }
+
+  private async fetchWithTimeout(
+    url: string,
+    init: RequestInit
+  ): Promise<Response> {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+    try {
+      return await fetch(url, { ...init, signal: controller.signal });
+    } catch (error: unknown) {
+      if (error instanceof Error && error.name === 'AbortError') {
+        const err = new Error(
+          `Request timed out after ${REQUEST_TIMEOUT_MS / 1000}s`
+        );
+        err.name = 'AbortError';
+        throw err;
+      }
+      throw error;
+    } finally {
+      clearTimeout(timer);
+    }
+  }
+
+  private async withRetry<T>(fn: () => Promise<T>): Promise<T> {
+    let lastError: unknown;
+    for (let attempt = 0; attempt <= RETRY_COUNT; attempt++) {
+      try {
+        return await fn();
+      } catch (error: unknown) {
+        lastError = error;
+        if (!this.isTransientError(error as Error & { status?: number; code?: string })) {
+          throw error;
+        }
+        if (attempt < RETRY_COUNT) {
+          const delay =
+            RETRY_BASE_MS * Math.pow(2, attempt) +
+            Math.round(Math.random() * 100);
+          console.warn(
+            `OpenRouter transient error, retrying in ${delay}ms:`,
+            (error as Error).message
+          );
+          await new Promise((resolve) => setTimeout(resolve, delay));
+        }
+      }
+    }
+    throw lastError;
+  }
+
   private async makeRequest(messages: OpenRouterMessage[], keyIndex: number): Promise<string> {
     const apiKey = this.API_KEYS[keyIndex];
     if (!apiKey) {
@@ -73,7 +149,7 @@ class OpenRouterAPI {
     }
 
     try {
-      const response = await fetch(`${this.BASE_URL}/chat/completions`, {
+      const response = await this.fetchWithTimeout(`${this.BASE_URL}/chat/completions`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${apiKey}`,
@@ -84,8 +160,8 @@ class OpenRouterAPI {
         body: JSON.stringify({
           model: this.MODEL,
           messages,
-          temperature: 0.1,
-          max_tokens: 900,
+          temperature: this.TEMPERATURE,
+          max_tokens: this.MAX_TOKENS,
           response_format: { type: 'json_object' }
         })
       });
@@ -103,6 +179,11 @@ class OpenRouterAPI {
       if (!data.choices?.[0]?.message?.content) {
         throw new Error('Empty response from OpenRouter');
       }
+
+      this.keyStatuses[keyIndex] = {
+        keyIndex,
+        isWorking: true,
+      };
 
       return data.choices[0].message.content;
 
@@ -140,7 +221,9 @@ class OpenRouterAPI {
       }
 
       try {
-        const content = await this.makeRequest(messages, keyIndex);
+        const content = await this.withRetry(() =>
+          this.makeRequest(messages, keyIndex)
+        );
         
         let parsed: Record<string, unknown>;
         try {
@@ -192,7 +275,9 @@ class OpenRouterAPI {
       }
 
       try {
-        return await this.streamFromKey(messages, keyIndex, onChunk);
+        return await this.withRetry(() =>
+          this.streamFromKey(messages, keyIndex, onChunk)
+        );
       } catch (error: unknown) {
         lastError = error;
         if (!this.isRetryableError(error as Error & { status?: number; code?: string })) {
@@ -217,24 +302,27 @@ class OpenRouterAPI {
     }
 
     try {
-      const response = await fetch(`${this.BASE_URL}/chat/completions`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${apiKey}`,
-          'Content-Type': 'application/json',
-          'Accept': 'text/event-stream',
-          'HTTP-Referer': process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000',
-          'X-Title': 'TaskMind - Text Analysis',
-        },
-        body: JSON.stringify({
-          model: this.MODEL,
-          messages,
-          temperature: 0.1,
-          max_tokens: 900,
-          stream: true,
-          response_format: { type: 'json_object' },
-        }),
-      });
+      const response = await this.fetchWithTimeout(
+        `${this.BASE_URL}/chat/completions`,
+        {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${apiKey}`,
+            'Content-Type': 'application/json',
+            'Accept': 'text/event-stream',
+            'HTTP-Referer': process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000',
+            'X-Title': 'TaskMind - Text Analysis',
+          },
+          body: JSON.stringify({
+            model: this.MODEL,
+            messages,
+            temperature: this.TEMPERATURE,
+            max_tokens: this.MAX_TOKENS,
+            stream: true,
+            response_format: { type: 'json_object' },
+          }),
+        }
+      );
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
@@ -294,6 +382,11 @@ class OpenRouterAPI {
         throw new Error('Empty streaming response from OpenRouter');
       }
 
+      this.keyStatuses[keyIndex] = {
+        keyIndex,
+        isWorking: true,
+      };
+
       return accumulated;
 
     } catch (error: unknown) {
@@ -326,11 +419,14 @@ class OpenRouterAPI {
   }
 
   private normalizeInput(input: string): string {
-    return input
+    const cleaned = input
       .replace(/\n+/g, ' ')
       .replace(/\s{2,}/g, ' ')
       .replace(/[^\x20-\x7E]/g, '')
       .trim();
+    return cleaned.length > MAX_INPUT_CHARS
+      ? cleaned.slice(0, MAX_INPUT_CHARS)
+      : cleaned;
   }
 
   private validateAndNormalizeResponse(response: Record<string, unknown>): Record<string, unknown> {
@@ -340,14 +436,37 @@ class OpenRouterAPI {
       console.warn("OpenRouter response missing or has weak summary, will use fallback summary logic");
     }
 
+    const stringList = (value: unknown): string[] =>
+      Array.isArray(value)
+        ? value.filter((v): v is string => typeof v === "string" && v.trim().length > 0)
+        : [];
+
     return {
-      actions: Array.isArray(response.actions) ? response.actions : [],
-      deadlines: Array.isArray(response.deadlines) ? response.deadlines : [],
+      actions: stringList(response.actions),
+      deadlines: stringList(response.deadlines),
       urgency: ["Urgent", "Important", "Informational"].includes(response.urgency as string)
         ? response.urgency
         : "Informational",
+      urgencyReason:
+        typeof response.urgencyReason === "string"
+          ? response.urgencyReason
+          : undefined,
+      urgencyConfidence:
+        typeof response.urgencyConfidence === "number"
+          ? response.urgencyConfidence
+          : undefined,
       confusingParts: Array.isArray(response.confusingParts) ? response.confusingParts : [],
       nextStep: typeof response.nextStep === "string" ? response.nextStep : "No action specified",
+      nextStepReason:
+        typeof response.nextStepReason === "string"
+          ? response.nextStepReason
+          : undefined,
+      nextStepActionIndex:
+        typeof response.nextStepActionIndex === "number" &&
+        Number.isInteger(response.nextStepActionIndex) &&
+        response.nextStepActionIndex >= 0
+          ? response.nextStepActionIndex
+          : undefined,
       summary: summary || ""
     };
   }
@@ -377,8 +496,11 @@ Return ONLY valid JSON with these exact fields:
   "actions": ["array of specific actions required - empty if none"],
   "deadlines": ["array of deadlines or timeframes - empty if none"],
   "urgency": "Urgent" | "Important" | "Informational",
-  "confusingParts": [{"sentence": "confusing text", "explanation": "why it's confusing"}],
-  "nextStep": "clear next action statement or 'No action required' if none",
+  "urgencyReason": "short reason for the urgency level (e.g. 'Deadline within 24h')",
+  "confusingParts": [{"sentence": "confusing text", "explanation": "why it's confusing", "reason": "missing-info|ambiguity|contradiction|jargon|incomplete", "suggestion": "what to clarify", "severity": "low|medium|high"}],
+  "nextStep": "clear next action statement or 'No action required' if none — must be one of the actions when one exists",
+  "nextStepReason": "one sentence explaining why this step is prioritized",
+  "nextStepActionIndex": "index into the actions array of the recommended step, or null",
   "summary": "2-3 sentence concise summary that answers: What happened? What should I do? When?"
 }
 

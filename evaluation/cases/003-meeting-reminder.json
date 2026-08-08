@@ -1,0 +1,16 @@
+{
+  "id": "meeting-reminder",
+  "input": "Hi team, just a reminder that the final project needs to be submitted via the online portal by Friday. Also, don't forget about the mandatory presentation tomorrow at 10 AM. Late submissions might have penalties but I need to check the exact rules.",
+  "expected": {
+    "actions": [
+      "Submit the final project via the online portal",
+      "Attend the mandatory presentation"
+    ],
+    "deadlines": [
+      "Friday",
+      "tomorrow at 10 AM"
+    ],
+    "urgency": "Important",
+    "summary": "Submit the final project via the online portal by Friday and attend the presentation tomorrow at 10 AM."
+  }
+}

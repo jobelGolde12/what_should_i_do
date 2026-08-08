@@ -2,195 +2,11 @@
 
 ## Overview
 
-The "Analyze Results" feature uses AI (via OpenRouter) to analyze text and extract actionable items, deadlines, urgency levels, and confusing parts. This document explains why the feature might not work and how to resolve issues.
-
----
-
-## Common Issues and Solutions
-
-### 1. API Key Not Configured
-
-**Symptom:** Error message: "No OpenRouter API keys configured"
-
-**Cause:** The application requires OpenRouter API keys to be set in the environment.
-
-**Solution:**
-```bash
-# Add to your .env.local file
-OPENROUTER_API_KEY1=sk-or-v1-xxxxx
-OPENROUTER_API_KEY2=sk-or-v1-yyyyy  # Optional, for failover
-OPENROUTER_API_KEY3=sk-or-v1-zzzzz  # Optional, for failover
-```
-
-**Location in code:** `src/lib/openrouter.ts` (the `API_KEYS` list in the `OpenRouterAPI` class).
-
----
-
-### 2. API Key Exhausted (Credit Limit Reached)
-
-**Symptom:** Error message: "All OpenRouter API keys are exhausted or rate limited"
-
-**Cause:** The OpenRouter API keys have run out of credits or exceeded their quota.
-
-**Solution:**
-1. Log in to your [OpenRouter Dashboard](https://openrouter.ai/)
-2. Add credits to your account
-3. Or wait for the rate limit to reset (typically 1 minute)
-
-**Location in code:** `src/lib/openrouter.ts` — key status tracking + `throwIfAllKeysExhausted()`.
-
-The application automatically detects when keys are exhausted via:
-- Error messages containing "credit", "quota", "exhausted"
-- HTTP status codes 402 (Payment Required) and 429 (Too Many Requests)
-
----
-
-### 3. Rate Limiting
-
-**Symptom:** Error message: "rate limit exceeded"
-
-**Cause:** Too many requests in a short period.
-
-**Solution:**
-- Wait 30-60 seconds before retrying
-- The app has automatic failover to secondary API keys (exponential backoff + jitter)
-
-**Location in code:** `src/lib/openrouter.ts` — `withRetry()`, `isRetryableError()`.
-
----
-
-### 4. Text Too Short
-
-**Symptom:** Error message: "Text too short - please provide more content"
-
-**Cause:** Input text is less than 10 characters after cleaning.
-
-**Solution:**
-- Provide at least 10 characters of meaningful text
-- The cleaning process removes special characters and extra whitespace
-
-**Location in code:** `src/app/actions/analyzeText.ts`.
-
----
-
-### 5. Network Connection Issues
-
-**Symptom:** Requests timeout or fail to connect
-
-**Cause:**
-- No internet connection
-- Firewall blocking OpenRouter requests
-- DNS resolution issues
-
-**Solution:**
-- Check your internet connection
-- Ensure `https://openrouter.ai` is accessible
-- The app automatically falls back to rule-based analysis
-
-**Location in code:** `src/lib/openrouter.ts` — `fetchWithTimeout()` (60s timeout, 2 retries).
-
----
-
-### 6. Invalid JSON Response
-
-**Symptom:** Error message: "Invalid JSON response from OpenRouter"
-
-**Cause:** The AI returned malformed JSON that couldn't be parsed.
-
-**Solution:**
-- This is usually transient; retry the request
-- The app has error handling that should retry automatically
-
-**Location in code:** `src/lib/openrouter.ts` (`analyzeText`) and `src/lib/streamParse.ts` (streaming parser).
-
----
-
-### 7. Empty Response from API
-
-**Symptom:** Error message: "Empty response from OpenRouter"
-
-**Cause:** The API returned an empty or malformed response.
-
-**Solution:**
-- Retry the request
-- Check if OpenRouter is experiencing outages
-
-**Location in code:** `src/lib/openrouter.ts` (`makeRequest` / `streamFromKey`).
-
----
-
-## Fallback Mechanism
-
-The application has a **rule-based fallback system** that activates when OpenRouter fails (`src/app/actions/analyzeText.ts`):
-
-1. **Cleans and normalizes input**
-2. **Extracts actions** using keyword matching for verbs like: submit, attend, pay, respond, bring, fill out, register, watch, send, reply
-3. **Detects deadlines** using `src/lib/deadline.ts` (chrono-node + regex fallbacks for today/tomorrow/bukas/weekdays/months)
-4. **Classifies urgency** using `src/lib/urgency.ts` (deadline-horizon aware)
-
-**Note:** The rule-based fallback is less accurate than AI but ensures the app remains functional.
-
----
-
-## Debug Endpoints
-
-Debug endpoints let you verify the analysis pipeline directly. They run on the dev server at `http://localhost:3001`.
-
-| Endpoint | Method | Purpose |
-|----------|--------|---------|
-| `/api/debug/openrouter` | POST | Runs `openRouterAPI.analyzeText` directly (raw AI path) |
-| `/api/debug/server-action` | POST | Runs the full `analyzeText` server action (AI + rule fallback) |
-| `/api/debug/health` | GET | Uptime + OpenRouter key health |
-
-Both POST endpoints accept an optional JSON body to override the sample input:
-```bash
-curl -X POST http://localhost:3001/api/debug/server-action \
-  -H "Content-Type: application/json" \
-  -d '{"input":"Submit the report by end of day Friday"}'
-```
-
-**Production gating:** debug routes return `404` when `NODE_ENV === "production"` unless an `ADMIN_TOKEN` env var is set. When set, requests must include `Authorization: Bearer <ADMIN_TOKEN>`. The `/api/debug/health` endpoint is public.
-
-Responses include `latencyMs` and `keyStatuses` (per-key error/exhausted/rate-limited/working state).
-
----
-
-## Environment Variables
-
-| Variable | Required | Description |
-|----------|----------|-------------|
-| `OPENROUTER_API_KEY1` | Yes | Primary OpenRouter API key |
-| `OPENROUTER_API_KEY2` | No | Failover key |
-| `OPENROUTER_API_KEY3` | No | Failover key |
-| `OPENROUTER_MODEL` | No | Model id (default `anthropic/claude-sonnet-5`) |
-| `OPENROUTER_TEMPERATURE` | No | Sampling temperature (default `0.1`) |
-| `OPENROUTER_MAX_TOKENS` | No | Max output tokens (default `900`) |
-| `NEXT_PUBLIC_APP_URL` | No | App URL for API requests / canonical URLs |
-| `AUTH_SECRET` | Yes (prod) | HMAC secret for session tokens |
-| `ADMIN_TOKEN` | No | Bearer token guarding debug endpoints in production |
-
----
-
-## Debugging
-
-### Test API Keys Manually
-
-```bash
-curl -X POST https://openrouter.ai/api/v1/chat/completions \
-  -H "Authorization: Bearer YOUR_API_KEY" \
-  -H "Content-Type: application/json" \
-  -d '{"model": "anthropic/claude-sonnet-5", "messages": [{"role": "user", "content": "Hello"}]}'
-```
-
-### Check API Key Status
-
-The `OpenRouterAPI` class tracks key statuses. Access via:
-```typescript
-import { openRouterAPI } from '@/lib/openrouter';
-const statuses = openRouterAPI.getKeyStatuses();
-```
-
-Or via the health endpoint: `curl http://localhost:3001/api/debug/health`.
+The "Analyze Results" feature uses AI (via TokenRouter) to analyze text and
+extract actionable items, deadlines, urgency levels, and confusing parts. The
+AI client lives in `src/lib/ai.ts`; the prompt in `src/lib/prompts.ts`; strict
+schema validation + repair in `src/lib/validateAnalysis.ts`. This document
+explains why the feature might not work and how to resolve issues.
 
 ---
 
@@ -199,17 +15,211 @@ Or via the health endpoint: `curl http://localhost:3001/api/debug/health`.
 ```
 User Input
     ↓
-src/app/actions/analyzeText.ts
+src/app/actions/analyzeText.ts            (server action — blocking)
+src/app/api/analyze/stream/route.ts       (SSE streaming — primary UI path)
     ↓
-┌─────────────────────────────┐
-│ Try OpenRouter (AI)        │
-│ src/lib/openrouter.ts      │
-└─────────────────────────────┘
-    ↓ Success              ↓ Failure
-┌───────────┐      ┌───────────────────┐
-│ Return    │      │ Fallback to Rules  │
-│ Result    │      │ analyzeWithRules() │
-└───────────┘      └───────────────────┘
+src/lib/ai.ts  (AIClient — TokenRouter, OpenAI-compatible)
+    │  retries / backoff / circuit breaker / multi-model routing
+    ↓
+src/lib/validateAnalysis.ts  (zod strict parse → repair → quality gate)
+    ↓ Success              ↓ Failure (after N attempts)
+┌───────────────┐      ┌──────────────────────┐
+│ Return result │      │ Fallback to rules    │
+│ (analysisMethod │      │ analyzeWithRules()   │
+│  = "ai")       │      │ (analysisMethod =    │
+└───────────────┘      │  "fallback")          │
+                       └──────────────────────┘
+```
+
+---
+
+## Common Issues and Solutions
+
+### 1. AI Provider Key Not Configured
+
+**Symptom:** "No AI provider configured (TOKENROUTER_API_KEY is missing)"
+
+**Cause:** `TOKENROUTER_API_KEY` is not set in the environment.
+
+**Solution:**
+```bash
+# Add to your .env (server-side only — never prefix with NEXT_PUBLIC_)
+TOKENROUTER_API_KEY=tr-xxxxxxxx
+TOKENROUTER_BASE_URL=https://api.tokenrouter.com/v1
+TOKENROUTER_MODEL=            # optional: model id or routing tag
+```
+
+**Location in code:** `src/lib/ai.ts` (the `AIClient` constructor).
+
+---
+
+### 2. Provider Quota Exhausted (Credit Limit Reached)
+
+**Symptom:** "AI provider quota exhausted. Add credits or switch provider."
+
+**Cause:** The TokenRouter account has run out of credits (HTTP 402, or a
+`credit`/`quota`/`insufficient` error from the provider).
+
+**Solution:**
+1. Add credits in the TokenRouter dashboard.
+2. Or set a different `TOKENROUTER_API_KEY` / `TOKENROUTER_MODEL`.
+
+The app detects quota errors and surfaces them (`ALL_KEYS_EXHAUSTED`) instead of
+retrying. The streaming UI path still falls back to the rule-based analyzer.
+
+---
+
+### 3. Rate Limiting / Transient Provider Errors
+
+**Symptom:** "AI analysis failed after 3 attempts: ..." (rate limit / 5xx /
+timeout / network)
+
+**Cause:** The provider returned 429 or 5xx, or the request timed out.
+
+**Solution:**
+- Wait a bit and retry.
+- The client already retries with exponential backoff + jitter and can switch
+  to `TOKENROUTER_MODEL_FALLBACKS` (comma-separated) across attempts.
+- `TOKENROUTER_TIMEOUT_MS` (default 60000) and `TOKENROUTER_MAX_ATTEMPTS`
+  (default 3) tune the behavior.
+
+**Location in code:** `src/lib/ai.ts` — `backoff()`, attempt loops, and the
+`RouteCircuitBreaker`.
+
+---
+
+### 4. Text Too Short
+
+**Symptom:** "Text too short - please provide more content"
+
+**Cause:** Input text is less than 10 characters after cleaning.
+
+**Solution:** Provide at least 10 characters of meaningful text.
+
+**Location in code:** `src/lib/ai.ts` (`guardAndBuild`) and
+`src/app/actions/analyzeText.ts`.
+
+---
+
+### 5. Invalid / Malformed JSON from the Model
+
+**Symptom:** Analysis falls back to rules; debug route shows
+`INVALID_JSON` / `INVALID_RESPONSE`.
+
+**Cause:** The model returned non-JSON, an unusable shape, or a response with
+no usable content.
+
+**Solution:**
+- The pipeline already: strips markdown fences, salvages truncated JSON
+  (complete fields), clamps urgency, coerces arrays, and retries on a fallback
+  route before falling back to rules. This is usually transient — retry.
+- Check the debug route for which attempt/model produced what.
+
+**Location in code:** `src/lib/validateAnalysis.ts` and `src/lib/streamParse.ts`.
+
+---
+
+### 6. Empty Response from the Provider
+
+**Symptom:** "Empty response from AI provider" / "Empty streaming response".
+
+**Cause:** The provider returned no content, or the stream produced no tokens.
+
+**Solution:** Retry; if persistent, switch `TOKENROUTER_MODEL` or the provider.
+
+**Location in code:** `src/lib/ai.ts` (`requestChat` / `streamFromModel`).
+
+---
+
+## Fallback Mechanism
+
+When the AI client fails after all attempts, the app runs the **rule-based
+fallback** (`src/lib/analyzeRules.ts`) and marks the result with
+`analysisMethod: "fallback"` so the UI can indicate it. The fallback:
+
+1. Cleans and normalizes input (`cleanText` + `enhanceInput`).
+2. Extracts actions using the lexicon in `src/lib/actionUtils.ts`.
+3. Detects deadlines via `src/lib/deadline.ts` (chrono-node + regex).
+4. Classifies urgency via `src/lib/urgency.ts`.
+
+The rule-based fallback is far less accurate than the AI path. Run
+`npm run eval` to see the measured gap.
+
+---
+
+## Debug Endpoints
+
+Debug endpoints verify the analysis pipeline directly. They run on the dev
+server at `http://localhost:3001`.
+
+| Endpoint | Method | Purpose |
+|----------|--------|---------|
+| `/api/debug/ai` | POST | Runs `aiClient.analyzeStructured` directly (raw AI path) with usage + diagnostics |
+| `/api/debug/server-action` | POST | Runs the full `analyzeText` server action (AI + rule fallback) |
+| `/api/debug/env` | GET | Shows which `TOKENROUTER_*` / legacy `OPENROUTER_*` vars exist |
+| `/api/debug/health` | GET | Uptime + AI client config (public) |
+
+The POST endpoints accept an optional JSON body to override the sample input:
+```bash
+curl -X POST http://localhost:3001/api/debug/ai \
+  -H "Content-Type: application/json" \
+  -d '{"input":"Submit the report by end of day Friday"}'
+```
+
+**Production gating:** debug routes return `404` when `NODE_ENV ===
+"production"` unless an `ADMIN_TOKEN` env var is set. When set, requests must
+include `Authorization: Bearer <ADMIN_TOKEN>`. `/api/debug/health` is public.
+
+Responses include `latencyMs` and `usage` (model, attempt, repaired, token
+usage). The `diagnostics` field reports the configured model, fallbacks,
+auto-route state, prompt version, and circuit-breaker state.
+
+---
+
+## Environment Variables
+
+| Variable | Required | Description |
+|----------|----------|-------------|
+| `TOKENROUTER_API_KEY` | **Yes** | TokenRouter API key (server-only) |
+| `TOKENROUTER_BASE_URL` | No | API base URL (default `https://api.tokenrouter.com/v1`) |
+| `TOKENROUTER_MODEL` | No | Model id or routing tag (empty → auto-route) |
+| `TOKENROUTER_MODEL_FALLBACKS` | No | Comma-separated fallback models tried on retry |
+| `TOKENROUTER_TEMPERATURE` | No | Sampling temperature (default `0.1`) |
+| `TOKENROUTER_MAX_TOKENS` | No | Max output tokens (default `900`) |
+| `TOKENROUTER_TIMEOUT_MS` | No | Request timeout (default `60000`) |
+| `TOKENROUTER_MAX_ATTEMPTS` | No | Max routing attempts (default `3`) |
+| `NEXT_PUBLIC_APP_URL` | No | App URL for canonical metadata |
+| `AUTH_SECRET` | Yes (prod) | HMAC secret for session tokens |
+| `ADMIN_TOKEN` | No | Bearer token guarding debug endpoints in production |
+
+Legacy `OPENROUTER_API_KEY1/2/3` variables are no longer read by the app
+(kept commented out in `.env.local` for rollback reference).
+
+---
+
+## Debugging
+
+### Test the AI Provider Manually
+
+```bash
+curl -X POST https://api.tokenrouter.com/v1/chat/completions \
+  -H "Authorization: Bearer YOUR_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"model": "", "messages": [{"role": "user", "content": "Say hi"}], "max_tokens": 20}'
+```
+
+### Check AI Client Health
+
+`curl http://localhost:3001/api/debug/health` reports whether the provider is
+configured, the active model, fallbacks, prompt version, and circuit-breaker
+state.
+
+### Run the accuracy harness
+
+```bash
+npm run eval            # rule-based baseline (offline)
+npm run eval -- live    # live AI provider (needs key + credits)
+npm test                # unit/integration tests (mocked provider)
 ```
 
 ---
@@ -218,21 +228,24 @@ src/app/actions/analyzeText.ts
 
 | File | Purpose |
 |------|---------|
-| `src/lib/openrouter.ts` | OpenRouter API integration |
-| `src/lib/stream.ts` | Streaming analysis orchestration (cancel/timeout) |
-| `src/lib/streamParse.ts` | Streaming SSE parser |
+| `src/lib/ai.ts` | TokenRouter AI client (routing, retries, breaker) |
+| `src/lib/prompts.ts` | Versioned analysis prompt + few-shot examples |
+| `src/lib/validateAnalysis.ts` | zod schema validation + repair |
+| `src/lib/streamParse.ts` | Streaming SSE parser + progressive fields |
+| `src/lib/stream.ts` | Client-side streaming orchestration (cancel/timeout) |
 | `src/app/actions/analyzeText.ts` | Main analysis logic (AI + fallback) |
-| `src/lib/analyzeRules.ts` | Rule-based analysis |
+| `src/lib/analyzeRules.ts` | Rule-based fallback |
 | `src/lib/errors.ts` | Error handling utilities |
-| `src/components/input/InputArea.tsx` | Input UI component |
+| `tests/ai.test.ts` | Mocked provider tests (success, bad JSON, 429, 5xx, timeout) |
+| `evaluation/cases/*.json` | Labeled accuracy dataset for `npm run eval` |
 
 ---
 
 ## Support
 
 If issues persist after trying the solutions above:
-1. Check [OpenRouter Status](https://status.openrouter.ai/)
-2. Verify your API key has active credits
-3. Check the browser console for JavaScript errors
-4. Review server logs for detailed error messages
-5. Run the debug endpoints to isolate which path is failing
+1. Check TokenRouter status/dashboard for account health.
+2. Verify `TOKENROUTER_API_KEY` has active credits.
+3. Check the browser console for JavaScript errors.
+4. Review server logs for structured diagnostics (input text is never logged).
+5. Run the debug endpoints to isolate which path is failing.

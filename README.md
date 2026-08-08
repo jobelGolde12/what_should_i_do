@@ -1,10 +1,10 @@
 TaskMind – Universal Instruction Translator
 <p align="center"> <strong>Turn confusing messages into clear actions</strong><br> Extract actions, deadlines, and urgency from any text </p><p align="center"> <a href="#-features">Features</a> • <a href="#-how-it-works">How It Works</a> • <a href="#-quick-start">Quick Start</a> • <a href="#-installation">Installation</a> • <a href="#-usage">Usage</a> • <a href="#-who-uses-this">Who Uses This</a> • <a href="#-contributing">Contributing</a> • <a href="#-license">License</a> </p><p align="center"> <img src="https://img.shields.io/badge/version-1.0.0-blue" alt="Version"> <img src="https://img.shields.io/badge/node-%3E%3D18.0.0-green" alt="Node Version"> <img src="https://img.shields.io/badge/LLM-OpenRouter-orange" alt="LLM"> <img src="https://img.shields.io/badge/license-MIT-brightgreen" alt="License"> <img src="https://img.shields.io/badge/PRs-welcome-brightgreen" alt="PRs Welcome"> <img src="https://img.shields.io/badge/no-login-required-orange" alt="No Login Required"> </p>
 📋 Overview
-TaskMind is not just another summarizer or chatbot. It's a decision & action clarity tool that transforms confusing messages, emails, announcements, and instructions into structured, actionable items with clear deadlines and urgency levels. Built with Next.js and powered by a server-side LLM (OpenRouter) with rule-based fallbacks, local-first storage, and a privacy policy.
+TaskMind is not just another summarizer or chatbot. It's a decision & action clarity tool that transforms confusing messages, emails, announcements, and instructions into structured, actionable items with clear deadlines and urgency levels. Built with Next.js and powered by a server-side LLM (TokenRouter) with rule-based fallbacks, local-first storage, and a privacy policy.
 
 🎯 What It Does
-Extracts actionable items from any text using Web LLM
+Extracts actionable items from any text using AI
 
 Detects deadlines (even vague ones like "by next week")
 
@@ -18,7 +18,7 @@ Translates results into multiple languages
 
 ✨ Features
 🎯 Action Extractor
-Uses Web LLM to detect action verbs like submit, attend, pay, respond and converts them into clear, checkable action items.
+Uses AI to detect action verbs like submit, attend, pay, respond and converts them into clear, checkable action items.
 
 📅 Deadline Detector
 Transforms vague time references ("by EOD", "next Friday", "end of month") into specific dates with clear visual indicators.
@@ -109,10 +109,9 @@ javascript
 // Using as a module
 import { TaskMind } from './src/core/action-clarity.js';
 
-// Initialize with Web LLM
+// Initialize with the configured AI provider
 const clarity = new TaskMind({
-  model: 'llama-2-7b-chat-q4f32_1', // or other supported Web LLM models
-  device: 'webgpu' // or 'webgl' depending on browser support
+  model: process.env.TOKENROUTER_MODEL || undefined, // empty → auto-route
 });
 
 // Analyze your text
@@ -165,24 +164,14 @@ Legal documents and contracts
 
 🔧 Advanced Features
 Custom Model Configuration
-javascript
-const clarity = new TaskMind({
-  model: 'mistral-7b-instruct-q4f32_1',
-  device: 'webgpu',
-  temperature: 0.3,
-  maxTokens: 1000
-});
-Browser Integration
-html
-<script type="module">
-  import { TaskMind } from 'https://cdn.jsdelivr.net/npm/taskmind@latest/dist/taskmind.min.js';
-  
-  const clarity = new TaskMind();
-  const result = await clarity.analyze("Your message here");
-  
-  // Display in your UI
-  document.getElementById('result').innerHTML = result.toHTML();
-</script>
+Select the model/route via environment variables (server-side):
+
+dotenv
+# .env
+TOKENROUTER_API_KEY=tr-xxxxxxxx
+TOKENROUTER_BASE_URL=https://api.tokenrouter.com/v1
+TOKENROUTER_MODEL=           # leave empty for auto-routing
+TOKENROUTER_TEMPERATURE=0.1
 Export Options
 javascript
 // Export to various formats
@@ -214,34 +203,25 @@ Access the web interface at http://localhost:3000 after starting the server:
 bash
 npm start
 📊 Performance
-Processing Time: 2-3 seconds for typical messages (Web LLM)
+Processing Time: 10-60 seconds for typical messages (AI analysis)
 
 Accuracy: 90%+ on clear action-oriented text
 
 Languages Supported: English (primary), Tagalog, Spanish (coming soon)
 
-Max Text Length: 5,000 characters (browser memory constraints)
+Max Text Length: 20,000 characters
 
-Model Size: ~4GB (quantized models for browser)
+Model: Configurable via TokenRouter (OpenAI-compatible gateway)
 
-Privacy: 100% client-side processing
+Privacy: Local-first storage; only the text you analyze is sent to the AI provider
 
-🚀 Web LLM Integration
-TaskMind uses Web LLM to run language models directly in your browser:
+🚀 AI Integration
+TaskMind routes analysis through a provider-agnostic AI client (TokenRouter) with schema-validated JSON output, automatic retries/failover, and a rule-based fallback:
 
-javascript
-// Initialize Web LLM
-const llm = new WebLLM({
-  model: 'Llama-2-7b-chat-hf-q4f32_1',
-  device: 'webgpu',
-  initProgressCallback: (progress) => {
-    console.log(`Loading model: ${progress}`);
-  }
-});
-
-await llm.initialize();
-Supported Models
-Llama-2-7b-chat-hf-q4f32_1
+- `src/lib/ai.ts` — the AI client (streaming + non-streaming, timeouts, backoff, circuit breaker)
+- `src/lib/prompts.ts` — versioned analysis prompt with few-shot examples
+- `src/lib/validateAnalysis.ts` — strict zod validation + repair of model output
+- `TOKENROUTER_API_KEY` / `TOKENROUTER_MODEL` — configure the provider (see `.env.example`)
 
 Mistral-7B-Instruct-v0.2-q4f32_1
 
@@ -261,7 +241,7 @@ Push to the branch (git push origin feature/AmazingFeature)
 Open a Pull Request
 
 Areas for Contribution
-Adding support for new Web LLM models
+Adding support for new AI providers/routes via TokenRouter
 
 Improving deadline detection algorithms
 
@@ -277,13 +257,11 @@ Writing documentation and examples
 This project is licensed under the MIT License - see the LICENSE file for details.
 
 🙏 Acknowledgments
-MLC AI for the amazing Web LLM framework
+TokenRouter for AI model routing
 
 Open source LLM communities for making models accessible
 
 Early testers and users for valuable feedback
-
-The WebGPU and WebAssembly communities
 
 📞 Support
 Issues: GitHub Issues

@@ -1,7 +1,6 @@
 import type { AnalysisResult } from "@/app/actions/analyzeText";
 import {
   ACTION_LEXICON,
-  cleanActionText,
   dedupeActions,
   extractActionPhrase,
 } from "@/lib/actionUtils";
@@ -33,6 +32,8 @@ export function sanitizeSummary(text: string): string {
   return text
     .replace(/<[^>]*>/g, "")
     .replace(/`{1,3}json|```|`/g, "")
+    .replace(/\*\*([^*]+)\*\*/g, "$1")
+    .replace(/__([^_]+)__/g, "$1")
     .trim();
 }
 
@@ -480,63 +481,10 @@ function generateDecisionFocusedSummary(opts: {
 
 /**
  * Runs the rule-based fallback on raw input (clean + enhance + rules).
- * Used by the streaming route when OpenRouter is unavailable.
+ * Used by the streaming route when the AI provider is unavailable.
  */
 export function runRuleAnalysis(input: string): AnalysisResult {
   const cleaned = cleanText(input);
   const enhanced = enhanceInput(cleaned);
   return analyzeWithRules(enhanced);
-}
-
-/**
- * Normalizes a parsed OpenRouter JSON object into a full AnalysisResult,
- * applying the same highlighting used by the non-streaming path.
- */
-export function normalizeAnalysisResult(
-  parsed: Record<string, unknown>
-): AnalysisResult {
-  return {
-    actions: dedupeActions(
-      Array.isArray(parsed.actions)
-        ? parsed.actions.filter((a): a is string => typeof a === "string")
-        : []
-    ),
-    deadlines: Array.isArray(parsed.deadlines)
-      ? [...new Set(parsed.deadlines.filter((d): d is string => typeof d === "string"))]
-      : [],
-    urgency: ["Urgent", "Important", "Informational"].includes(parsed.urgency as string)
-      ? (parsed.urgency as "Urgent" | "Important" | "Informational")
-      : "Informational",
-    urgencyReason:
-      typeof parsed.urgencyReason === "string"
-        ? parsed.urgencyReason
-        : undefined,
-    urgencyConfidence:
-      typeof parsed.urgencyConfidence === "number"
-        ? parsed.urgencyConfidence
-        : undefined,
-    confusingParts: dedupeConfusingParts(
-      Array.isArray(parsed.confusingParts)
-        ? parsed.confusingParts.filter(
-            (c): c is ConfusingPart =>
-              typeof c === "object" &&
-              c !== null &&
-              typeof (c as ConfusingPart).sentence === "string"
-          )
-        : []
-    ),
-    nextStep: typeof parsed.nextStep === "string" ? cleanActionText(parsed.nextStep) : "No action specified",
-    nextStepReason:
-      typeof parsed.nextStepReason === "string"
-        ? parsed.nextStepReason
-        : undefined,
-    nextStepActionIndex:
-      typeof parsed.nextStepActionIndex === "number" &&
-      Number.isInteger(parsed.nextStepActionIndex) &&
-      parsed.nextStepActionIndex >= 0
-        ? parsed.nextStepActionIndex
-        : undefined,
-    summary: sanitizeSummary(typeof parsed.summary === "string" ? parsed.summary : ""),
-    analysisMethod: "ai",
-  };
 }

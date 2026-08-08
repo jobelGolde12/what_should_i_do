@@ -37,7 +37,7 @@ const SECTIONS: { heading: string; body: string }[] = [
   },
   {
     heading: "Third-party providers",
-    body: "Analysis and translation may be performed by third-party providers (e.g., OpenRouter, MyMemory) subject to their own terms and privacy policies. Your text is transmitted to them only to complete the request.",
+    body: "Analysis and translation may be performed by third-party providers (e.g., TokenRouter, MyMemory) subject to their own terms and privacy policies. Your text is transmitted to them only to complete the request.",
   },
   {
     heading: "Advertising",

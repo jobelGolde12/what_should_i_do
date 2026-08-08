@@ -17,7 +17,7 @@ const SECTIONS: { heading: string; body: string }[] = [
   },
   {
     heading: "What is sent to AI providers",
-    body: "When you analyze text, that text is transmitted to the configured AI provider (for example OpenRouter) solely to generate the analysis: extracted actions, deadlines, urgency, and a summary. The provider receives your text once; the results are then stored locally on your device. We do not retain or log the text you analyze beyond the request itself.",
+    body: "When you analyze text, that text is transmitted to the configured AI provider (for example TokenRouter) solely to generate the analysis: extracted actions, deadlines, urgency, and a summary. The provider receives your text once; the results are then stored locally on your device. We do not retain or log the text you analyze beyond the request itself.",
   },
   {
     heading: "Translation",

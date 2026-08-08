@@ -1,8 +1,8 @@
-import { openRouterAPI } from "@/lib/openrouter";
-import { runRuleAnalysis, normalizeAnalysisResult } from "@/lib/analyzeRules";
+import { aiClient } from "@/lib/ai";
+import { runRuleAnalysis } from "@/lib/analyzeRules";
+import { validateAndRepairAnalysis } from "@/lib/validateAnalysis";
 import {
   extractCompletedFields,
-  stripFences,
   STREAM_FIELD_ORDER,
 } from "@/lib/streamParse";
 import { createError, getErrorMessage } from "@/lib/errors";
@@ -77,11 +77,11 @@ export async function POST(req: Request) {
           );
         }
 
-        // Stream from OpenRouter, revealing fields as they complete.
+        // Stream from the AI provider, revealing fields as they complete.
         const previous = new Set<string>();
         let completedAny = false;
 
-        const content = await openRouterAPI.streamRaw(text, (accumulated) => {
+        const { content } = await aiClient.streamStructured(text, (accumulated) => {
           const fields = extractCompletedFields(
             accumulated,
             STREAM_FIELD_ORDER,
@@ -94,18 +94,9 @@ export async function POST(req: Request) {
           }
         });
 
-        // Final authoritative result (handles fields that streamed partially).
-        let parsed: Record<string, unknown>;
-        try {
-          parsed = JSON.parse(stripFences(content)) as Record<string, unknown>;
-        } catch {
-          throw createError(
-            "Invalid JSON response from OpenRouter",
-            "INVALID_JSON"
-          );
-        }
-
-        const result = normalizeAnalysisResult(parsed);
+        // Final authoritative result (validates + repairs the streamed JSON,
+        // salvaging truncated output where possible).
+        const result = validateAndRepairAnalysis(content);
         send({ type: "done", result, streamed: completedAny });
       } catch (error: unknown) {
         // Fall back to the rule-based analyser (mirrors the server action).

@@ -1,22 +1,40 @@
-# Feature 09 — AI Backend & Fallback (OpenRouter integration)
+# Feature 09 — AI Backend & Fallback (TokenRouter integration)
 
-> **Status: DONE** — `OpenRouterAPI` now has a 60s request timeout (`fetchWithTimeout` + `AbortController`), retry with exponential backoff + jitter for transient errors (timeout/network/503/504) via `withRetry()`, env-driven `OPENROUTER_MODEL`/`OPENROUTER_TEMPERATURE`/`OPENROUTER_MAX_TOKENS`, and a 20k-char input cap before hitting the LLM. Applied to both the non-streaming and streaming paths.
+> **Status: DONE** — **TokenRouter migration complete.** `OpenRouterAPI` was
+> replaced by a provider-agnostic `AIClient` (`src/lib/ai.ts`): OpenAI-compatible
+> chat completions against `TOKENROUTER_*` env vars, bounded multi-attempt
+> routing (`TOKENROUTER_MODEL` + `TOKENROUTER_MODEL_FALLBACKS`, or auto-route),
+> exponential backoff + jitter, a route circuit breaker, 60s (configurable)
+> timeouts, strict zod schema validation + repair (`src/lib/validateAnalysis.ts`),
+> and a versioned prompt with few-shot examples (`src/lib/prompts.ts`). The old
+> `src/lib/openrouter.ts` was deleted; legacy `OPENROUTER_*` keys are no longer
+> read. Debug routes now test the new client (`/api/debug/ai`) and expose usage
+> + diagnostics. Added `npm run eval` (accuracy harness) and `npm test`
+> (mocked provider tests). The rule-based fallback remains the last resort and
+> is clearly flagged via `analysisMethod`.
 
 ## 1. What it is & its role
 
-The **AI Backend** is the primary analysis engine. It calls **OpenRouter** (model `anthropic/claude-sonnet-5`) with a structured JSON prompt, validates the response, and provides a **rule-based fallback** when the AI path fails. Its role is to deliver high-quality structured analysis while remaining resilient to API outages, rate limits, and credit exhaustion.
+The **AI Backend** is the primary analysis engine. It calls **TokenRouter** (an
+OpenAI-compatible model gateway) with a structured JSON prompt, validates and
+repairs the response, and provides a **rule-based fallback** when the AI path
+fails. Its role is to deliver high-quality structured analysis while remaining
+resilient to API outages, rate limits, and credit exhaustion.
 
 ## 2. Current functionality
 
 ### Where it lives
-- **Client:** `src/lib/openrouter.ts` → `OpenRouterAPI` class.
+- **Client:** `src/lib/ai.ts` → `AIClient` class (TokenRouter).
+- **Prompt:** `src/lib/prompts.ts` (versioned, few-shot examples).
+- **Validation:** `src/lib/validateAnalysis.ts` (zod strict parse + repair).
 - **Server action:** `src/app/actions/analyzeText.ts` → `analyzeText`, `analyzeTextFast`, `analyzeTextsBatch`.
 - **Rules engine:** `src/lib/analyzeRules.ts`.
 - **Errors:** `src/lib/errors.ts`.
-- **Debug routes:** `src/app/api/debug/openrouter/route.ts`, `src/app/api/debug/server-action/route.ts`.
+- **Debug routes:** `src/app/api/debug/ai/route.ts`, `src/app/api/debug/server-action/route.ts`.
 
 ### How it works today
-1. Multi-key support: up to **3** API keys (`OPENROUTER_API_KEY1/2/3`), with per-key status tracking.
+1. Single API key (`TOKENROUTER_API_KEY`) with optional model fallbacks
+   (`TOKENROUTER_MODEL`, `TOKENROUTER_MODEL_FALLBACKS`); empty model → auto-route.
 2. `isRetryableError()` detects credit/quota/rate-limit/HTTP 429/402 and marks keys as exhausted/rate-limited.
 3. `analyzeText()` iterates keys, skipping exhausted ones; on success validates/normalizes the JSON response.
 4. Prompt engineering via `buildAnalysisMessages()` (system prompt with strict JSON schema + urgency rules).

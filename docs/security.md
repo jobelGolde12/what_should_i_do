@@ -15,8 +15,9 @@ npm run security:audit   # npm audit --omit=dev
   (`src/lib/storage.ts`). Nothing is stored server-side except optional synced
   account data.
 - **Transmission**: only the text you analyze is sent to the configured AI
-  provider (OpenRouter) via `/api/analyze/stream` or the `analyzeText` server
-  action. Translation sends the summary to MyMemory.
+  provider (TokenRouter, OpenAI-compatible) via `/api/analyze/stream` or the
+  `analyzeText` server action (`src/lib/ai.ts`). Translation sends the summary
+  to MyMemory. Input text is never logged.
 - **Auth** (optional, Feature 19): scrypt password hashing with timing-safe
   compare, HMAC-signed HttpOnly/SameSite session cookies (`taskmind_session`,
   30-day expiry), file-backed user store in `.data/` (gitignored).
@@ -57,8 +58,16 @@ distributed limiting.
   the analysis screen.
 - [x] **Structured logging** (`src/lib/log.ts`): request id + metadata only —
   analyzed text is never logged.
-- [x] **Secret handling**: API keys are server-only env vars (`OPENROUTER_API_KEY*`);
-  `.env*` and `.data/` gitignored.
+- [x] **Secret handling**: API keys are server-only env vars
+  (`TOKENROUTER_API_KEY`, legacy `OPENROUTER_API_KEY*` deprecated); `.env*` and
+  `.data/` gitignored.
+- [x] **Strict AI output validation**: model output is schema-validated and
+  auto-repaired (`src/lib/validateAnalysis.ts`, zod); sanitizes HTML/markdown
+  from actions/deadlines/summary; bounded multi-attempt routing with a circuit
+  breaker (`src/lib/ai.ts`).
+- [x] **Accuracy harness**: `npm run eval` reports precision/recall/exact-match
+  over a labeled dataset; `npm test` covers success, bad JSON, 429, 5xx,
+  timeout, empty, and quota paths with a mocked provider.
 
 ## Known risks & remediation plan
 
@@ -83,8 +92,8 @@ distributed limiting.
 ## Key rotation & least privilege
 
 - Keys are injected at runtime via env; never hardcode or commit them.
-- Use one OpenRouter key per environment if possible; rotate by replacing the
-  env value and restarting (statuses reset on restart).
+- Use one TokenRouter key per environment if possible; rotate by replacing the
+  env value and restarting (circuit-breaker state resets on restart).
 - `ADMIN_TOKEN` guards debug routes in production; rotate it like a password.
 - `AUTH_SECRET` signs sessions — set a stable, long random value in production;
   rotation invalidates all sessions.

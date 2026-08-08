@@ -1,0 +1,12 @@
+{
+  "id": "lost-wallet",
+  "input": "Paalala sa lahat. May naiwan na wallet sa North-South corridor kanina. Kung nakita niyo po, paki-dala sa Lost and Found office. Hindi po ito urgent, salamat.",
+  "expected": {
+    "actions": [
+      "Bring the wallet to the Lost and Found office if found"
+    ],
+    "deadlines": [],
+    "urgency": "Informational",
+    "summary": "A wallet was left in the North-South corridor; if found, bring it to the Lost and Found office."
+  }
+}

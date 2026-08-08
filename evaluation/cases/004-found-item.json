@@ -1,0 +1,12 @@
+{
+  "id": "found-item",
+  "input": "A medium-sized black bag was found on the bench near the main entrance earlier today. If you lost a bag matching this description, please go to the reception desk to claim it. Verification of ownership is required.",
+  "expected": {
+    "actions": [
+      "Go to the reception desk to claim the bag if lost"
+    ],
+    "deadlines": [],
+    "urgency": "Informational",
+    "summary": "A black bag was found near the main entrance; if it is yours, claim it at the reception desk."
+  }
+}

@@ -14,6 +14,7 @@ Every feature file documents:
 
 ## Quick Start
 
+- **Priority plan:** [`ai-analysis-accurate-tokenrouter.md`](./ai-analysis-accurate-tokenrouter.md) — Make analysis AI-powered & accurate using **TokenRouter** as the model provider (with `.env` credentials).
 - Start with the [`FEATURES-INDEX.md`](./FEATURES-INDEX.md) — a master inventory of all 24 features with their statuses.
 - Then open the individual feature file you want to work on under [`features/`](./features/).
 

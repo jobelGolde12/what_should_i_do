@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { openRouterAPI } from "@/lib/openrouter";
+import { aiClient } from "@/lib/ai";
 import { isDebugAllowed, authorized, DEBUG_UNAVAILABLE } from "@/lib/debug/guard";
 
 export const runtime = "nodejs";
@@ -28,16 +28,17 @@ export async function POST(request: Request) {
 
   const started = Date.now();
   try {
-    const result = await openRouterAPI.analyzeText(input);
+    const { result, usage } = await aiClient.analyzeStructured(input);
     return NextResponse.json({
       success: true,
       input,
       result,
       latencyMs: Date.now() - started,
-      keyStatuses: openRouterAPI.getKeyStatuses(),
+      usage,
+      diagnostics: aiClient.getDiagnostics(),
     });
   } catch (error) {
-    console.error("OpenRouter test error:", error);
+    console.error("AI test error:", error);
     const errorMessage = error instanceof Error ? error.message : "An unknown error occurred";
     const errorStack = error instanceof Error ? error.stack : undefined;
     return NextResponse.json(
@@ -47,7 +48,7 @@ export async function POST(request: Request) {
         error: errorMessage,
         stack: errorStack,
         latencyMs: Date.now() - started,
-        keyStatuses: openRouterAPI.getKeyStatuses(),
+        diagnostics: aiClient.getDiagnostics(),
       },
       { status: 500 }
     );

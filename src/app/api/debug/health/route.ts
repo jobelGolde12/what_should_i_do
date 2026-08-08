@@ -1,21 +1,24 @@
 import { NextResponse } from "next/server";
-import { openRouterAPI } from "@/lib/openrouter";
+import { aiClient } from "@/lib/ai";
 
 export const runtime = "nodejs";
 
 export async function GET() {
-  const keys = openRouterAPI.getKeyStatuses();
-  const healthy = keys.some((k) => k.isWorking);
+  const diagnostics = aiClient.getDiagnostics();
+  const healthy = diagnostics.configured;
   return NextResponse.json(
     {
       status: healthy ? "ok" : "degraded",
       uptime: process.uptime(),
       timestamp: Date.now(),
-      openrouter: {
-        configured: keys.length > 0,
-        keyCount: keys.length,
-        healthyKeys: keys.filter((k) => k.isWorking).length,
-        statuses: keys,
+      ai: {
+        provider: diagnostics.provider,
+        configured: diagnostics.configured,
+        model: diagnostics.model,
+        fallbackModels: diagnostics.fallbackModels,
+        autoRoute: diagnostics.autoRoute,
+        promptVersion: diagnostics.promptVersion,
+        circuitBreaker: diagnostics.circuitBreaker,
       },
     },
     { status: healthy ? 200 : 503 }

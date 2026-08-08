@@ -86,7 +86,7 @@ export function DashboardHome() {
           setError(streamErr.message);
           return;
         }
-        // Fallback: the blocking server action (OpenRouter → rule-based).
+        // Fallback: the blocking server action (TokenRouter → rule-based).
         try {
           const res = await analyzeText(finalText);
           setResult(res);

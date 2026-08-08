@@ -1,5 +1,7 @@
 # TaskMind — Feature Inventory, Current State & Production-Readiness Plans
 
+> **🚀 New priority plan:** [`ai-analysis-accurate-tokenrouter.md`](./ai-analysis-accurate-tokenrouter.md) — Make analysis AI-powered & accurate using **TokenRouter** as the model provider (with `.env` credentials).
+
 This index catalogs **every feature** in the TaskMind application. For each feature there is one dedicated, detailed file that documents:
 
 1. **What it is & its role** in the product.
@@ -30,7 +32,7 @@ All feature files live in this `enhancement-plan/` folder and can be tracked, as
 | 06 | Summary Generation | [`features/06-summary-generation.md`](./features/06-summary-generation.md) | Working (AI + rules) |
 | 07 | Multilingual Translation | [`features/07-multilingual-translation.md`](./features/07-multilingual-translation.md) | Partial (free API) |
 | 08 | File Upload & Extraction | [`features/08-file-upload-extraction.md`](./features/08-file-upload-extraction.md) | Working (TXT/PDF/DOCX/OCR) |
-| 09 | AI Backend & Fallback | [`features/09-ai-backend-fallback.md`](./features/09-ai-backend-fallback.md) | Working (needs hardening) |
+| 09 | AI Backend & Fallback | [`features/09-ai-backend-fallback.md`](./features/09-ai-backend-fallback.md) | Working (TokenRouter + rules) |
 | 10 | Streaming Analysis | [`features/10-streaming-analysis.md`](./features/10-streaming-analysis.md) | Working (SSE) |
 | 11 | History Management | [`features/11-history-management.md`](./features/11-history-management.md) | Working (localStorage) |
 | 12 | Actions Board (Kanban) | [`features/12-actions-board.md`](./features/12-actions-board.md) | Working (localStorage) |

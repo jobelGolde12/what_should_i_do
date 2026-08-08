@@ -1,0 +1,15 @@
+{
+  "id": "class-suspension",
+  "input": "Bulan, Sorsogon — Due to the approaching tropical cyclone, the Office of the Municipal Mayor announces the suspension of face-to-face classes at all levels effective 2:00 PM today, until lifted.",
+  "expected": {
+    "actions": [
+      "Suspend face-to-face classes at all levels"
+    ],
+    "deadlines": [
+      "2:00 PM today",
+      "until lifted"
+    ],
+    "urgency": "Urgent",
+    "summary": "Face-to-face classes at all levels are suspended from 2:00 PM today until lifted due to a tropical cyclone."
+  }
+}

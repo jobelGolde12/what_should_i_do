@@ -1,18 +1,13 @@
 "use server";
 
-import { openRouterAPI } from "@/lib/openrouter";
+import { aiClient } from "@/lib/ai";
 import {
   createError,
   getErrorMessage,
   AnalysisError,
   ERROR_CODES,
 } from "@/lib/errors";
-import {
-  cleanText,
-  enhanceInput,
-  analyzeWithRules,
-  normalizeAnalysisResult,
-} from "@/lib/analyzeRules";
+import { cleanText, enhanceInput, analyzeWithRules } from "@/lib/analyzeRules";
 
 /* =========================================================
    TYPES
@@ -47,16 +42,20 @@ export type AnalysisResult = {
 };
 
 /* =========================================================
-   OPENROUTER ANALYSIS (PRIMARY)
+   AI ANALYSIS (PRIMARY — TokenRouter)
  ========================================================= */
-async function analyzeWithOpenRouter(input: string): Promise<AnalysisResult> {
+async function analyzeWithAI(input: string): Promise<AnalysisResult> {
   try {
-    const result = await openRouterAPI.analyzeText(input);
-    return normalizeAnalysisResult(result);
+    const { result } = await aiClient.analyzeStructured(input);
+    return result;
   } catch (error: unknown) {
+    // Preserve provider-level codes (quota exhausted / not configured) so the
+    // caller can surface them instead of silently degrading to rules.
+    if (error instanceof AnalysisError) {
+      throw error;
+    }
     const errorMessage = getErrorMessage(error);
-    const isRetryable = error instanceof Error && 'retryable' in error ? (error as AnalysisError).retryable : false;
-    throw createError(`OpenRouter analysis failed: ${errorMessage}`, 'UNKNOWN_ERROR', isRetryable);
+    throw createError(`AI analysis failed: ${errorMessage}`, 'UNKNOWN_ERROR', false);
   }
 }
 
@@ -71,14 +70,16 @@ export async function analyzeText(input: string): Promise<AnalysisResult> {
     throw createError("Text too short - please provide more content", 'INPUT_TOO_SHORT');
   }
 
-  // Try OpenRouter first for better understanding of messy/ambiguous input
+  // Try the AI provider first for better understanding of messy/ambiguous input
   try {
-    return await analyzeWithOpenRouter(enhanced);
+    return await analyzeWithAI(enhanced);
   } catch (error: unknown) {
     const errorMessage = getErrorMessage(error);
-    console.warn('OpenRouter failed, falling back to rules:', errorMessage);
+    console.warn('AI analysis failed, falling back to rules:', errorMessage);
     
-    if (error instanceof AnalysisError && error.code === ERROR_CODES.ALL_KEYS_EXHAUSTED) {
+    if (error instanceof AnalysisError &&
+        (error.code === ERROR_CODES.ALL_KEYS_EXHAUSTED ||
+         error.code === ERROR_CODES.API_KEY_EXHAUSTED)) {
       throw error;
     }
     

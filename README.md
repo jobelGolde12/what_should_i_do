@@ -1,7 +1,7 @@
-ActionClarity – Universal Instruction Translator
+TaskMind – Universal Instruction Translator
 <p align="center"> <strong>Turn confusing messages into clear actions</strong><br> Extract actions, deadlines, and urgency from any text </p><p align="center"> <a href="#-features">Features</a> • <a href="#-how-it-works">How It Works</a> • <a href="#-quick-start">Quick Start</a> • <a href="#-installation">Installation</a> • <a href="#-usage">Usage</a> • <a href="#-who-uses-this">Who Uses This</a> • <a href="#-contributing">Contributing</a> • <a href="#-license">License</a> </p><p align="center"> <img src="https://img.shields.io/badge/version-1.0.0-blue" alt="Version"> <img src="https://img.shields.io/badge/node-%3E%3D18.0.0-green" alt="Node Version"> <img src="https://img.shields.io/badge/LLM-WebLLM-orange" alt="Web LLM"> <img src="https://img.shields.io/badge/license-MIT-brightgreen" alt="License"> <img src="https://img.shields.io/badge/PRs-welcome-brightgreen" alt="PRs Welcome"> <img src="https://img.shields.io/badge/no-login-required-orange" alt="No Login Required"> </p>
 📋 Overview
-ActionClarity is not just another summarizer or chatbot. It's a decision & action clarity tool that transforms confusing messages, emails, announcements, and instructions into structured, actionable items with clear deadlines and urgency levels. Built with Node.js and powered by Web LLM for privacy-focused, client-side processing.
+TaskMind is not just another summarizer or chatbot. It's a decision & action clarity tool that transforms confusing messages, emails, announcements, and instructions into structured, actionable items with clear deadlines and urgency levels. Built with Node.js and powered by Web LLM for privacy-focused, client-side processing.
 
 🎯 What It Does
 Extracts actionable items from any text using Web LLM
@@ -105,10 +105,10 @@ npm run build
 Basic Usage
 javascript
 // Using as a module
-import { ActionClarity } from './src/core/action-clarity.js';
+import { TaskMind } from './src/core/action-clarity.js';
 
 // Initialize with Web LLM
-const clarity = new ActionClarity({
+const clarity = new TaskMind({
   model: 'llama-2-7b-chat-q4f32_1', // or other supported Web LLM models
   device: 'webgpu' // or 'webgl' depending on browser support
 });
@@ -164,7 +164,7 @@ Legal documents and contracts
 🔧 Advanced Features
 Custom Model Configuration
 javascript
-const clarity = new ActionClarity({
+const clarity = new TaskMind({
   model: 'mistral-7b-instruct-q4f32_1',
   device: 'webgpu',
   temperature: 0.3,
@@ -173,9 +173,9 @@ const clarity = new ActionClarity({
 Browser Integration
 html
 <script type="module">
-  import { ActionClarity } from 'https://cdn.jsdelivr.net/npm/actionclarity@latest/dist/actionclarity.min.js';
+  import { TaskMind } from 'https://cdn.jsdelivr.net/npm/taskmind@latest/dist/taskmind.min.js';
   
-  const clarity = new ActionClarity();
+  const clarity = new TaskMind();
   const result = await clarity.analyze("Your message here");
   
   // Display in your UI
@@ -225,7 +225,7 @@ Model Size: ~4GB (quantized models for browser)
 Privacy: 100% client-side processing
 
 🚀 Web LLM Integration
-ActionClarity uses Web LLM to run language models directly in your browser:
+TaskMind uses Web LLM to run language models directly in your browser:
 
 javascript
 // Initialize Web LLM
@@ -301,5 +301,5 @@ npm install
 npm start
 
 # Then open http://localhost:3000 in your browser
-Or visit the live demo: https://whatshouldido-five.vercel.app
+Or visit the live demo: https://taskmind.ai
 

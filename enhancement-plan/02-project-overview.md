@@ -2,8 +2,6 @@
 
 **TaskMind** (formerly ActionClarity / "What Should I Do") is an AI-powered productivity web application that turns confusing messages, emails, announcements, memos, notices, or documents into clear, structured, actionable items.
 
-**Live demo:** https://whatshouldido-five.vercel.app  
-**Repository:** https://github.com/jobelGolde12/what_should_i_do
 
 It is **not** a generic summarizer or chatbot. It is a **decision & action clarity tool** focused on extracting what you actually need to *do*, when, how urgent it is, and what is still unclear.
 

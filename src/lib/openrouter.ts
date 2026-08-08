@@ -15,6 +15,13 @@ interface OpenRouterResponse {
   };
 }
 
+interface OpenRouterStreamChunk {
+  choices?: Array<{
+    delta?: { content?: string };
+  }>;
+  error?: { message: string; code?: string };
+}
+
 interface APIKeyStatus {
   keyIndex: number;
   error?: string;
@@ -32,7 +39,7 @@ class OpenRouterAPI {
   ].filter(Boolean);
 
   private readonly BASE_URL = 'https://openrouter.ai/api/v1';
-  private readonly MODEL = 'anthropic/claude-3.5-sonnet';
+  private readonly MODEL = 'anthropic/claude-sonnet-5';
 
   private keyStatuses: APIKeyStatus[] = [];
 
@@ -120,43 +127,7 @@ class OpenRouterAPI {
     }
 
     const normalizedInput = this.normalizeInput(input);
-    
-    const systemPrompt = `You analyze any type of message - official announcements, lost & found notices, meeting invitations, instructions, or confusing communications.
-
-Your task is to extract key information and provide a clear summary:
-1. Identify the TYPE of message (announcement, lost item, meeting, instruction, etc.)
-2. Interpret the intent even if the message is humorous, vague, or poorly written
-3. Extract actionable items regardless of how they're phrased
-4. Identify deadlines, times, and dates
-5. Determine urgency appropriately - lost items are NOT urgent unless stated
-6. Summarize what happened and what action to take (if any)
-
-Return ONLY valid JSON with these exact fields:
-{
-  "actions": ["array of specific actions required - empty if none"],
-  "deadlines": ["array of deadlines or timeframes - empty if none"],
-  "urgency": "Urgent" | "Important" | "Informational",
-  "confusingParts": [{"sentence": "confusing text", "explanation": "why it's confusing"}],
-  "nextStep": "clear next action statement or 'No action required' if none",
-  "summary": "2-3 sentence concise summary that answers: What happened? What should I do? When?"
-}
-
-CRITICAL RULES FOR URGENCY:
-- Lost item notices = "Informational" (not urgent)
-- Meeting invitations = "Informational" or "Important"
-- Only "Urgent" for actual emergencies, deadlines within 24h, safety alerts
-- Default to "Informational" if unclear
-
-The summary is MANDATORY and must be:
-- Concise (under 100 characters if possible)
-- Decision-focused (answers what action to take)
-- Free of headers, bullet points, or formatting
-- In plain sentences, not lists`;
-
-    const messages: OpenRouterMessage[] = [
-      { role: 'system', content: systemPrompt },
-      { role: 'user', content: `Analyze this message: "${normalizedInput}"` }
-    ];
+    const messages = buildAnalysisMessages(normalizedInput);
 
     let lastError: unknown = null;
     
@@ -189,16 +160,169 @@ The summary is MANDATORY and must be:
       }
     }
 
-    const activeKeys = this.keyStatuses.filter(status => 
-      !status.isExhausted && !status.isRateLimited
-    ).length;
-    
-    if (activeKeys === 0) {
-      throw createError('All OpenRouter API keys are exhausted or rate limited. Please try again later.', 'ALL_KEYS_EXHAUSTED', true);
-    }
-
+    this.throwIfAllKeysExhausted();
     const errorMessage = getErrorMessage(lastError);
     throw new Error(errorMessage || 'Failed to analyze text with OpenRouter');
+  }
+
+  /**
+   * Streams the raw analysis JSON from OpenRouter, invoking `onChunk` with the
+   * accumulated raw text as each chunk arrives. Key failover only kicks in when
+   * a key fails before producing any content.
+   */
+  async streamRaw(
+    input: string,
+    onChunk: (accumulated: string) => void
+  ): Promise<string> {
+    if (this.API_KEYS.length === 0) {
+      throw createError('No OpenRouter API keys configured', 'API_KEY_EXHAUSTED');
+    }
+
+    const normalizedInput = this.normalizeInput(input);
+    const messages = buildAnalysisMessages(normalizedInput);
+
+    let lastError: unknown = null;
+
+    for (let attempt = 0; attempt < this.API_KEYS.length; attempt++) {
+      const keyIndex = attempt;
+
+      if (this.keyStatuses[keyIndex]?.isExhausted ||
+          this.keyStatuses[keyIndex]?.isRateLimited) {
+        continue;
+      }
+
+      try {
+        return await this.streamFromKey(messages, keyIndex, onChunk);
+      } catch (error: unknown) {
+        lastError = error;
+        if (!this.isRetryableError(error as Error & { status?: number; code?: string })) {
+          break;
+        }
+      }
+    }
+
+    this.throwIfAllKeysExhausted();
+    const errorMessage = getErrorMessage(lastError);
+    throw new Error(errorMessage || 'Failed to stream analysis from OpenRouter');
+  }
+
+  private async streamFromKey(
+    messages: OpenRouterMessage[],
+    keyIndex: number,
+    onChunk: (accumulated: string) => void
+  ): Promise<string> {
+    const apiKey = this.API_KEYS[keyIndex];
+    if (!apiKey) {
+      throw new Error(`API key ${keyIndex + 1} is not configured`);
+    }
+
+    try {
+      const response = await fetch(`${this.BASE_URL}/chat/completions`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${apiKey}`,
+          'Content-Type': 'application/json',
+          'Accept': 'text/event-stream',
+          'HTTP-Referer': process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000',
+          'X-Title': 'TaskMind - Text Analysis',
+        },
+        body: JSON.stringify({
+          model: this.MODEL,
+          messages,
+          temperature: 0.1,
+          max_tokens: 900,
+          stream: true,
+          response_format: { type: 'json_object' },
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        const error = new Error(errorData.error?.message || `HTTP ${response.status}`);
+        (error as Error & { status?: number; code?: string }).status = response.status;
+        (error as Error & { status?: number; code?: string }).code = errorData.error?.code;
+        throw error;
+      }
+
+      if (!response.body) {
+        throw new Error('Streaming response has no body');
+      }
+
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = "";
+      let accumulated = "";
+      let done = false;
+
+      while (!done) {
+        const { done: finished, value } = await reader.read();
+        done = finished;
+        buffer += decoder.decode(value ?? new Uint8Array(), { stream: !finished });
+
+        const lines = buffer.split("\n");
+        buffer = lines.pop() ?? "";
+
+        for (const line of lines) {
+          const trimmed = line.trim();
+          if (!trimmed.startsWith("data:")) continue;
+          const data = trimmed.slice(5).trim();
+          if (data === "[DONE]") {
+            done = true;
+            break;
+          }
+
+          let chunk: OpenRouterStreamChunk;
+          try {
+            chunk = JSON.parse(data);
+          } catch {
+            continue;
+          }
+
+          if (chunk.error) {
+            throw new Error(chunk.error.message || "Streaming error from OpenRouter");
+          }
+
+          const delta = chunk.choices?.[0]?.delta?.content;
+          if (delta) {
+            accumulated += delta;
+            onChunk(accumulated);
+          }
+        }
+      }
+
+      if (!accumulated.trim()) {
+        throw new Error('Empty streaming response from OpenRouter');
+      }
+
+      return accumulated;
+
+    } catch (error: unknown) {
+      if (this.isRetryableError(error as Error & { status?: number; code?: string })) {
+        const errorObj = error as Error;
+        this.keyStatuses[keyIndex] = {
+          keyIndex,
+          error: errorObj.message,
+          isExhausted: errorObj.message?.toLowerCase().includes('credit') || errorObj.message?.toLowerCase().includes('quota'),
+          isRateLimited: errorObj.message?.toLowerCase().includes('rate limit')
+        };
+        console.warn(`OpenRouter API key ${keyIndex + 1} failed streaming:`, errorObj.message);
+      }
+      throw error;
+    }
+  }
+
+  private throwIfAllKeysExhausted(): void {
+    const activeKeys = this.keyStatuses.filter(status =>
+      !status.isExhausted && !status.isRateLimited
+    ).length;
+
+    if (activeKeys === 0) {
+      throw createError(
+        'All OpenRouter API keys are exhausted or rate limited. Please try again later.',
+        'ALL_KEYS_EXHAUSTED',
+        true
+      );
+    }
   }
 
   private normalizeInput(input: string): string {
@@ -236,5 +360,46 @@ The summary is MANDATORY and must be:
     this.keyStatuses = this.API_KEYS.map((_, index) => ({ keyIndex: index }));
   }
 }
+
+function buildAnalysisMessages(input: string): OpenRouterMessage[] {
+  const systemPrompt = `You analyze any type of message - official announcements, lost & found notices, meeting invitations, instructions, or confusing communications.
+
+Your task is to extract key information and provide a clear summary:
+1. Identify the TYPE of message (announcement, lost item, meeting, instruction, etc.)
+2. Interpret the intent even if the message is humorous, vague, or poorly written
+3. Extract actionable items regardless of how they're phrased
+4. Identify deadlines, times, and dates
+5. Determine urgency appropriately - lost items are NOT urgent unless stated
+6. Summarize what happened and what action to take (if any)
+
+Return ONLY valid JSON with these exact fields:
+{
+  "actions": ["array of specific actions required - empty if none"],
+  "deadlines": ["array of deadlines or timeframes - empty if none"],
+  "urgency": "Urgent" | "Important" | "Informational",
+  "confusingParts": [{"sentence": "confusing text", "explanation": "why it's confusing"}],
+  "nextStep": "clear next action statement or 'No action required' if none",
+  "summary": "2-3 sentence concise summary that answers: What happened? What should I do? When?"
+}
+
+CRITICAL RULES FOR URGENCY:
+- Lost item notices = "Informational" (not urgent)
+- Meeting invitations = "Informational" or "Important"
+- Only "Urgent" for actual emergencies, deadlines within 24h, safety alerts
+- Default to "Informational" if unclear
+
+The summary is MANDATORY and must be:
+- Concise (under 100 characters if possible)
+- Decision-focused (answers what action to take)
+- Free of headers, bullet points, or formatting
+- In plain sentences, not lists`;
+
+  return [
+    { role: 'system', content: systemPrompt },
+    { role: 'user', content: `Analyze this message: "${input}"` }
+  ];
+}
+
+export { buildAnalysisMessages };
 
 export const openRouterAPI = new OpenRouterAPI();

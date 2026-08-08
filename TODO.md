@@ -9,7 +9,7 @@
 
 **TaskMind (formerly ActionClarity / “What Should I Do”)** is an AI-powered productivity web application that turns confusing messages, emails, announcements, memos, notices, or documents into clear, structured, actionable items.
 
-**Live demo:** [https://whatshouldido-five.vercel.app](https://whatshouldido-five.vercel.app)  
+**Live demo:** [https://taskmind.ai](https://taskmind.ai)  
 **Repository:** [https://github.com/jobelGolde12/what_should_i_do](https://github.com/jobelGolde12/what_should_i_do)
 
 It is **not** a generic summarizer or chatbot. It is a **decision & action clarity tool** focused on extracting what you actually need to *do*, when, how urgent it is, and what is still unclear.
@@ -20,7 +20,7 @@ It is **not** a generic summarizer or chatbot. It is a **decision & action clari
 
 | Aspect | Details |
 |--------|---------|
-| **Name** | TaskMind (branding on live site & metadata) / ActionClarity (README) / what_should_i_do (repo) |
+| **Name** | TaskMind |
 | **Purpose** | Transform messy text into structured actions, deadlines, urgency levels, confusing parts, a single next-step recommendation, and a concise summary |
 | **Tech Stack** | Next.js 14 (App Router), React 18, TypeScript, Tailwind CSS 4, OpenRouter API (Claude 3.5 Sonnet), client-side file parsing (PDF, DOCX, images via OCR) |
 | **Privacy Model** | Server-side LLM calls via OpenRouter (with multi-key failover). No user accounts required for core use. Ads are present. |
@@ -221,7 +221,7 @@ There is also internal troubleshooting documentation (`docs/analyze-results-not-
 Standard GitHub flow (fork → feature branch → PR). Suggested areas: new models, better deadline detection, additional languages, UI/UX, documentation, and examples.
 
 - Issues / Discussions: GitHub repository
-- Live demo for testing: [whatshouldido-five.vercel.app](https://whatshouldido-five.vercel.app)
+- Live demo for testing: [taskmind.ai](https://taskmind.ai)
 
 ---
 

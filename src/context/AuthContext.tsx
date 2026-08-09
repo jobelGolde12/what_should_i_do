@@ -9,7 +9,12 @@ import {
 } from "react";
 import type { ReactNode } from "react";
 
-export type AuthUser = { id: string; email: string; createdAt: number };
+export type AuthUser = {
+  id: string;
+  email: string;
+  createdAt: number;
+  emailVerified: boolean;
+};
 
 export type AuthData = { history: unknown[]; templates: unknown[]; board: unknown[] };
 
@@ -19,7 +24,8 @@ type AuthContextValue = {
   user: AuthUser | null;
   status: AuthStatus;
   login: (email: string, password: string) => Promise<AuthUser>;
-  register: (email: string, password: string) => Promise<AuthUser>;
+  register: (email: string, password: string) => Promise<{ user: AuthUser; requiresVerification: boolean }>;
+  resendVerification: (email?: string) => Promise<void>;
   logout: () => Promise<void>;
   refresh: () => Promise<void>;
   pushData: (data: AuthData) => Promise<void>;
@@ -64,12 +70,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     void refresh();
   }, []);
 
-  async function authenticate(
-    path: "/api/auth/login" | "/api/auth/register",
-    email: string,
-    password: string
-  ): Promise<AuthUser> {
-    const res = await fetch(path, {
+  async function login(email: string, password: string): Promise<AuthUser> {
+    const res = await fetch("/api/auth/login", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ email, password }),
@@ -81,13 +83,43 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return body.user;
   }
 
+  async function register(
+    email: string,
+    password: string
+  ): Promise<{ user: AuthUser; requiresVerification: boolean }> {
+    const res = await fetch("/api/auth/register", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email, password }),
+    });
+    if (!res.ok) throw await readError(res);
+    const body = (await res.json()) as {
+      user: AuthUser;
+      requiresVerification: boolean;
+    };
+    if (!body.requiresVerification) {
+      setUser(body.user);
+      setStatus("authed");
+    }
+    return body;
+  }
+
+  async function resendVerification(email?: string): Promise<void> {
+    const res = await fetch("/api/auth/resend-verification", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email }),
+    });
+    if (!res.ok) throw await readError(res);
+  }
+
   const value = useMemo<AuthContextValue>(
     () => ({
       user,
       status,
-      login: (email, password) => authenticate("/api/auth/login", email, password),
-      register: (email, password) =>
-        authenticate("/api/auth/register", email, password),
+      login,
+      register,
+      resendVerification,
       logout: async () => {
         await fetch("/api/auth/logout", { method: "POST" });
         setUser(null);

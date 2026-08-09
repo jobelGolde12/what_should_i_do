@@ -2,7 +2,9 @@ import { NextResponse } from "next/server";
 import { verifyPassword } from "@/lib/auth/session";
 import { findUserByEmail } from "@/lib/auth/users";
 import { setSessionCookie } from "@/lib/auth/cookies";
-import { getClientIp, rateLimit } from "@/lib/rateLimit";
+import { getClientIp } from "@/lib/rateLimit";
+import { rateLimitDb, rlKey } from "@/lib/rateLimitDb";
+import { logAuthEvent } from "@/lib/log";
 
 export const runtime = "nodejs";
 
@@ -12,7 +14,7 @@ type AuthBody = { email?: unknown; password?: unknown };
 
 export async function POST(request: Request) {
   const ip = getClientIp(request);
-  const rl = rateLimit(ip, 10);
+  const rl = await rateLimitDb(rlKey("login", ip), 10);
   if (!rl.allowed) {
     return NextResponse.json(
       { error: "Too many attempts. Try again in a minute." },
@@ -31,17 +33,37 @@ export async function POST(request: Request) {
       );
     }
 
-    const user = findUserByEmail(email);
+    const user = await findUserByEmail(email);
     if (!user || !verifyPassword(password, user.passwordHash)) {
+      logAuthEvent("login", { ip, email, outcome: "invalid_credentials" });
       return NextResponse.json(
         { error: "Incorrect email or password." },
         { status: 401 }
       );
     }
 
+    if (!user.verified) {
+      logAuthEvent("login_blocked", { ip, email, userId: user.id, reason: "unverified" });
+      return NextResponse.json(
+        {
+          error: "Please verify your email address before signing in.",
+          requiresVerification: true,
+          email: user.email,
+        },
+        { status: 403 }
+      );
+    }
+
     setSessionCookie({ id: user.id, email: user.email });
+    logAuthEvent("login", { ip, email: user.email, userId: user.id, outcome: "success" });
+
     return NextResponse.json({
-      user: { id: user.id, email: user.email, createdAt: user.createdAt },
+      user: {
+        id: user.id,
+        email: user.email,
+        createdAt: user.createdAt,
+        emailVerified: true,
+      },
     });
   } catch {
     return NextResponse.json(

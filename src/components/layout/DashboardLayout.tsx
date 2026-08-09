@@ -15,6 +15,8 @@ import SiteFooter from "./SiteFooter";
 import RouteTransition from "@/components/navigation/RouteTransition";
 import { RouteErrorBoundary } from "@/components/navigation/RouteErrorBoundary";
 
+import UnverifiedBanner from "./UnverifiedBanner";
+
 export default function DashboardLayout({
   children,
 }: {
@@ -28,6 +30,7 @@ export default function DashboardLayout({
             <Sidebar />
             <div className="flex min-w-0 flex-1 flex-col">
               <AdsConsentBanner />
+              <UnverifiedBanner />
               <header className="sticky top-0 z-30 flex h-14 items-center justify-between border-t-2 border-t-accent border-b border-line bg-background/90 px-4 backdrop-blur-sm lg:hidden">
                 <Logo />
                 <div className="flex items-center gap-3">

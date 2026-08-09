@@ -4,11 +4,16 @@ import { getCurrentUser } from "@/lib/auth/cookies";
 export const runtime = "nodejs";
 
 export async function GET() {
-  const user = getCurrentUser();
+  const user = await getCurrentUser();
   if (!user) {
     return NextResponse.json({ user: null }, { status: 401 });
   }
   return NextResponse.json({
-    user: { id: user.id, email: user.email, createdAt: user.createdAt },
+    user: {
+      id: user.id,
+      email: user.email,
+      createdAt: user.createdAt,
+      emailVerified: user.verified,
+    },
   });
 }

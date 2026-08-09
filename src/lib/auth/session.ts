@@ -13,7 +13,7 @@ export function hashPassword(password: string): string {
     r: SCRYPT_R,
     p: SCRYPT_P,
   }).toString("hex");
-  return `scrypt$${SCRYPT_N}$${SCRYPT_R}$${SCRYPT_P}$${salt}$${hash}`;
+    return ["scrypt", SCRYPT_N, SCRYPT_R, SCRYPT_P, salt, hash].join("$");
 }
 
 export function verifyPassword(password: string, stored: string): boolean {
@@ -29,15 +29,32 @@ export function verifyPassword(password: string, stored: string): boolean {
   return timingSafeEqual(actual, expected);
 }
 
-function secret(): Buffer {
+/** Returns the HMAC signing secret as a Buffer. In production this throws if
+ * `AUTH_SECRET` is unset (fail-fast for forgeable sessions/tokens); in dev/test
+ * it falls back to an ephemeral secret with a warning. */
+export function getSessionSecret(): Buffer {
   const value = process.env.AUTH_SECRET;
   if (!value) {
+    if (process.env.NODE_ENV === "production") {
+      throw new Error(
+        "[auth] AUTH_SECRET is required in production. Set a long random secret."
+      );
+    }
     console.warn(
       "[auth] AUTH_SECRET is not set — using an ephemeral dev secret. Set AUTH_SECRET in production."
     );
     return Buffer.from("dev-only-secret-do-not-use-in-production");
   }
   return Buffer.from(value);
+}
+
+/** Fail-fast guard: throws in production when `AUTH_SECRET` is missing. */
+export function requireAuthSecret(): void {
+  if (process.env.NODE_ENV === "production" && !process.env.AUTH_SECRET) {
+    throw new Error(
+      "[auth] AUTH_SECRET is required in production. Set a long random secret."
+    );
+  }
 }
 
 type SessionPayload = { sub: string; email: string; exp: number };
@@ -53,7 +70,7 @@ export function signSession(payload: {
   };
   const bodyB64 = Buffer.from(JSON.stringify(body))
     .toString("base64url");
-  const signature = createHmac("sha256", secret())
+  const signature = createHmac("sha256", getSessionSecret())
     .update(bodyB64)
     .digest("base64url");
   return `${bodyB64}.${signature}`;
@@ -63,7 +80,7 @@ export function verifySession(token: string): SessionPayload | null {
   const parts = token.split(".");
   if (parts.length !== 2) return null;
   const [bodyB64, signature] = parts;
-  const expected = createHmac("sha256", secret())
+  const expected = createHmac("sha256", getSessionSecret())
     .update(bodyB64)
     .digest();
   const given = Buffer.from(signature, "base64url");

@@ -1,8 +1,16 @@
 import { NextResponse } from "next/server";
 import { hashPassword } from "@/lib/auth/session";
-import { createUser, findUserByEmail } from "@/lib/auth/users";
+import {
+  createUser,
+  findUserByEmail,
+  setUserVerified,
+} from "@/lib/auth/users";
 import { setSessionCookie } from "@/lib/auth/cookies";
-import { getClientIp, rateLimit } from "@/lib/rateLimit";
+import { isMailgunConfigured } from "@/lib/mailgun";
+import { issueVerificationEmail as sendVerification } from "@/lib/auth/verify";
+import { rateLimitDb, rlKey } from "@/lib/rateLimitDb";
+import { getClientIp } from "@/lib/rateLimit";
+import { logAuthEvent } from "@/lib/log";
 
 export const runtime = "nodejs";
 
@@ -20,7 +28,8 @@ function parseBody(body: AuthBody): { email: string; password: string } | null {
 }
 
 export async function POST(request: Request) {
-  const rl = rateLimit(getClientIp(request), 10);
+  const ip = getClientIp(request);
+  const rl = await rateLimitDb(rlKey("register", ip), 10);
   if (!rl.allowed) {
     return NextResponse.json(
       { error: "Too many requests. Try again in a minute." },
@@ -33,25 +42,84 @@ export async function POST(request: Request) {
     const parsed = parseBody(body);
     if (!parsed) {
       return NextResponse.json(
-        { error: "Enter a valid email and a password of at least 8 characters." },
+        {
+          error:
+            "Enter a valid email and a password of at least 8 characters.",
+        },
         { status: 400 }
       );
     }
     const email = parsed.email.toLowerCase();
 
-    if (findUserByEmail(email)) {
+    const existing = await findUserByEmail(email);
+    if (existing) {
+      logAuthEvent("register", { ip, email, outcome: "duplicate" });
       return NextResponse.json(
         { error: "An account with this email already exists." },
         { status: 409 }
       );
     }
 
-    const user = createUser(email, hashPassword(parsed.password));
-    setSessionCookie({ id: user.id, email: user.email });
+    const user = await createUser(email, hashPassword(parsed.password));
+
+    // Dev convenience: when Mailgun isn't configured (local dev), auto-verify so
+    // the existing "register -> signed in" flow still works. Production always
+    // requires email verification.
+    if (!isMailgunConfigured()) {
+      if (process.env.NODE_ENV === "production") {
+        return NextResponse.json(
+          { error: "Email service is not configured. Try again later." },
+          { status: 503 }
+        );
+      }
+      await setUserVerified(user.id, Date.now());
+      setSessionCookie({ id: user.id, email: user.email });
+      logAuthEvent("register", {
+        ip,
+        email,
+        outcome: "created_auto_verified_dev",
+      });
+      return NextResponse.json(
+        {
+          user: {
+            id: user.id,
+            email: user.email,
+            createdAt: user.createdAt,
+            emailVerified: true,
+          },
+          requiresVerification: false,
+        },
+        { status: 201 }
+      );
+    }
+
+    const result = await sendVerification(user.id, user.email);
+    logAuthEvent("register", {
+      ip,
+      email,
+      outcome: result.ok ? "created_pending_verification" : "created_mail_failed",
+      sent: result.sent,
+    });
+    if (!result.ok) {
+      return NextResponse.json(
+        {
+          error:
+            "Account created, but we could not send the verification email. " +
+            "Please try resending from the sign-in page.",
+        },
+        { status: 502 }
+      );
+    }
 
     return NextResponse.json(
       {
-        user: { id: user.id, email: user.email, createdAt: user.createdAt },
+        user: {
+          id: user.id,
+          email: user.email,
+          createdAt: user.createdAt,
+          emailVerified: false,
+        },
+        requiresVerification: true,
       },
       { status: 201 }
     );

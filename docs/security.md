@@ -18,9 +18,11 @@ npm run security:audit   # npm audit --omit=dev
   provider (TokenRouter, OpenAI-compatible) via `/api/analyze/stream` or the
   `analyzeText` server action (`src/lib/ai.ts`). Translation sends the summary
   to MyMemory. Input text is never logged.
-- **Auth** (optional, Feature 19): scrypt password hashing with timing-safe
+- **Auth & Database** (Phase 1-3): scrypt password hashing with timing-safe
   compare, HMAC-signed HttpOnly/SameSite session cookies (`taskmind_session`,
-  30-day expiry), file-backed user store in `.data/` (gitignored).
+  30-day expiry), email verification via Mailgun API, single-use signed tokens
+  stored as SHA-256 hashes, password reset flow, and Turso libSQL SQL persistence
+  with relational schema (`users`, `analyses`, `board_items`, `templates`, `user_settings`).
 - **Share links**: base64-encoded payload embedded in the URL. Not encrypted,
   no expiry. `includeInput`/`sensitive` options control whether raw input is
   embedded and shown.
@@ -32,14 +34,17 @@ npm run security:audit   # npm audit --omit=dev
 | `POST /api/analyze/stream` | none | 15/min/IP | 20,000 chars (413) | SSE; falls back to rule-based |
 | `POST /api/summarize` | none | 10/min/IP | 20,000 chars (413) | offline model + extractive fallback |
 | `POST /api/translate` | none | 30/min/IP | chunked 480/sentence | cached |
-| `POST /api/auth/login` | — | 10/min/IP (429) | — | |
-| `POST /api/auth/register` | — | 10/min/IP (429) | — | 409 on dup |
-| `GET/PUT/DELETE /api/users/me` | session | — | PUT ≤ 2 MB (413) | erasure on DELETE |
+| `POST /api/auth/login` | — | 10/min/IP (DB) | — | blocked if unverified |
+| `POST /api/auth/register` | — | 10/min/IP (DB) | — | 409 dup; sends Mailgun email |
+| `GET /api/auth/verify` | token | — | — | single-use HMAC token verification |
+| `POST /api/auth/resend-verification` | — | 5/min/IP (DB) | — | rate limited email resend |
+| `POST /api/auth/forgot-password` | — | 5/min/IP (DB) | — | single-use reset token via email |
+| `POST /api/auth/reset-password` | token | 10/min/IP (DB) | — | single-use password update |
+| `GET/PUT/DELETE /api/users/me` | session | — | PUT ≤ 2 MB (413) | Turso DB sync; full erasure on DELETE |
 | `/api/debug/*` | `ADMIN_TOKEN` Bearer (prod) | — | 20k input | 404 unless configured in prod |
 
-Rate limiting is per-process/in-memory (`src/lib/rateLimit.ts`) — appropriate
-for abuse protection at this scale; deploy behind a reverse proxy/edge for
-distributed limiting.
+Rate limiting for auth operations uses shared DB-backed fixed-window counting (`src/lib/rateLimitDb.ts`)
+persisted to Turso, ensuring rate limits hold across multi-instance deployments.
 
 ## What is hardened (status)
 

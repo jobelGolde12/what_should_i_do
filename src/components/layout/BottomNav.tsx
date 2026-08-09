@@ -1,7 +1,7 @@
 "use client";
 
-import Link from "next/link";
 import { usePathname } from "next/navigation";
+import SmartLink from "@/components/navigation/SmartLink";
 import { NAV_ITEMS, isNavItemActive } from "@/lib/nav";
 
 export default function BottomNav() {
@@ -18,7 +18,7 @@ export default function BottomNav() {
           const active = isNavItemActive(item.href, pathname);
           const Icon = item.icon;
           return (
-            <Link
+            <SmartLink
               key={item.name}
               href={item.href}
               aria-current={active ? "page" : undefined}
@@ -34,7 +34,7 @@ export default function BottomNav() {
                 <Icon className="h-5 w-5" />
               </span>
               {item.name}
-            </Link>
+            </SmartLink>
           );
         })}
       </div>

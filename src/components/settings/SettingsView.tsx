@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState, useEffect } from "react";
+import { useRef, useState } from "react";
 import Link from "next/link";
 import {
   Monitor,
@@ -30,7 +30,7 @@ import PageHeader from "@/components/ui/PageHeader";
 const THEME_OPTIONS: {
   key: ThemePreference;
   label: string;
-  icon: typeof Sun;
+  icon: typeof Sun | typeof Moon | typeof Monitor;
 }[] = [
   { key: "light", label: "Light", icon: Sun },
   { key: "dark", label: "Dark", icon: Moon },
@@ -218,6 +218,7 @@ export default function SettingsView() {
                 type="button"
                 onClick={() => setTheme(option.key)}
                 aria-pressed={active}
+                aria-label={`Select ${option.label} theme`}
                 className={`flex flex-col items-center gap-2 rounded-tm border px-3 py-4 text-sm font-medium transition-colors ${
                   active
                     ? "border-ink bg-ink text-background"

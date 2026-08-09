@@ -17,6 +17,8 @@ import type {
 } from "@/lib/types";
 import { readStorage, writeStorage, storageKeys, uid } from "@/lib/storage";
 import { urgencyForAction } from "@/lib/urgency";
+import { getDataCacheStore } from "@/lib/data-cache";
+import { isInstantNavEnabled } from "@/lib/features";
 
 type TaskContextValue = {
   history: AnalysisRecord[];
@@ -71,14 +73,17 @@ export function TaskProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     writeStorage(storageKeys().history, history);
+    if (isInstantNavEnabled()) getDataCacheStore().syncFromStorage();
   }, [history]);
 
   useEffect(() => {
     writeStorage(storageKeys().templates, templates);
+    if (isInstantNavEnabled()) getDataCacheStore().syncFromStorage();
   }, [templates]);
 
   useEffect(() => {
     writeStorage(storageKeys().board, board);
+    if (isInstantNavEnabled()) getDataCacheStore().syncFromStorage();
   }, [board]);
 
   const saveAnalysis = useCallback(

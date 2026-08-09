@@ -111,6 +111,7 @@
 
 html {
   scroll-behavior: smooth;
+  transition: background-color 0.2s ease, color 0.2s ease;
 }
 
 body {
@@ -118,6 +119,7 @@ body {
   color: var(--ink);
   font-family: var(--font-inter), "Inter", ui-sans-serif, system-ui, sans-serif;
   -webkit-font-smoothing: antialiased;
+  transition: background-color 0.2s ease, color 0.2s ease;
 }
 
 /* =========================================================

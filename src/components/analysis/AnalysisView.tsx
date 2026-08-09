@@ -1,12 +1,12 @@
 "use client";
 
 import { useParams } from "next/navigation";
-import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 import { useTask } from "@/context/TaskContext";
 import ResultsPanel from "@/components/results/ResultsPanel";
 import HighlightedInput from "@/components/results/HighlightedInput";
 import { EmptyState } from "@/components/ui/States";
+import SmartLink from "@/components/navigation/SmartLink";
 import { snippet } from "@/lib/format";
 
 export default function AnalysisView() {
@@ -18,12 +18,12 @@ export default function AnalysisView() {
     return (
       <div className="mx-auto max-w-3xl">
         <header className="mb-6">
-          <Link
+          <SmartLink
             href="/"
             className="inline-flex items-center gap-1.5 text-sm font-medium text-muted transition-colors hover:text-ink"
           >
             <ArrowLeft className="h-3.5 w-3.5" /> Back to dashboard
-          </Link>
+          </SmartLink>
         </header>
         <EmptyState
           title="Analysis not found"
@@ -36,12 +36,12 @@ export default function AnalysisView() {
   return (
     <div className="mx-auto max-w-3xl">
       <header className="mb-6 flex items-center justify-between gap-4">
-        <Link
+        <SmartLink
           href="/"
           className="inline-flex items-center gap-1.5 text-sm font-medium text-muted transition-colors hover:text-ink"
         >
           <ArrowLeft className="h-4 w-4" /> New analysis
-        </Link>
+        </SmartLink>
         <p className="hidden font-mono text-2xs uppercase tracking-label text-muted sm:block">
           /analysis/{record.id.slice(0, 8)}
         </p>

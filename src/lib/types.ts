@@ -37,3 +37,52 @@ export type SharePayload = {
   includeInput?: boolean;
   sensitive?: boolean;
 };
+
+// Navigation types
+export type RouteParams = {
+  id?: string;
+  [key: string]: string | undefined;
+};
+
+export type RouteKey = 
+  | "/"
+  | "/analysis"
+  | "/analysis/[id]"
+  | "/history"
+  | "/saved"
+  | "/actions"
+  | "/settings"
+  | "/dashboard"
+  | "/share/[id]"
+  | "/auth/login"
+  | "/auth/register"
+  | "/privacy"
+  | "/terms";
+
+export type NavigationStateType = 
+  | "idle"
+  | "prefetching"
+  | "loading_skeleton"
+  | "data_resolving"
+  | "ready"
+  | "error"
+  | "cancelled";
+
+export interface NavigationState {
+  currentRoute: RouteKey | null;
+  currentParams: RouteParams | null;
+  generation: number;
+  state: NavigationStateType;
+  targetRoute: RouteKey | null;
+  targetParams: RouteParams | null;
+  skeletonVisible: boolean;
+  error: Error | null;
+}
+
+export interface NavigationGeneration {
+  id: number;
+  route: RouteKey;
+  params: RouteParams | null;
+  startTime: number;
+  abortController: AbortController | null;
+}

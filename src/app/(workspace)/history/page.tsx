@@ -1,5 +1,4 @@
 import type { Metadata } from "next";
-import DashboardLayout from "@/components/layout/DashboardLayout";
 import HistoryView from "@/components/history/HistoryView";
 
 export const metadata: Metadata = {
@@ -8,9 +7,5 @@ export const metadata: Metadata = {
 };
 
 export default function HistoryPage() {
-  return (
-    <DashboardLayout>
-      <HistoryView />
-    </DashboardLayout>
-  );
+  return <HistoryView />;
 }

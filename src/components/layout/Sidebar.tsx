@@ -13,6 +13,7 @@ import {
   Settings,
 } from "lucide-react";
 import Logo from "./Logo";
+import SmartLink from "@/components/navigation/SmartLink";
 import { useAuth } from "@/context/AuthContext";
 import { NAV_ITEMS, isNavItemActive } from "@/lib/nav";
 
@@ -59,7 +60,7 @@ export default function Sidebar() {
           const active = isNavItemActive(item.href, pathname);
           const Icon = item.icon;
           return (
-            <Link
+            <SmartLink
               key={item.name}
               href={item.href}
               aria-current={active ? "page" : undefined}
@@ -79,7 +80,7 @@ export default function Sidebar() {
                 }`}
               />
               {!collapsed && <span>{item.name}</span>}
-            </Link>
+            </SmartLink>
           );
         })}
       </nav>
@@ -91,13 +92,13 @@ export default function Sidebar() {
               Workspace
             </p>
             <p className="mt-1 text-sm font-medium text-ink">Free plan</p>
-            <Link
+            <SmartLink
               href="/settings"
               className="mt-2 inline-flex items-center gap-1.5 text-xs font-medium text-accent hover:text-accent-dark"
             >
               <Zap className="h-3.5 w-3.5" />
               Preferences
-            </Link>
+            </SmartLink>
           </div>
         )}
 
@@ -134,7 +135,7 @@ export default function Sidebar() {
             </Link>
           ))}
 
-        <Link
+        <SmartLink
           href="/settings"
           aria-label={collapsed ? "Settings" : undefined}
           title={collapsed ? "Settings" : undefined}
@@ -144,7 +145,7 @@ export default function Sidebar() {
         >
           <Settings className="h-4 w-4 shrink-0 text-muted group-hover:text-ink" />
           {!collapsed && <span>Settings</span>}
-        </Link>
+        </SmartLink>
       </div>
     </aside>
   );

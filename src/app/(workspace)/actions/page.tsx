@@ -1,5 +1,4 @@
 import type { Metadata } from "next";
-import DashboardLayout from "@/components/layout/DashboardLayout";
 import ActionsBoard from "@/components/board/ActionsBoard";
 
 export const metadata: Metadata = {
@@ -8,9 +7,5 @@ export const metadata: Metadata = {
 };
 
 export default function ActionsPage() {
-  return (
-    <DashboardLayout>
-      <ActionsBoard />
-    </DashboardLayout>
-  );
+  return <ActionsBoard />;
 }

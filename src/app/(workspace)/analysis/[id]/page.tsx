@@ -1,5 +1,4 @@
 import type { Metadata } from "next";
-import DashboardLayout from "@/components/layout/DashboardLayout";
 import AnalysisView from "@/components/analysis/AnalysisView";
 
 export const metadata: Metadata = {
@@ -8,9 +7,5 @@ export const metadata: Metadata = {
 };
 
 export default function AnalysisPage() {
-  return (
-    <DashboardLayout>
-      <AnalysisView />
-    </DashboardLayout>
-  );
+  return <AnalysisView />;
 }

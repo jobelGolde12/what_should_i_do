@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { useRouter } from "next/navigation";
 import {
   Search,
   History,
@@ -14,6 +13,7 @@ import {
   FileText,
 } from "lucide-react";
 import { useTask } from "@/context/TaskContext";
+import { useNavigation } from "@/lib/navigation";
 import { snippet } from "@/lib/format";
 import { storePendingTemplate } from "@/lib/applyTemplate";
 
@@ -42,42 +42,42 @@ function scoreMatch(query: string, haystack: string): number {
   return wordHits * 20 + anyHit;
 }
 
-function buildCommands(router: ReturnType<typeof useRouter>): Command[] {
+function buildCommands(navigate: (href: string) => void): Command[] {
   return [
     {
       id: "new-analysis",
       label: "New Analysis",
       hint: "Go to the input area",
       icon: "plus",
-      run: () => router.push("/"),
+      run: () => navigate("/"),
     },
     {
       id: "actions-board",
       label: "My Actions",
       hint: "Open the actions board",
       icon: "grid",
-      run: () => router.push("/actions"),
+      run: () => navigate("/actions"),
     },
     {
       id: "history",
       label: "History",
       hint: "Browse past analyses",
       icon: "history",
-      run: () => router.push("/history"),
+      run: () => navigate("/history"),
     },
     {
       id: "saved",
       label: "Saved",
       hint: "Manage templates",
       icon: "folder",
-      run: () => router.push("/saved"),
+      run: () => navigate("/saved"),
     },
     {
       id: "settings",
       label: "Settings",
       hint: "Preferences",
       icon: "settings",
-      run: () => router.push("/settings"),
+      run: () => navigate("/settings"),
     },
   ];
 }
@@ -92,7 +92,7 @@ type Row =
   | { kind: "board"; item: { id: string; text: string; urgency: string } };
 
 export default function QuickSearch() {
-  const router = useRouter();
+  const { navigate } = useNavigation();
   const { history, templates, board } = useTask();
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
@@ -129,7 +129,7 @@ export default function QuickSearch() {
   }, [open]);
 
   const rows = useMemo<Row[]>(() => {
-    const commands = buildCommands(router);
+    const commands = buildCommands(navigate);
     const q = query.trim().toLowerCase();
 
     const commandRows: Row[] = commands
@@ -189,7 +189,7 @@ export default function QuickSearch() {
       .map(({ row }) => row);
 
     return [...commandRows, ...historyRows, ...templateRows, ...boardRows];
-  }, [query, history, templates, board, router]);
+  }, [query, history, templates, board, navigate]);
 
   const safeActiveIndex = Math.min(activeIndex, Math.max(0, rows.length - 1));
 
@@ -215,14 +215,14 @@ export default function QuickSearch() {
         row.command.run();
         break;
       case "history":
-        router.push(`/analysis/${row.record.id}`);
+        navigate(`/analysis/${row.record.id}`);
         break;
       case "template":
         storePendingTemplate(row.template.content);
-        router.push("/");
+        navigate("/");
         break;
       case "board":
-        router.push("/actions");
+        navigate("/actions");
         break;
     }
   }

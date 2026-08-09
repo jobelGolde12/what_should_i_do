@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { useRouter } from "next/navigation";
 import {
   Search,
   Trash2,
@@ -17,6 +16,8 @@ import { UrgencyBadge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import PageHeader from "@/components/ui/PageHeader";
 import { EmptyState } from "@/components/ui/States";
+import SmartLink from "@/components/navigation/SmartLink";
+import { useNavigation } from "@/lib/navigation";
 import type { UrgencyLevel } from "@/lib/types";
 import type { AnalysisRecord } from "@/lib/types";
 
@@ -42,7 +43,7 @@ function isAnalysisRecord(value: unknown): value is AnalysisRecord {
 }
 
 export default function HistoryView() {
-  const router = useRouter();
+  const { navigate, prefetch } = useNavigation();
   const { history, deleteAnalysis, clearHistory, importHistory } = useTask();
   const [query, setQuery] = useState("");
   const [filter, setFilter] = useState<"all" | UrgencyLevel>("all");
@@ -228,9 +229,8 @@ export default function HistoryView() {
                 key={record.id}
                 className="group flex items-start gap-4 py-4"
               >
-                <button
-                  type="button"
-                  onClick={() => router.push(`/analysis/${record.id}`)}
+                <SmartLink
+                  href={`/analysis/${record.id}`}
                   className="min-w-0 flex-1 text-left"
                 >
                   <div className="flex flex-wrap items-center gap-2">
@@ -246,12 +246,13 @@ export default function HistoryView() {
                   <p className="mt-1.5 line-clamp-2 text-sm leading-relaxed text-ink">
                     {snippet(record.input, 220)}
                   </p>
-                </button>
+                </SmartLink>
                 <div className="flex shrink-0 items-center gap-1.5">
                   <Button
                     variant="ghost"
                     size="sm"
-                    onClick={() => router.push(`/analysis/${record.id}`)}
+                    onMouseEnter={() => prefetch(`/analysis/${record.id}`)}
+                    onClick={() => navigate(`/analysis/${record.id}`)}
                     aria-label="Open analysis"
                   >
                     <ArrowRight className="h-4 w-4" />

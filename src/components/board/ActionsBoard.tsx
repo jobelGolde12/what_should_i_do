@@ -1,7 +1,6 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { useRouter } from "next/navigation";
 import {
   GripVertical,
   ArrowRight,
@@ -11,6 +10,7 @@ import {
   Flame,
 } from "lucide-react";
 import { useTask } from "@/context/TaskContext";
+import { useNavigation } from "@/lib/navigation";
 import type { BoardItem, BoardStatus } from "@/lib/types";
 import type { UrgencyLevel } from "@/lib/types";
 import PageHeader from "@/components/ui/PageHeader";
@@ -50,7 +50,7 @@ function BoardCard({
   onDropCard: (id: string) => void;
   onMove: (id: string, dir: -1 | 1) => void;
 }) {
-  const router = useRouter();
+  const { navigate, prefetch } = useNavigation();
   const [dragging, setDragging] = useState(false);
 
   return (
@@ -74,7 +74,8 @@ function BoardCard({
         <GripVertical className="h-4 w-4 shrink-0 text-muted" aria-hidden="true" />
         <button
           type="button"
-          onClick={() => router.push(`/analysis/${item.sourceId}`)}
+          onMouseEnter={() => prefetch(`/analysis/${item.sourceId}`)}
+          onClick={() => navigate(`/analysis/${item.sourceId}`)}
           className="flex h-10 w-10 items-center justify-center rounded-tm text-muted transition-colors hover:bg-surface-2 hover:text-accent"
           aria-label="Open source analysis"
         >

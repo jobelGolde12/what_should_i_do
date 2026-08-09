@@ -1,5 +1,4 @@
 import Script from "next/script";
-import DashboardLayout from "@/components/layout/DashboardLayout";
 import { DashboardHome } from "@/components/dashboard/DashboardHome";
 import {
   SITE_URL,
@@ -140,9 +139,7 @@ export default function Home() {
         dangerouslySetInnerHTML={{ __html: JSON.stringify(FAQ_SCHEMA) }}
       />
 
-      <DashboardLayout>
-        <DashboardHome />
-      </DashboardLayout>
+      <DashboardHome />
     </>
   );
 }

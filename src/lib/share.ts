@@ -50,7 +50,7 @@ export function buildShareLink(
 }
 
 export function parseShareToken(token: string): SharePayload | null {
-  return decodePayload(PREFIX + token);
+  return decodePayload(token);
 }
 
 /** Fallback copy that works even when navigator.clipboard is unavailable. */

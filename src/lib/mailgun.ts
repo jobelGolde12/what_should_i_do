@@ -7,7 +7,7 @@
  *   MAILGUN_API_KEY     private API key  (required)
  *   MAILGUN_DOMAIN      verified sending domain, e.g. mg.example.com (required)
  *   MAILGUN_FROM        override From address (optional)
- *   MAILGUN_BASE_URL    API base incl /v3 (optional, default https://api.mailgun.net/v3)
+ *   MAILGUN_BASE_URL    API base incl /v3 (optional, default https://api.mailgun.com/v3)
  */
 import { logWarn } from "@/lib/log";
 
@@ -17,7 +17,7 @@ export type MailResult = {
   messageId?: string;
 };
 
-const DEFAULT_BASE = "https://api.mailgun.net/v3";
+const DEFAULT_BASE = "https://api.mailgun.com/v3";
 
 /** `true` when both the API key and domain are configured. */
 export function isMailgunConfigured(): boolean {
@@ -32,9 +32,12 @@ export function mailgunFrom(): string {
   return domain ? `no-reply@${domain}` : "no-reply@taskmind.app";
 }
 
-function mailgunEndpoint(): string | null {
+export function mailgunEndpoint(): string | null {
   if (!isMailgunConfigured()) return null;
-  const base = (process.env.MAILGUN_BASE_URL || DEFAULT_BASE).trim();
+  let base = (process.env.MAILGUN_BASE_URL || DEFAULT_BASE).trim().replace(/\/+$/, "");
+  if (!/\/v\d+$/i.test(base)) {
+    base = `${base}/v3`;
+  }
   const domain = process.env.MAILGUN_DOMAIN!.trim();
   return `${base}/${domain}/messages`;
 }
@@ -92,7 +95,10 @@ export async function sendMail(
       .catch(() => "")
       .then((t) => t.slice(0, 300));
     logWarn("mail", { status: res.status, detail, to });
-    return { ok: false, error: `http_${res.status}`, messageId: detail || undefined };
+    const error = res.status === 404
+      ? "mailgun_domain_not_found"
+      : `http_${res.status}`;
+    return { ok: false, error, messageId: detail || undefined };
   }
 
   const data = await res.json().catch(() => ({} as Record<string, unknown>));

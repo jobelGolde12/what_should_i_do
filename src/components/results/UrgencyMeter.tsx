@@ -9,7 +9,9 @@ export default function UrgencyMeter({
   reason?: string;
 }) {
   const activeIndex = URGENCY_LEVELS.findIndex((l) => l.key === level);
-  const active = URGENCY_LEVELS[activeIndex];
+  // Defensive: an unrecognized level would otherwise index into undefined.
+  const safeIndex = activeIndex === -1 ? URGENCY_LEVELS.length - 1 : activeIndex;
+  const active = URGENCY_LEVELS[safeIndex];
 
   return (
     <div>
@@ -19,7 +21,7 @@ export default function UrgencyMeter({
             key={l.key}
             aria-hidden="true"
             title={l.help}
-            className={`h-1.5 ${i <= activeIndex ? l.fill : "bg-line"}`}
+            className={`h-1.5 ${i <= safeIndex ? l.fill : "bg-line"}`}
           />
         ))}
       </div>

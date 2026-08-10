@@ -132,6 +132,15 @@ export default function InputArea({
     return () => window.removeEventListener("taskmind:apply-template", handler);
   }, [onTextChange]);
 
+  const resetAll = useCallback(() => {
+    onTextChange("");
+    setFileName(null);
+    setFileSize(null);
+    setFileStatus("idle");
+    setFileError(null);
+    if (fileInputRef.current) fileInputRef.current.value = "";
+  }, [onTextChange]);
+
   const handleFile = useCallback(
     async (file: File) => {
       setFileName(file.name);
@@ -142,7 +151,8 @@ export default function InputArea({
         const extracted = await extractTextFromFile(file);
         onTextChange(extracted);
         setFileStatus("idle");
-        onAnalyze(extracted);
+        // Fill the input for review instead of auto-analyzing, so the user
+        // can check extracted text (esp. OCR/PDF noise) before running.
       } catch (err) {
         setFileStatus("error");
         setFileName(null);
@@ -150,9 +160,11 @@ export default function InputArea({
         const message =
           err instanceof Error ? err.message : "Couldn't read that file.";
         setFileError(`Couldn't read that file. ${message}`);
+      } finally {
+        if (fileInputRef.current) fileInputRef.current.value = "";
       }
     },
-    [onTextChange, onAnalyze]
+    [onTextChange]
   );
 
   // Whole-page drag & drop.
@@ -184,9 +196,9 @@ export default function InputArea({
       e.preventDefault();
       if (text.trim()) onAnalyze(text);
     }
-    if (e.key === "Escape" && text) {
+    if (e.key === "Escape" && (text || fileName)) {
       e.preventDefault();
-      onTextChange("");
+      resetAll();
     }
   }
 
@@ -247,18 +259,7 @@ export default function InputArea({
               )}
             </Button>
             {(text || fileName) && (
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => {
-                  onTextChange("");
-                  setFileName(null);
-                  setFileSize(null);
-                  setFileStatus("idle");
-                  setFileError(null);
-                  if (fileInputRef.current) fileInputRef.current.value = "";
-                }}
-              >
+              <Button variant="ghost" size="sm" onClick={resetAll}>
                 <X className="h-3.5 w-3.5" /> Clear
               </Button>
             )}

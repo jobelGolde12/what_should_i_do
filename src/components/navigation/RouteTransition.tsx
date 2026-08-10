@@ -18,7 +18,6 @@ export default function RouteTransition({ children }: { children: ReactNode }) {
   return (
     <div aria-busy="true" aria-live="polite">
       <RouteSkeleton route={state.targetRoute} />
-      <div hidden>{children}</div>
     </div>
   );
 }

@@ -12,6 +12,7 @@ import {
 import { useTask } from "@/context/TaskContext";
 import { formatRelative, snippet } from "@/lib/format";
 import { downloadJson, readJsonFile } from "@/lib/backup";
+import { toast } from "@/lib/toast";
 import { UrgencyBadge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import PageHeader from "@/components/ui/PageHeader";
@@ -91,6 +92,11 @@ export default function HistoryView() {
         return;
       }
       importHistory(records);
+      // Reset active filters/pagination so the imported records are visible.
+      setQuery("");
+      setFilter("all");
+      setVisible(PAGE_SIZE);
+      toast(`Imported ${records.length} ${records.length === 1 ? "record" : "records"}`, "success");
     } catch (err) {
       setImportError(err instanceof Error ? err.message : "Import failed.");
     } finally {

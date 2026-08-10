@@ -17,6 +17,10 @@ const TIMEOUT_MS = 15_000;
 const CACHE_TTL_MS = 24 * 60 * 60 * 1000;
 const CACHE_MAX_ENTRIES = 500;
 
+// Matches the languages offered in the UI (TranslationBlock). Keeps invalid
+// 2-letter codes from reaching the provider and returning an opaque 502.
+const SUPPORTED_LANGS = new Set(["tl", "es", "fr", "de", "it", "pt"]);
+
 const cache = new Map<
   string,
   { value: string; expires: number }
@@ -107,8 +111,11 @@ export async function POST(request: NextRequest) {
   if (!text) {
     return Response.json({ error: "Missing text" }, { status: 400 });
   }
-  if (!/^[a-z]{2}$/.test(target)) {
-    return Response.json({ error: "Invalid target language" }, { status: 400 });
+  if (!SUPPORTED_LANGS.has(target)) {
+    return Response.json(
+      { error: "Unsupported target language" },
+      { status: 400 }
+    );
   }
 
   const cacheKey = `${hashText(text)}:${target}`;

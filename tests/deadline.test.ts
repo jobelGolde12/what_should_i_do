@@ -49,6 +49,44 @@ describe("deadline", () => {
       expect(r.date!.getHours()).toBe(17);
     });
 
+    it("parses end-of-day variants to today at 5pm, not the next morning", () => {
+      for (const input of [
+        "end of the day",
+        "end of today",
+        "eod",
+        "close of business",
+      ]) {
+        const r = parseDeadline(input);
+        expect(r.date, input).not.toBeNull();
+        expect(r.date!.getDate(), input).toBe(10);
+        expect(r.date!.getHours(), input).toBe(17);
+      }
+    });
+
+    it("parses end-of-month variants to the last day of the month at 5pm", () => {
+      for (const input of ["end of the month", "end of this month", "end of month"]) {
+        const r = parseDeadline(input);
+        expect(r.date, input).not.toBeNull();
+        expect(r.date!.getMonth(), input).toBe(7); // August
+        expect(r.date!.getDate(), input).toBe(31);
+        expect(r.date!.getHours(), input).toBe(17);
+      }
+    });
+
+    it("parses relative day counts via the regex fallback", () => {
+      const inDays = parseDeadline("in 3 days");
+      expect(inDays.date).not.toBeNull();
+      expect(inDays.date!.getDate()).toBe(13);
+      expect(inDays.date!.getHours()).toBe(9);
+    });
+
+    it("applies 24-hour clock times", () => {
+      const r = parseDeadline("tomorrow at 18:00");
+      expect(r.date).not.toBeNull();
+      expect(r.date!.getHours()).toBe(18);
+      expect(r.date!.getMinutes()).toBe(0);
+    });
+
     it("falls back for Filipino relative expressions", () => {
       const inDays = parseDeadline("sa loob ng 3 araw");
       expect(inDays.date).not.toBeNull();

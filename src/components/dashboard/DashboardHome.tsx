@@ -4,7 +4,11 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { analyzeText, type AnalysisResult } from "@/app/actions/analyzeText";
 import type { AnalysisRecord } from "@/lib/types";
 import { useTask } from "@/context/TaskContext";
-import { streamAnalysis, StreamCancelledError } from "@/lib/stream";
+import {
+  streamAnalysis,
+  StreamCancelledError,
+  StreamUnavailableError,
+} from "@/lib/stream";
 import { consumePendingTemplate } from "@/lib/applyTemplate";
 import {
   Sparkles,
@@ -40,6 +44,8 @@ export function DashboardHome() {
   const [record, setRecord] = useState<AnalysisRecord | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
+  const [cancelled, setCancelled] = useState(false);
   const [streamed, setStreamed] = useState(false);
   const pendingTextRef = useRef("");
   const abortRef = useRef<AbortController | null>(null);
@@ -64,6 +70,8 @@ export function DashboardHome() {
       abortRef.current = controller;
       setLoading(true);
       setError(null);
+      setNotice(null);
+      setCancelled(false);
       setResult(null);
       setRecord(null);
       setPartial(null);
@@ -83,8 +91,15 @@ export function DashboardHome() {
         setStreamed(true);
       } catch (streamErr) {
         if (streamErr instanceof StreamCancelledError) {
-          setError(streamErr.message);
+          setCancelled(true);
           return;
+        }
+        // Streaming path unavailable (non-OK response / no body) — explain
+        // the switch and fall back to the blocking server action.
+        if (streamErr instanceof StreamUnavailableError) {
+          setNotice(
+            "Streaming was unavailable, so results came from the offline analyzer."
+          );
         }
         // Fallback: the blocking server action (TokenRouter → rule-based).
         try {
@@ -115,7 +130,8 @@ export function DashboardHome() {
   }, [record, deleteAnalysis]);
 
   const showPanel =
-    (loading && partial !== null) || (!loading && !error && result !== null);
+    (loading && partial !== null) ||
+    (!loading && !error && !cancelled && result !== null);
 
   const focusInput = () => {
     document
@@ -216,6 +232,37 @@ export function DashboardHome() {
               onRetry={() => runAnalyze(pendingTextRef.current)}
             />
           )}
+          {cancelled && (
+            <div
+              role="status"
+              className="border border-line bg-surface px-6 py-6"
+            >
+              <p className="text-sm font-semibold text-ink">
+                Analysis cancelled.
+              </p>
+              <p className="mt-1 text-sm text-muted">
+                Your input is still here — run it again when you&apos;re ready.
+              </p>
+              {pendingTextRef.current && (
+                <Button
+                  variant="dark"
+                  size="sm"
+                  className="mt-4"
+                  onClick={() => runAnalyze(pendingTextRef.current)}
+                >
+                  Try again
+                </Button>
+              )}
+            </div>
+          )}
+          {notice && !error && (
+            <p
+              role="status"
+              className="mt-4 border border-dashed border-line bg-surface px-4 py-3 text-xs leading-relaxed text-muted"
+            >
+              {notice}
+            </p>
+          )}
           {showPanel && (
             <ResultsPanel
               record={record}
@@ -233,8 +280,10 @@ export function DashboardHome() {
               }}
             />
           )}
-          {!loading && !error && !result && !text.trim() && <EmptyState />}
-          {!loading && !error && !result && text.trim() && (
+          {!loading && !error && !cancelled && !result && !text.trim() && (
+            <EmptyState />
+          )}
+          {!loading && !error && !cancelled && !result && text.trim() && (
             <p className="mt-8 border border-dashed border-line py-10 text-center font-mono text-xs uppercase tracking-label text-muted">
               Press ⌘ Enter or hit Analyze to run
             </p>

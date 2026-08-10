@@ -13,6 +13,16 @@ export class StreamCancelledError extends Error {
   }
 }
 
+/** Thrown when the streaming endpoint itself can't be reached/used (non-OK
+ *  response or missing body) — distinct from a user cancellation or a
+ *  provider-level error so callers can explain why they switched paths. */
+export class StreamUnavailableError extends Error {
+  constructor(message = "Streaming analysis unavailable") {
+    super(message);
+    this.name = "StreamUnavailableError";
+  }
+}
+
 const DEFAULT_TIMEOUT_MS = 120_000;
 
 /**
@@ -53,7 +63,15 @@ export async function streamAnalysis(
     });
 
     if (!response.ok || !response.body) {
-      throw new Error("Streaming analysis unavailable");
+      // Surface a JSON error body (400/413/429) so the real message reaches
+      // the user; otherwise report the streaming path as unavailable.
+      try {
+        const body = (await response.json()) as { error?: string };
+        if (body.error) throw new Error(body.error);
+      } catch {
+        /* no usable error body — fall through to unavailable */
+      }
+      throw new StreamUnavailableError();
     }
 
     const reader = response.body.getReader();

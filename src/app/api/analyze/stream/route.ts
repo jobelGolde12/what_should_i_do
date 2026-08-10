@@ -39,6 +39,13 @@ export async function POST(req: Request) {
     );
   }
 
+  if (!text) {
+    return new Response(JSON.stringify({ error: "Text is empty." }), {
+      status: 400,
+      headers: { "Content-Type": "application/json" },
+    });
+  }
+
   const rl = rateLimit(getClientIp(req), 15);
   if (!rl.allowed) {
     return new Response(

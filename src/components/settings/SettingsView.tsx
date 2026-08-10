@@ -24,6 +24,7 @@ import { useTask } from "@/context/TaskContext";
 import type { ThemePreference } from "@/lib/types";
 import type { AnalysisRecord, Template, BoardItem } from "@/lib/types";
 import { downloadJson, readJsonFile } from "@/lib/backup";
+import { toast } from "@/lib/toast";
 import { Button } from "@/components/ui/Button";
 import PageHeader from "@/components/ui/PageHeader";
 
@@ -131,6 +132,7 @@ export default function SettingsView() {
       setImportError(null);
       setImported(true);
       setTimeout(() => setImported(false), 2500);
+      toast("Backup imported", "success");
     } catch (err) {
       setImportError(err instanceof Error ? err.message : "Import failed.");
     }
@@ -231,7 +233,10 @@ export default function SettingsView() {
             );
           })}
         </div>
-        <p className="px-5 pb-5 text-xs text-muted">
+        <p
+          suppressHydrationWarning
+          className="px-5 pb-5 text-xs text-muted"
+        >
           System mode follows your operating system preference and updates
           live. Currently showing {resolvedTheme === "dark" ? "dark" : "light"}.
         </p>

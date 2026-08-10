@@ -54,22 +54,23 @@ function writeStoredTheme(theme: ThemePreference) {
 }
 
 export function ThemeProvider({ children }: { children: ReactNode }) {
-  const [theme, setThemeState] = useState<ThemePreference>("system");
-  const [systemPrefersDark, setSystemPrefersDark] = useState(false);
-  const [hydrated, setHydrated] = useState(false);
-
-  useEffect(() => {
-    setThemeState(readStoredTheme());
-    setHydrated(true);
-  }, []);
+  // Lazy-initialize so React state matches the browser from the very first
+  // client render (no effect-induced one-frame "light" on dark systems).
+  // SSR falls back to "system"/false, which matches the default HTML.
+  const [theme, setThemeState] = useState<ThemePreference>(() =>
+    readStoredTheme()
+  );
+  const [systemPrefersDark, setSystemPrefersDark] = useState(
+    () =>
+      typeof window !== "undefined" &&
+      window.matchMedia("(prefers-color-scheme: dark)").matches
+  );
 
   useEffect(() => {
     const media = window.matchMedia("(prefers-color-scheme: dark)");
     const handleSystemThemeChange = (e: MediaQueryListEvent) => {
       setSystemPrefersDark(e.matches);
     };
-
-    setSystemPrefersDark(media.matches);
     media.addEventListener("change", handleSystemThemeChange);
     return () => {
       media.removeEventListener("change", handleSystemThemeChange);
@@ -82,12 +83,11 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
   );
 
   useEffect(() => {
-    if (!hydrated) return;
     writeStoredTheme(theme);
     const root = document.documentElement;
     root.setAttribute("data-theme", resolvedTheme);
     root.style.colorScheme = resolvedTheme;
-  }, [theme, resolvedTheme, hydrated]);
+  }, [theme, resolvedTheme]);
 
   const value = useMemo(
     () => ({ theme, setTheme: setThemeState, resolvedTheme }),

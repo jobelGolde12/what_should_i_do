@@ -3,6 +3,7 @@ import type { ReactNode } from "react";
 import { Inter, Space_Grotesk, JetBrains_Mono } from "next/font/google";
 import { ThemeProvider } from "@/context/ThemeProvider";
 import { AuthProvider } from "@/context/AuthContext";
+import { Toaster } from "@/components/ui/Toast";
 import { SITE_NAME, SITE_TITLE, SITE_DESCRIPTION } from "@/lib/site";
 import "./globals.css";
 
@@ -72,6 +73,7 @@ export default function RootLayout({
         <ThemeProvider>
           <AuthProvider>{children}</AuthProvider>
         </ThemeProvider>
+        <Toaster />
       </body>
     </html>
   );

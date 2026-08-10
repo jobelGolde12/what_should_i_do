@@ -235,7 +235,10 @@ export function cleanText(text: string): string {
   return text
     .replace(/\n+/g, " ")
     .replace(/\s{2,}/g, " ")
-    .replace(/[^\x20-\x7E]/g, "")
+    // Strip non-printable control chars but KEEP accented Latin letters and
+    // Latin-1 punctuation (ñ, á, é, ß, ø, œ, …) so non-English input and OCR
+    // text aren't silently corrupted.
+    .replace(/[^\x20-\x7E\u00A0-\u00FF\u0100-\u024F]/g, "")
     .replace(/office of the municipal mayor.*?(?=re\s*:)/gi, "")
     .replace(/local government unit.*?(?=office)/gi, "")
     .replace(/email:.*?\s/gi, "")
@@ -249,7 +252,9 @@ export function cleanText(text: string): string {
  ========================================================= */
 export function enhanceInput(input: string): string {  let enhanced = input;
   
-  // Fix common OCR errors
+  // Fix common OCR errors. Single-letter substitutions are intentionally
+  // omitted: rewriting a standalone "u"/"r" corrupts initials and names
+  // ("R. Santos", building "U").
   const ocrFixes: { [key: string]: string } = {
     'c1asses': 'classes',
     'dass': 'class',
@@ -266,9 +271,7 @@ export function enhanceInput(input: string): string {  let enhanced = input;
     'tl;dr': 'in summary',
     'pls': 'please',
     'plz': 'please',
-    'u': 'you',
     'ur': 'your',
-    'r': 'are',
     'dont': "don't",
     'wont': "won't",
     'cant': "can't",

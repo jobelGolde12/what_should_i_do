@@ -254,10 +254,16 @@ export function NavigationProvider({ children }: { children: ReactNode }) {
       const gen = generationRef.current;
 
       dispatch({ type: "COMMIT", route, params, generation: gen });
-      // Kick data immediately (render-as-you-fetch).
-      void dataCache.getCriticalData(route, params, {
-        signal: abortRef.current.signal,
-      });
+      // Data is already warm (fresh, within TTL) → resolve immediately so the
+      // skeleton never paints. Otherwise kick data (render-as-you-fetch).
+      const key = cacheKeyForRoute(route, params);
+      if (dataCache.isFresh(key)) {
+        dispatch({ type: "READY", generation: gen, route, params });
+      } else {
+        void dataCache.getCriticalData(route, params, {
+          signal: abortRef.current.signal,
+        });
+      }
       router.push(path);
     },
     [enabled, router, dataCache]

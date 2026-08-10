@@ -35,10 +35,17 @@ type AuthContextValue = {
 
 const AuthContext = createContext<AuthContextValue | null>(null);
 
-async function readError(res: Response): Promise<Error> {
+export type AuthError = Error & { requiresVerification?: boolean };
+
+async function readError(res: Response): Promise<AuthError> {
   try {
-    const body = (await res.json()) as { error?: string };
-    return new Error(body.error ?? "Something went wrong.");
+    const body = (await res.json()) as {
+      error?: string;
+      requiresVerification?: boolean;
+    };
+    const err = new Error(body.error ?? "Something went wrong.") as AuthError;
+    if (body.requiresVerification) err.requiresVerification = true;
+    return err;
   } catch {
     return new Error("Something went wrong.");
   }

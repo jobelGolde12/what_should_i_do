@@ -12,7 +12,7 @@ import {
   Check,
   X,
 } from "lucide-react";
-import { useAuth } from "@/context/AuthContext";
+import { useAuth, type AuthError } from "@/context/AuthContext";
 import { Button } from "@/components/ui/Button";
 import Logo from "@/components/layout/Logo";
 import SiteFooter from "@/components/layout/SiteFooter";
@@ -88,9 +88,17 @@ export default function AuthForm({ mode }: AuthFormProps) {
       }
     } catch (err) {
       const msg = err instanceof Error ? err.message : "Something went wrong.";
-      setError(msg);
-      if (msg.toLowerCase().includes("verify your email")) {
-        setIsUnverifiedError(true);
+      // Machine-readable flag from the API (login 403 / register 502) replaces
+      // the previous string-match on "verify your email".
+      const needsVerification =
+        err instanceof Error && (err as AuthError).requiresVerification;
+      if (!isLogin && needsVerification) {
+        // Registration succeeded but the verification email couldn't be sent —
+        // treat it like a pending sign-up so the resend flow is offered.
+        setVerificationSent(true);
+      } else {
+        setError(msg);
+        setIsUnverifiedError(Boolean(needsVerification));
       }
     } finally {
       setLoading(false);
@@ -239,7 +247,6 @@ export default function AuthForm({ mode }: AuthFormProps) {
                   onClick={() => setShowPassword((v) => !v)}
                   className="absolute right-0 top-0 flex h-11 w-10 items-center justify-center text-muted transition-colors hover:text-ink focus:text-ink focus:outline-none"
                   aria-label={showPassword ? "Hide password" : "Show password"}
-                  tabIndex={-1}
                 >
                   {showPassword ? (
                     <EyeOff className="h-4 w-4" />

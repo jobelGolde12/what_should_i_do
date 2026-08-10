@@ -26,13 +26,6 @@ export default function TranslationBlock({
   const [open, setOpen] = useState(false);
 
   async function translate(target: string) {
-    if (target === "en") {
-      setTranslated(null);
-      setError(null);
-      setOpen(false);
-      setLanguage("en");
-      return;
-    }
     setLoading(true);
     setError(null);
     try {
@@ -57,14 +50,23 @@ export default function TranslationBlock({
     }
   }
 
+  function togglePanel() {
+    const closing = open;
+    if (closing) {
+      // Reset all output state when collapsing so reopening never shows
+      // stale content with no language highlighted.
+      setLanguage("en");
+      setTranslated(null);
+      setError(null);
+    }
+    setOpen(!closing);
+  }
+
   return (
     <div className="border border-line bg-surface">
       <button
         type="button"
-        onClick={() => {
-          setOpen((v) => !v);
-          if (open) setLanguage("en");
-        }}
+        onClick={togglePanel}
         className="flex w-full items-center justify-between px-4 py-3 text-left"
         aria-expanded={open}
         aria-controls="translation-panel"
@@ -88,8 +90,14 @@ export default function TranslationBlock({
                 type="button"
                 aria-pressed={language === l.code}
                 onClick={() => {
+                  if (language === l.code && !loading) return;
                   setLanguage(l.code);
-                  void translate(l.code);
+                  if (l.code === "en") {
+                    setTranslated(null);
+                    setError(null);
+                  } else {
+                    void translate(l.code);
+                  }
                 }}
                 className={`rounded-tm px-2.5 py-1.5 text-xs font-medium transition-colors ${
                   language === l.code

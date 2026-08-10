@@ -45,7 +45,11 @@ function parseFallback(deadline: string): Date | null {
 
   // Relative: "in N days", "sa loob ng N araw", "next week", "in a week",
   // "sa isang linggo", "next month", "sa isang buwan", "next quarter".
-  const inDays = lower.match(/\bsa loob ng (\d+)\s+(araw|days?)\b|\bin (\d+)\s+(days?|d)\b/);
+  // Two separate matches so the day count is always capture group 1 (the
+  // previous single-alternation regex mis-indexed the English branch).
+  const inDays =
+    lower.match(/\bsa loob ng (\d+)\s+(?:araw|days?)\b/) ??
+    lower.match(/\bin (\d+)\s+(?:days?|d)\b/);
   if (inDays) {
     const days = Number(inDays[1]);
     const d = new Date(now.getTime() + days * DAY_MS);
@@ -144,7 +148,7 @@ function parseFallback(deadline: string): Date | null {
     return d;
   }
 
-  if (/\bend of (the )?month|end-month\b/i.test(lower)) {
+  if (/\bend of (?:this |the )?month|end-month\b/i.test(lower)) {
     return new Date(now.getFullYear(), now.getMonth() + 1, 0, 17, 0, 0);
   }
 
@@ -160,16 +164,33 @@ function applyTime(deadline: string, date: Date): Date {
   const timeMatch = deadline.match(
     /\b(\d{1,2})(?::(\d{2}))?\s*(am|pm)\b/i
   );
-  if (!timeMatch) return date;
-  let hours = Number(timeMatch[1]);
-  const minutes = timeMatch[2] ? Number(timeMatch[2]) : 0;
-  const meridiem = timeMatch[3].toLowerCase();
-  if (meridiem === "pm" && hours < 12) hours += 12;
-  if (meridiem === "am" && hours === 12) hours = 0;
-  const d = new Date(date);
-  d.setHours(hours, minutes, 0, 0);
-  return d;
+  if (timeMatch) {
+    let hours = Number(timeMatch[1]);
+    const minutes = timeMatch[2] ? Number(timeMatch[2]) : 0;
+    const meridiem = timeMatch[3].toLowerCase();
+    if (meridiem === "pm" && hours < 12) hours += 12;
+    if (meridiem === "am" && hours === 12) hours = 0;
+    const d = new Date(date);
+    d.setHours(hours, minutes, 0, 0);
+    return d;
+  }
+
+  // 24-hour clock, e.g. "at 18:00" or "before 09:30".
+  const h24Match = deadline.match(/\b([01]?\d|2[0-3]):([0-5]\d)\b/);
+  if (h24Match) {
+    const d = new Date(date);
+    d.setHours(Number(h24Match[1]), Number(h24Match[2]), 0, 0);
+    return d;
+  }
+
+  return date;
 }
+
+// chrono parses these to wrong dates (next-day 9am for "end of the day",
+// Aug 1 for "end of this month"), so short-circuit to the hand-rolled
+// fallback which gets them right.
+const EOD_LIKE = /^(?:eod|end of (?:the )?day|end of today|cob|close of business)$/i;
+const EOM_LIKE = /^(?:end of (?:this |the )?month|end-month)$/i;
 
 export function parseDeadline(
   raw: string | null | undefined,
@@ -178,8 +199,12 @@ export function parseDeadline(
   const clean = (typeof raw === "string" ? raw : "").trim();
   let date: Date | null = null;
   if (clean) {
-    date = chrono.parseDate(clean, now, { forwardDate: true });
-    if (!date) date = parseFallback(clean);
+    if (EOD_LIKE.test(clean) || EOM_LIKE.test(clean)) {
+      date = parseFallback(clean);
+    } else {
+      date = chrono.parseDate(clean, now, { forwardDate: true });
+      if (!date) date = parseFallback(clean);
+    }
     if (date) date = applyTime(clean, date);
   }
   const overdue = date !== null && date.getTime() < now.getTime() - 60_000;

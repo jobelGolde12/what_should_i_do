@@ -32,24 +32,29 @@ export function setAdsConsent(consented: boolean): void {
   writeStorage(storageKeys().adsConsent, consented);
 }
 
-let scriptInjected = false;
+let scriptPromise: Promise<void> | null = null;
 
-/** Injects the AdSense loader exactly once, lazily. */
-export function loadAdSenseScript(): void {
-  if (scriptInjected) return;
-  if (typeof window === "undefined") return;
-  if (window.adsbygoogle) {
-    scriptInjected = true;
-    return;
-  }
-  scriptInjected = true;
-  const script = document.createElement("script");
-  script.async = true;
-  script.src = `https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=${encodeURIComponent(
-    AD_CLIENT
-  )}`;
-  script.crossOrigin = "anonymous";
-  document.head.appendChild(script);
+/**
+ * Injects the AdSense loader exactly once, lazily. Resolves once the script
+ * has loaded (or failed — pushAd will simply no-op then) so callers can push
+ * their unit after `window.adsbygoogle` is actually available.
+ */
+export function loadAdSenseScript(): Promise<void> {
+  if (typeof window === "undefined") return Promise.resolve();
+  if (window.adsbygoogle) return Promise.resolve();
+  if (scriptPromise) return scriptPromise;
+  scriptPromise = new Promise<void>((resolve) => {
+    const script = document.createElement("script");
+    script.async = true;
+    script.src = `https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=${encodeURIComponent(
+      AD_CLIENT
+    )}`;
+    script.crossOrigin = "anonymous";
+    script.onload = () => resolve();
+    script.onerror = () => resolve();
+    document.head.appendChild(script);
+  });
+  return scriptPromise;
 }
 
 const pushedUnits = new WeakSet<HTMLElement>();

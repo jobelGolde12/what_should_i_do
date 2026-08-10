@@ -121,6 +121,19 @@ class DataCacheStore {
     return Boolean(entry && !entry.error && entry.data !== undefined);
   }
 
+  /** True when the entry is ready AND still within its TTL and not dirty —
+   *  used to skip the route skeleton for already-fresh data. */
+  isFresh(key: CacheKey): boolean {
+    const entry = this.entries.get(key);
+    return Boolean(
+      entry &&
+        !entry.dirty &&
+        !entry.error &&
+        entry.data !== undefined &&
+        Date.now() - entry.updatedAt < DEFAULT_TTL_MS
+    );
+  }
+
   private put<T>(key: CacheKey, data: T, dirty = false) {
     this.entries.set(key, {
       data,
@@ -303,6 +316,7 @@ type DataCacheContextValue = {
   syncFromStorage: typeof store.syncFromStorage;
   clear: typeof store.clear;
   isReady: typeof store.isReady;
+  isFresh: typeof store.isFresh;
   cacheKeyForRoute: typeof cacheKeyForRoute;
   enabled: boolean;
 };
@@ -328,6 +342,7 @@ export function DataCacheProvider({ children }: { children: ReactNode }) {
       syncFromStorage: store.syncFromStorage.bind(store),
       clear: store.clear.bind(store),
       isReady: store.isReady.bind(store),
+      isFresh: store.isFresh.bind(store),
       cacheKeyForRoute,
       enabled,
     }),

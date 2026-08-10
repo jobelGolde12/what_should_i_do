@@ -60,22 +60,29 @@ function AdUnit({ className = "", id = "ad-unit" }: AdUnitProps) {
   const consented = adsConsented();
 
   // When visible and configured + consented, inject the loader lazily and
-  // ask the network to fill the mounted unit.
+  // ask the network to fill the mounted unit once the loader is ready.
   useEffect(() => {
     if (!visible || !configReady || !consented) return;
     const node = ref.current;
     if (!node) return;
-    loadAdSenseScript();
-    const timer = setTimeout(() => {
-      const ins = node.querySelector<HTMLElement>("ins.adsbygoogle");
-      if (ins) pushAd(ins);
-    }, 120);
-    return () => clearTimeout(timer);
+    let cancelled = false;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    void loadAdSenseScript().then(() => {
+      if (cancelled) return;
+      timer = setTimeout(() => {
+        const ins = node.querySelector<HTMLElement>("ins.adsbygoogle");
+        if (ins) pushAd(ins);
+      }, 120);
+    });
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
     // `consentTick` is included so the unit re-attempts fill (and stops)
     // whenever the visitor's consent state changes.
   }, [visible, configReady, consented, consentTick]);
 
-  const label = (
+  const sponsoredLabel = (
     <p className="mb-2 font-mono text-xxs uppercase tracking-label text-muted">
       Sponsored
     </p>
@@ -83,19 +90,21 @@ function AdUnit({ className = "", id = "ad-unit" }: AdUnitProps) {
 
   return (
     <div ref={ref} className={className}>
-      {label}
       {configReady && consented ? (
-        <div className="min-h-[250px] w-full overflow-hidden border border-line bg-surface">
-          <ins
-            id={id}
-            className="adsbygoogle block min-h-[250px] w-full"
-            style={{ display: "block" }}
-            data-ad-client={AD_CLIENT}
-            data-ad-slot={AD_SLOT}
-            data-ad-format="auto"
-            data-full-width-responsive="true"
-          />
-        </div>
+        <>
+          {sponsoredLabel}
+          <div className="min-h-[250px] w-full overflow-hidden border border-line bg-surface">
+            <ins
+              id={id}
+              className="adsbygoogle block min-h-[250px] w-full"
+              style={{ display: "block" }}
+              data-ad-client={AD_CLIENT}
+              data-ad-slot={AD_SLOT}
+              data-ad-format="auto"
+              data-full-width-responsive="true"
+            />
+          </div>
+        </>
       ) : visible ? (
         <div className="flex min-h-[250px] w-full flex-col items-center justify-center gap-2 border border-dashed border-line bg-surface">
           <p className="text-xs text-muted">Advertisement</p>

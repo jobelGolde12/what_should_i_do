@@ -91,6 +91,19 @@ type Row =
   | { kind: "template"; template: { id: string; name: string; content: string } }
   | { kind: "board"; item: { id: string; text: string; urgency: string } };
 
+function rowId(row: Row): string {
+  switch (row.kind) {
+    case "command":
+      return row.command.id;
+    case "history":
+      return row.record.id;
+    case "template":
+      return row.template.id;
+    case "board":
+      return row.item.id;
+  }
+}
+
 export default function QuickSearch() {
   const { navigate } = useNavigation();
   const { history, templates, board } = useTask();
@@ -192,6 +205,7 @@ export default function QuickSearch() {
   }, [query, history, templates, board, navigate]);
 
   const safeActiveIndex = Math.min(activeIndex, Math.max(0, rows.length - 1));
+  const activeRow = rows[safeActiveIndex];
 
   function onKeyDown(e: React.KeyboardEvent) {
     if (e.key === "ArrowDown") {
@@ -266,7 +280,7 @@ export default function QuickSearch() {
             aria-expanded="true"
             aria-controls="quick-search-list"
             aria-activedescendant={
-              rows[safeActiveIndex] ? `qs-option-${safeActiveIndex}` : undefined
+              activeRow ? `qs-option-${rowId(activeRow)}` : undefined
             }
             className="h-12 flex-1 bg-transparent text-sm outline-none placeholder:text-muted"
           />
@@ -292,6 +306,8 @@ export default function QuickSearch() {
           <ul ref={listRef} role="listbox" id="quick-search-list">
             {rows.map((row, index) => {
               const active = index === safeActiveIndex;
+              const rowKey = rowId(row);
+              const optionId = `qs-option-${rowKey}`;
               let icon: React.ReactNode;
               let title: string;
               let subtitle: string | null = null;
@@ -330,8 +346,8 @@ export default function QuickSearch() {
               }
               return (
                 <li
-                  key={`${row.kind}-${index}`}
-                  id={`qs-option-${index}`}
+                  key={optionId}
+                  id={optionId}
                   role="option"
                   aria-selected={active}
                   className={`group flex w-full items-start gap-3 rounded-tm px-3 py-2.5 text-left ${

@@ -68,7 +68,7 @@ export async function POST(request: Request) {
     if (!isMailgunConfigured()) {
       if (process.env.NODE_ENV === "production") {
         return NextResponse.json(
-          { error: "Email service is not configured. Try again later." },
+          { error: "Registration is temporarily unavailable. Try again later." },
           { status: 503 }
         );
       }
@@ -106,6 +106,8 @@ export async function POST(request: Request) {
           error:
             "Account created, but we could not send the verification email. " +
             "Please try resending from the sign-in page.",
+          requiresVerification: true,
+          email: user.email,
         },
         { status: 502 }
       );

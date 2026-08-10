@@ -3,6 +3,8 @@
 import { useState } from "react";
 import { Check, Clipboard, Minus, Plus } from "lucide-react";
 import type { ConfusingPart, ConfusingPartReason } from "@/app/actions/analyzeText";
+import { copyText } from "@/lib/share";
+import { toast } from "@/lib/toast";
 
 const REASON_LABEL: Record<ConfusingPartReason, string> = {
   "missing-info": "Missing info",
@@ -34,12 +36,14 @@ export default function ConfusingList({
     const question = `Can you clarify "${part.sentence}"? ${
       part.suggestion ? part.suggestion + " " : ""
     }(${part.explanation})`;
-    try {
-      await navigator.clipboard.writeText(question);
+    const ok = await copyText(question);
+    if (ok) {
       setCopiedIndex(index);
       setTimeout(() => setCopiedIndex(null), 2000);
-    } catch {
+      toast("Clarification question copied", "success");
+    } else {
       setCopiedIndex(null);
+      toast("Couldn't copy — select the text and copy it manually.", "error");
     }
   }
 

@@ -6,11 +6,9 @@ import { usePathname } from "next/navigation";
 import {
   PanelLeftClose,
   PanelLeftOpen,
-  Zap,
   LogIn,
   LogOut,
   UserRound,
-  Settings,
 } from "lucide-react";
 import Logo from "./Logo";
 import SmartLink from "@/components/navigation/SmartLink";
@@ -92,13 +90,6 @@ export default function Sidebar() {
               Workspace
             </p>
             <p className="mt-1 text-sm font-medium text-ink">Free plan</p>
-            <SmartLink
-              href="/settings"
-              className="mt-2 inline-flex items-center gap-1.5 text-xs font-medium text-accent hover:text-accent-dark"
-            >
-              <Zap className="h-3.5 w-3.5" />
-              Preferences
-            </SmartLink>
           </div>
         )}
 
@@ -134,18 +125,6 @@ export default function Sidebar() {
               {!collapsed && <span>Sign in to sync</span>}
             </Link>
           ))}
-
-        <SmartLink
-          href="/settings"
-          aria-label={collapsed ? "Settings" : undefined}
-          title={collapsed ? "Settings" : undefined}
-          className={`group flex items-center gap-3 rounded-tm px-3 py-2.5 text-sm text-muted transition-colors hover:bg-surface-2 hover:text-ink ${
-            collapsed ? "justify-center" : ""
-          }`}
-        >
-          <Settings className="h-4 w-4 shrink-0 text-muted group-hover:text-ink" />
-          {!collapsed && <span>Settings</span>}
-        </SmartLink>
       </div>
     </aside>
   );

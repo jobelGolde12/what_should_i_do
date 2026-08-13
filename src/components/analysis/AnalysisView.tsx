@@ -17,6 +17,7 @@ export default function AnalysisView() {
   if (!record) {
     return (
       <div className="mx-auto max-w-3xl">
+        <h1 className="sr-only">Analysis not found</h1>
         <header className="mb-6">
           <SmartLink
             href="/"
@@ -35,6 +36,7 @@ export default function AnalysisView() {
 
   return (
     <div className="mx-auto max-w-3xl">
+      <h1 className="sr-only">Analysis results</h1>
       <header className="mb-6 flex items-center justify-between gap-4">
         <SmartLink
           href="/"

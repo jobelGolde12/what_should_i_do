@@ -29,7 +29,11 @@ export function LoadingState({
   label?: string;
 }) {
   return (
-    <div className="border border-line bg-surface px-6 py-14">
+    <div
+      role="status"
+      aria-live="polite"
+      className="border border-line bg-surface px-6 py-14"
+    >
       <div className="mx-auto max-w-sm text-center">
         <LoaderCircle className="mx-auto h-6 w-6 animate-spin text-accent" />
         <p className="mt-4 font-mono text-sm tracking-wide text-ink">

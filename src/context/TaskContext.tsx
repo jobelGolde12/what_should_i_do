@@ -26,7 +26,8 @@ type TaskContextValue = {
   board: BoardItem[];
   saveAnalysis: (
     input: string,
-    output: AnalysisResult
+    output: AnalysisResult,
+    sourceLabel?: string
   ) => AnalysisRecord;
   deleteAnalysis: (id: string) => void;
   clearHistory: () => void;
@@ -35,6 +36,11 @@ type TaskContextValue = {
   importHistory: (records: AnalysisRecord[]) => void;
   importTemplates: (templates: Template[]) => void;
   importBoard: (items: BoardItem[]) => void;
+  setAll: (next: {
+    history: AnalysisRecord[];
+    templates: Template[];
+    board: BoardItem[];
+  }) => void;
   loadRecord: (id: string) => AnalysisRecord | null;
   saveTemplate: (name: string, content: string) => void;
   deleteTemplate: (id: string) => void;
@@ -87,12 +93,13 @@ export function TaskProvider({ children }: { children: ReactNode }) {
   }, [board]);
 
   const saveAnalysis = useCallback(
-    (input: string, output: AnalysisResult): AnalysisRecord => {
+    (input: string, output: AnalysisResult, sourceLabel?: string): AnalysisRecord => {
       const record: AnalysisRecord = {
         id: uid(),
         timestamp: Date.now(),
         input,
         output,
+        ...(sourceLabel ? { sourceLabel } : {}),
       };
       setHistory((prev) => [record, ...prev]);
 
@@ -168,6 +175,19 @@ export function TaskProvider({ children }: { children: ReactNode }) {
       return [...fresh, ...prev];
     });
   }, []);
+
+  const setAll = useCallback(
+    (next: {
+      history: AnalysisRecord[];
+      templates: Template[];
+      board: BoardItem[];
+    }) => {
+      setHistory(next.history);
+      setTemplates(next.templates);
+      setBoard(next.board);
+    },
+    []
+  );
 
   const loadRecord = useCallback(
     (id: string) => history.find((r) => r.id === id) ?? null,
@@ -252,6 +272,7 @@ export function TaskProvider({ children }: { children: ReactNode }) {
         importHistory,
         importTemplates,
         importBoard,
+        setAll,
         loadRecord,
         saveTemplate,
         deleteTemplate,

@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { Loader2, Mail, CheckCircle2 } from "lucide-react";
+import { Loader2, Mail } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import Logo from "@/components/layout/Logo";
 import SiteFooter from "@/components/layout/SiteFooter";

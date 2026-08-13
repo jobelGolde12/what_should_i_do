@@ -7,6 +7,7 @@ export type AnalysisRecord = {
   timestamp: number;
   input: string;
   output: AnalysisResult;
+  sourceLabel?: string;
 };
 
 export type Template = {

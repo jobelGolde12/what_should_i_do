@@ -14,7 +14,7 @@
  */
 import type { TursoClient } from "./types";
 import { createClient } from "@libsql/client";
-import { SCHEMA_DDL, SCHEMA_VERSION } from "./schema";
+import { SCHEMA_DDL, SCHEMA_MIGRATIONS, SCHEMA_VERSION } from "./schema";
 
 let client: TursoClient | null = null;
 let schemaReady = false;
@@ -83,16 +83,33 @@ export async function ensureSchema(): Promise<void> {
   for (const ddl of SCHEMA_DDL) {
     await db.execute(ddl);
   }
-  // Record/apply schema version.
-  try {
-    await db.execute(
-      "INSERT OR IGNORE INTO schema_migrations (version, applied_at) VALUES (?, ?)",
-      [SCHEMA_VERSION, Date.now()]
-    );
-  } catch {
-    /* schema_migrations may not exist on a partially-migrated DB; the DDL above
-       already created it, so a second pass is unnecessary in practice. */
+
+  // Apply versioned migrations to databases created before this version. The
+  // version row is only written after migrations succeed so a migration never
+  // gets skipped because the target version was recorded prematurely.
+  const applied = await getSchemaVersion();
+  if (applied < SCHEMA_VERSION) {
+    for (let v = applied + 1; v <= SCHEMA_VERSION; v++) {
+      const steps = SCHEMA_MIGRATIONS[v];
+      if (!steps) continue;
+      for (const stmt of steps) {
+        try {
+          await db.execute(stmt);
+        } catch {
+          // Idempotent: a partially-migrated DB may already have the column.
+        }
+      }
+    }
+    try {
+      await db.execute(
+        "INSERT OR REPLACE INTO schema_migrations (version, applied_at) VALUES (?, ?)",
+        [SCHEMA_VERSION, Date.now()]
+      );
+    } catch {
+      /* best-effort */
+    }
   }
+
   schemaReady = true;
 }
 

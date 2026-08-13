@@ -36,19 +36,17 @@ export function logWarn(scope: string, meta: LogMeta = {}) {
   emit("warn", scope, meta);
 }
 
-const AUTH_EVENTS = [
-  "register",
-  "register_verified",
-  "login",
-  "login_blocked",
-  "verify",
-  "verify_failed",
-  "resend_verification",
-  "forgot_password",
-  "reset_password",
-  "logout",
-] as const;
-type AuthEvent = (typeof AUTH_EVENTS)[number];
+type AuthEvent =
+  | "register"
+  | "register_verified"
+  | "login"
+  | "login_blocked"
+  | "verify"
+  | "verify_failed"
+  | "resend_verification"
+  | "forgot_password"
+  | "reset_password"
+  | "logout";
 
 /** Auth-domain audit event (registration, verification, login, reset, etc.).
  * Never include raw text, passwords, or full tokens — only event metadata. */
@@ -56,8 +54,7 @@ export function logAuthEvent(event: AuthEvent, meta: LogMeta = {}) {
   emit("info", "auth", { event, ...meta });
 }
 
-const SYNC_EVENTS = ["sync_push", "sync_pull", "sync_patch", "sync_error"] as const;
-type SyncEvent = (typeof SYNC_EVENTS)[number];
+type SyncEvent = "sync_push" | "sync_pull" | "sync_patch" | "sync_error";
 
 /** Sync-domain audit event. Never include the raw analyzed text. */
 export function logSyncEvent(event: SyncEvent, meta: LogMeta = {}) {

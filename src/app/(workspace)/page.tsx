@@ -9,7 +9,7 @@ import {
 } from "@/lib/site";
 
 export const metadata = {
-  title: "TaskMind - Turn confusing messages into clear actions",
+  title: "Turn confusing messages into clear actions",
   description:
     "Upload text or files to automatically extract actionable items, detect deadlines, classify urgency, highlight confusing parts, and get a clear next step. Instantly translate analysis to any language.",
   alternates: {

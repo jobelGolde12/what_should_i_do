@@ -5,10 +5,10 @@ import { Search } from "lucide-react";
 import { TaskProvider } from "@/context/TaskContext";
 import { DataCacheProvider } from "@/lib/data-cache";
 import { NavigationProvider } from "@/lib/navigation";
+import { SyncEngine } from "@/components/sync/SyncEngine";
 import Sidebar from "./Sidebar";
 import BottomNav from "./BottomNav";
 import { AdsRail } from "./AdsRail";
-import AdsConsentBanner from "./AdsConsentBanner";
 import QuickSearch from "./QuickSearch";
 import Logo from "./Logo";
 import SiteFooter from "./SiteFooter";
@@ -26,10 +26,10 @@ export default function DashboardLayout({
     <DataCacheProvider>
       <NavigationProvider>
         <TaskProvider>
+          <SyncEngine />
           <div className="flex min-h-screen bg-background text-ink">
             <Sidebar />
             <div className="flex min-w-0 flex-1 flex-col">
-              <AdsConsentBanner />
               <UnverifiedBanner />
               <header className="sticky top-0 z-30 flex h-14 items-center justify-between border-t-2 border-t-accent border-b border-line bg-background/90 px-4 backdrop-blur-sm lg:hidden">
                 <Logo />

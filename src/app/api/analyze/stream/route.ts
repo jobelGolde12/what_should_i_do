@@ -8,11 +8,16 @@ import {
 import { createError, getErrorMessage } from "@/lib/errors";
 import { getClientIp, rateLimit } from "@/lib/rateLimit";
 import { logRequest } from "@/lib/log";
+import { getCurrentUserId } from "@/lib/auth/cookies";
+import {
+  limitsForUser,
+  planForUser,
+  isProUser,
+} from "@/lib/pro/entitlements";
+import { tryIncrement, limitReached } from "@/lib/pro/usage";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
-
-const MAX_INPUT_CHARS = 20_000;
 
 function encodeSSE(obj: unknown): Uint8Array {
   return new TextEncoder().encode(`data: ${JSON.stringify(obj)}\n\n`);
@@ -24,17 +29,31 @@ export async function POST(req: Request) {
     req.headers.get("x-request-id") ??
     `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
 
+  const userId = await getCurrentUserId();
+
   let text: string;
+  let deep = false;
   try {
-    const body = (await req.json()) as { text?: string };
+    const body = (await req.json()) as { text?: string; deep?: unknown };
     text = typeof body.text === "string" ? body.text.trim() : "";
+    deep = body.deep === true;
   } catch {
     text = "";
   }
 
-  if (text.length > MAX_INPUT_CHARS) {
+  // Deep analysis is a Pro-only option.
+  if (deep && !(await isProUser(userId))) {
     return new Response(
-      JSON.stringify({ error: `Text must be at most ${MAX_INPUT_CHARS} characters.` }),
+      JSON.stringify({ error: "Deep analysis requires TaskMind Pro.", code: "PRO_REQUIRED" }),
+      { status: 403, headers: { "Content-Type": "application/json" } }
+    );
+  }
+
+  const limits = await limitsForUser(userId);
+  const maxChars = limits.maxMessageChars;
+  if (text.length > maxChars) {
+    return new Response(
+      JSON.stringify({ error: `Text must be at most ${maxChars} characters.` }),
       { status: 413, headers: { "Content-Type": "application/json" } }
     );
   }
@@ -46,7 +65,7 @@ export async function POST(req: Request) {
     });
   }
 
-  const rl = rateLimit(getClientIp(req), 15);
+  const rl = rateLimit(getClientIp(req), userId ? 60 : 15);
   if (!rl.allowed) {
     return new Response(
       JSON.stringify({ error: "Too many analyses. Try again in a minute." }),
@@ -57,7 +76,23 @@ export async function POST(req: Request) {
     );
   }
 
-  logRequest(requestId, "analyze/stream", { chars: text.length });
+  // Per-user daily quota (anonymous users are gated by the IP rate limit only).
+  if (userId) {
+    const allowed = await tryIncrement(
+      userId,
+      "analyses",
+      limits.analysesPerDay
+    );
+    if (!allowed) {
+      return limitReached("analyses");
+    }
+  }
+
+  logRequest(requestId, "analyze/stream", {
+    chars: text.length,
+    deep,
+    plan: await planForUser(userId),
+  });
 
   const stream = new ReadableStream<Uint8Array>({
     async start(controller) {
@@ -99,7 +134,7 @@ export async function POST(req: Request) {
             completedAny = true;
             send({ type: "field", field, value });
           }
-        });
+        }, deep ? { deep: true, maxTokens: 1_800 } : undefined);
 
         // Final authoritative result (validates + repairs the streamed JSON,
         // salvaging truncated output where possible).

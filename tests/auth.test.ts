@@ -2,7 +2,6 @@ import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import {
   generateSignedToken,
   validateSignedToken,
-  hashToken,
   verificationLink,
   resetLink,
 } from "@/lib/auth/verify";
@@ -49,7 +48,7 @@ describe("Auth & Email Verification Tokens", () => {
     expect(tokenObj.token).toContain(".");
     expect(tokenObj.tokenHash).toHaveLength(64); // SHA-256 hex
 
-    const payload = validateSignedToken(tokenObj.token, 60000);
+    const payload = validateSignedToken(tokenObj.token);
     expect(payload).not.toBeNull();
     expect(payload?.userId).toBe("usr_123");
     expect(payload?.email).toBe("test@example.com");
@@ -57,14 +56,14 @@ describe("Auth & Email Verification Tokens", () => {
 
   it("rejects expired signed tokens", () => {
     const tokenObj = generateSignedToken("usr_123", "test@example.com", -1000); // expired 1s ago
-    const payload = validateSignedToken(tokenObj.token, 60000);
+    const payload = validateSignedToken(tokenObj.token);
     expect(payload).toBeNull();
   });
 
   it("rejects tampered tokens", () => {
     const tokenObj = generateSignedToken("usr_123", "test@example.com", 60000);
     const tampered = tokenObj.token + "invalid";
-    expect(validateSignedToken(tampered, 60000)).toBeNull();
+    expect(validateSignedToken(tampered)).toBeNull();
   });
 
   it("builds correct verification and reset links", () => {

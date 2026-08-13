@@ -134,6 +134,7 @@ export default function SavedView() {
                       value={editContent}
                       onChange={(e) => setEditContent(e.target.value)}
                       rows={5}
+                      aria-label="Template content"
                       className="w-full resize-none rounded-tm border border-line bg-background p-3 text-sm leading-relaxed text-ink outline-none focus:border-ink"
                     />
                     <div className="flex justify-end gap-2">

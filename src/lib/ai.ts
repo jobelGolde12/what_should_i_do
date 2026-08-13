@@ -15,7 +15,7 @@ import { analyzeRawResponse } from "@/lib/validateAnalysis";
 import { createError, getErrorMessage, AnalysisError } from "@/lib/errors";
 
 const DEFAULT_BASE_URL = "https://api.tokenrouter.com/v1";
-const MAX_INPUT_CHARS = 20_000;
+const MAX_INPUT_CHARS = Number(process.env.TOKENROUTER_MAX_INPUT_CHARS ?? 20_000);
 const RETRY_BASE_MS = 500;
 const RETRY_JITTER_MS = 200;
 
@@ -151,6 +151,7 @@ export class AIClient {
   private readonly baseUrl: string;
   private readonly apiKey: string;
   private readonly models: string[];
+  private readonly deepModels: string[];
   private readonly temperature: number;
   private readonly maxTokens: number;
   private readonly timeoutMs: number;
@@ -168,6 +169,10 @@ export class AIClient {
         .split(",")
         .map((m) => m.trim())
         .filter(Boolean),
+    ].filter((m): m is string => Boolean(m));
+    this.deepModels = [
+      process.env.TOKENROUTER_MODEL_PRO?.trim(),
+      ...this.models,
     ].filter((m): m is string => Boolean(m));
     this.temperature = Number(process.env.TOKENROUTER_TEMPERATURE ?? 0.1);
     this.maxTokens = Number(process.env.TOKENROUTER_MAX_TOKENS ?? 900);
@@ -195,10 +200,10 @@ export class AIClient {
   }
 
   /** Which model/route to try for a 1-based attempt index. */
-  private routeFor(attempt: number): string | undefined {
-    if (this.models.length === 0) return undefined; // auto-route
-    if (attempt <= 1) return this.models[0];
-    return this.models[Math.min(attempt - 1, this.models.length - 1)];
+  private routeFor(attempt: number, models: string[] = this.models): string | undefined {
+    if (models.length === 0) return undefined; // auto-route
+    if (attempt <= 1) return models[0];
+    return models[Math.min(attempt - 1, models.length - 1)];
   }
 
   private routeKey(model: string | undefined): string {
@@ -245,14 +250,16 @@ export class AIClient {
   private buildBody(
     messages: ChatMessage[],
     model: string | undefined,
-    stream: boolean
+    stream: boolean,
+    json = true,
+    maxTokens = this.maxTokens
   ): Record<string, unknown> {
     const body: Record<string, unknown> = {
       messages,
       temperature: this.temperature,
-      max_tokens: this.maxTokens,
-      response_format: { type: "json_object" },
+      max_tokens: maxTokens,
     };
+    if (json) body.response_format = { type: "json_object" };
     if (model) body.model = model;
     if (stream) body.stream = true;
     return body;
@@ -278,7 +285,6 @@ export class AIClient {
         body: JSON.stringify(this.buildBody(messages, model, false)),
       }
     );
-
     if (!response.ok) {
       await this.handleErrorResponse(response);
     }
@@ -304,14 +310,16 @@ export class AIClient {
   private async streamFromModel(
     messages: ChatMessage[],
     model: string | undefined,
-    onDelta: (accumulated: string) => void
+    onDelta: (accumulated: string) => void,
+    json = true,
+    maxTokens = this.maxTokens
   ): Promise<{ content: string; tokenUsage?: AIUsage["tokenUsage"] }> {
     const response = await this.fetchWithTimeout(
       `${this.baseUrl}/chat/completions`,
       {
         method: "POST",
         headers: this.headers(true),
-        body: JSON.stringify(this.buildBody(messages, model, true)),
+        body: JSON.stringify(this.buildBody(messages, model, true, json, maxTokens)),
       }
     );
 
@@ -389,7 +397,7 @@ export class AIClient {
     await new Promise((resolve) => setTimeout(resolve, base + jitter));
   }
 
-  private guardAndBuild(input: string): ChatMessage[] {
+  private guardAndBuild(input: string, deep = false): ChatMessage[] {
     if (!this.configured) {
       throw createError(
         "No AI provider configured (TOKENROUTER_API_KEY is missing)",
@@ -404,7 +412,7 @@ export class AIClient {
         "INPUT_TOO_SHORT"
       );
     }
-    return buildAnalysisMessages(normalized);
+    return buildAnalysisMessages(normalized, deep);
   }
 
   /**
@@ -482,21 +490,19 @@ export class AIClient {
     );
   }
 
-  /**
-   * Streaming structured analysis. Returns the accumulated raw JSON text and
-   * usage. Once any content has streamed, failures are not retried (they would
-   * duplicate deltas); the caller decides how to handle the partial stream.
-   */
-  async streamStructured(
-    input: string,
-    onDelta: (accumulated: string) => void
+  /** Shared streaming retry loop for structured (JSON) and free-text streams. */
+  private async runStream(
+    messages: ChatMessage[],
+    onDelta: (accumulated: string) => void,
+    json: boolean,
+    maxTokens?: number,
+    models?: string[]
   ): Promise<AIStreamResult> {
-    const messages = this.guardAndBuild(input);
     const started = Date.now();
     let lastError: unknown;
 
     for (let attempt = 1; attempt <= this.maxAttempts; attempt++) {
-      const model = this.routeFor(attempt);
+      const model = this.routeFor(attempt, models);
       const route = this.routeKey(model);
 
       if (this.breaker.isOpen(route)) {
@@ -516,7 +522,9 @@ export class AIClient {
           (acc) => {
             anyDelta = true;
             onDelta(acc);
-          }
+          },
+          json,
+          maxTokens
         );
         this.breaker.recordSuccess(route);
         return {
@@ -567,6 +575,40 @@ export class AIClient {
       "UNKNOWN_ERROR",
       true
     );
+  }
+
+  /**
+   * Streaming structured analysis. Returns the accumulated raw JSON text and
+   * usage. Once any content has streamed, failures are not retried (they would
+   * duplicate deltas); the caller decides how to handle the partial stream.
+   * `deep` uses the higher-effort prompt and the Pro model tier when configured.
+   */
+  async streamStructured(
+    input: string,
+    onDelta: (accumulated: string) => void,
+    opts: { deep?: boolean; maxTokens?: number } = {}
+  ): Promise<AIStreamResult> {
+    const messages = this.guardAndBuild(input, opts.deep ?? false);
+    return this.runStream(
+      messages,
+      onDelta,
+      true,
+      opts.maxTokens,
+      opts.deep ? this.deepModels : undefined
+    );
+  }
+
+  /**
+   * Streaming free-text generation (e.g. reply drafts) from caller-provided
+   * messages. Shares the same retry/backoff/circuit-breaker path as the
+   * structured stream, minus JSON validation.
+   */
+  async streamText(
+    messages: ChatMessage[],
+    onDelta: (accumulated: string) => void,
+    opts: { maxTokens?: number } = {}
+  ): Promise<AIStreamResult> {
+    return this.runStream(messages, onDelta, false, opts.maxTokens);
   }
 }
 

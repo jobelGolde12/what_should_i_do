@@ -10,9 +10,14 @@ import {
   X,
   FileWarning,
   Loader2,
+  Layers3,
+  BrainCircuit,
 } from "lucide-react";
 import { useTask } from "@/context/TaskContext";
 import { Button } from "@/components/ui/Button";
+import { usePlan } from "@/lib/pro/usePlan";
+import { parseBatchMessages } from "@/lib/batch";
+import ConversionPanel from "./ConversionPanel";
 
 const MAX_FILE_BYTES = 10 * 1024 * 1024;
 const ALLOWED_EXTENSIONS = [".txt", ".pdf", ".docx", ".png", ".jpg", ".jpeg"];
@@ -105,6 +110,11 @@ type Props = {
   onTextChange: (text: string) => void;
   onAnalyze: (text: string) => void;
   loading: boolean;
+  onSourceLabel?: (label: string | null) => void;
+  onAnalyzeBatch?: (texts: string[]) => void;
+  batchLoading?: boolean;
+  deep?: boolean;
+  onDeepChange?: (deep: boolean) => void;
 };
 
 export default function InputArea({
@@ -112,12 +122,20 @@ export default function InputArea({
   onTextChange,
   onAnalyze,
   loading,
+  onSourceLabel,
+  onAnalyzeBatch,
+  batchLoading = false,
+  deep = false,
+  onDeepChange,
 }: Props) {
   const { saveTemplate } = useTask();
+  const { isPro } = usePlan();
   const [dragOver, setDragOver] = useState(false);
   const [pageDrag, setPageDrag] = useState(false);
+  const [batchMode, setBatchMode] = useState(false);
   const [fileName, setFileName] = useState<string | null>(null);
   const [fileSize, setFileSize] = useState<number | null>(null);
+  const [uploadedFile, setUploadedFile] = useState<File | null>(null);
   const [fileStatus, setFileStatus] = useState<FileStatus>("idle");
   const [fileError, setFileError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
@@ -134,19 +152,24 @@ export default function InputArea({
 
   const resetAll = useCallback(() => {
     onTextChange("");
+    onSourceLabel?.(null);
+    setBatchMode(false);
     setFileName(null);
     setFileSize(null);
+    setUploadedFile(null);
     setFileStatus("idle");
     setFileError(null);
     if (fileInputRef.current) fileInputRef.current.value = "";
-  }, [onTextChange]);
+  }, [onTextChange, onSourceLabel]);
 
   const handleFile = useCallback(
     async (file: File) => {
       setFileName(file.name);
       setFileSize(file.size);
+      setUploadedFile(file);
       setFileStatus("extracting");
       setFileError(null);
+      onSourceLabel?.(file.name);
       try {
         const extracted = await extractTextFromFile(file);
         onTextChange(extracted);
@@ -157,6 +180,8 @@ export default function InputArea({
         setFileStatus("error");
         setFileName(null);
         setFileSize(null);
+        setUploadedFile(null);
+        onSourceLabel?.(null);
         const message =
           err instanceof Error ? err.message : "Couldn't read that file.";
         setFileError(`Couldn't read that file. ${message}`);
@@ -164,7 +189,7 @@ export default function InputArea({
         if (fileInputRef.current) fileInputRef.current.value = "";
       }
     },
-    [onTextChange]
+    [onTextChange, onSourceLabel]
   );
 
   // Whole-page drag & drop.
@@ -194,7 +219,12 @@ export default function InputArea({
   function handleKeyDown(e: KeyboardEvent<HTMLTextAreaElement>) {
     if ((e.metaKey || e.ctrlKey) && e.key === "Enter") {
       e.preventDefault();
-      if (text.trim()) onAnalyze(text);
+      if (batchMode) {
+        const messages = parseBatchMessages(text);
+        if (messages.length > 0) onAnalyzeBatch?.(messages);
+      } else if (text.trim()) {
+        onAnalyze(text);
+      }
     }
     if (e.key === "Escape" && (text || fileName)) {
       e.preventDefault();
@@ -209,7 +239,9 @@ export default function InputArea({
     setTimeout(() => setSaved(false), 2000);
   }
 
-  const canAnalyze = !loading && text.trim().length > 0;
+  const batchMessages = batchMode ? parseBatchMessages(text) : [];
+  const canAnalyze = !loading && !batchLoading && text.trim().length > 0;
+  const canBatch = batchMode && batchMessages.length > 0 && !loading && !batchLoading;
   const extracting = fileStatus === "extracting";
 
   return (
@@ -242,6 +274,20 @@ export default function InputArea({
             </span>
           </div>
           <div className="flex items-center gap-2">
+            {isPro && onAnalyzeBatch && (
+              <button
+                type="button"
+                onClick={() => setBatchMode((b) => !b)}
+                aria-pressed={batchMode}
+                className={`inline-flex items-center gap-1.5 rounded-tm px-2.5 py-1.5 text-xs font-medium transition-colors ${
+                  batchMode
+                    ? "bg-accent-btn text-white"
+                    : "border border-line text-muted hover:border-ink hover:text-ink"
+                }`}
+              >
+                <Layers3 className="h-3.5 w-3.5" /> Batch
+              </button>
+            )}
             <Button
               variant="ghost"
               size="sm"
@@ -313,6 +359,28 @@ export default function InputArea({
             )}
           </div>
 
+          {batchMode && (
+            <p className="mt-2 flex flex-wrap items-center gap-2 font-mono text-xs text-muted">
+              <Layers3 className="h-3.5 w-3.5 text-accent" />
+              {batchMessages.length === 0
+                ? "Paste multiple messages separated by a blank line or ---"
+                : `${batchMessages.length} message${batchMessages.length === 1 ? "" : "s"} detected`}
+            </p>
+          )}
+
+          {isPro && onDeepChange && !batchMode && (
+            <label className="mt-3 flex w-fit cursor-pointer items-center gap-2 text-xs text-muted">
+              <input
+                type="checkbox"
+                checked={deep}
+                onChange={(e) => onDeepChange(e.target.checked)}
+                className="h-3.5 w-3.5 accent-accent"
+              />
+              <BrainCircuit className="h-3.5 w-3.5 text-accent" />
+              Deep analysis <span className="text-muted">· extra care for long/complex messages</span>
+            </label>
+          )}
+
           {fileError && (
             <p
               role="alert"
@@ -333,6 +401,10 @@ export default function InputArea({
                 </span>
               )}
             </p>
+          )}
+
+          {uploadedFile && fileStatus === "idle" && (
+            <ConversionPanel file={uploadedFile} />
           )}
 
           <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
@@ -361,12 +433,28 @@ export default function InputArea({
 
             <Button
               size="lg"
-              onClick={() => onAnalyze(text)}
-              disabled={!canAnalyze}
+              onClick={() => {
+                if (batchMode) {
+                  onAnalyzeBatch?.(batchMessages);
+                } else {
+                  onAnalyze(text);
+                }
+              }}
+              disabled={batchMode ? !canBatch : !canAnalyze}
               className="self-stretch sm:self-auto"
             >
-              <Sparkles className="h-4 w-4" />
-              {loading ? "Analyzing…" : "Analyze"}
+              {batchLoading ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Sparkles className="h-4 w-4" />
+              )}
+              {batchLoading
+                ? "Analyzing batch…"
+                : batchMode
+                  ? `Analyze batch (${batchMessages.length})`
+                  : loading
+                    ? "Analyzing…"
+                    : "Analyze"}
               <kbd className="ml-1 hidden rounded-tm bg-white/20 px-1.5 py-0.5 font-mono text-xxs sm:inline">
                 ⌘↵
               </kbd>

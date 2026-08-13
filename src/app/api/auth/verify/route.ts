@@ -3,6 +3,7 @@ import { verifyEmailToken } from "@/lib/auth/verify";
 import { setSessionCookie } from "@/lib/auth/cookies";
 import { logAuthEvent } from "@/lib/log";
 import { getClientIp } from "@/lib/rateLimit";
+import { rateLimitDb, rlKey } from "@/lib/rateLimitDb";
 
 export const runtime = "nodejs";
 
@@ -10,6 +11,20 @@ export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const token = searchParams.get("token");
   const ip = getClientIp(request);
+
+  const rl = await rateLimitDb(rlKey("verify", ip), 20);
+  if (!rl.allowed) {
+    const accept = request.headers.get("accept") || "";
+    if (accept.includes("text/html")) {
+      const url = new URL("/auth/verify", request.url);
+      url.searchParams.set("error", "rate_limited");
+      return NextResponse.redirect(url);
+    }
+    return NextResponse.json(
+      { error: "Too many requests. Try again in a minute." },
+      { status: 429 }
+    );
+  }
 
   if (!token) {
     return NextResponse.json(

@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import {
   Monitor,
@@ -21,12 +21,19 @@ import {
 import { useTheme } from "@/context/ThemeProvider";
 import { useAuth } from "@/context/AuthContext";
 import { useTask } from "@/context/TaskContext";
+import { usePlan } from "@/lib/pro/usePlan";
 import type { ThemePreference } from "@/lib/types";
 import type { AnalysisRecord, Template, BoardItem } from "@/lib/types";
+import { loadSyncMeta } from "@/lib/sync";
 import { downloadJson, readJsonFile } from "@/lib/backup";
 import { toast } from "@/lib/toast";
 import { Button } from "@/components/ui/Button";
 import PageHeader from "@/components/ui/PageHeader";
+import { SubscriptionCard } from "./SubscriptionCard";
+import { RemindersDigestSettings } from "./RemindersDigestSettings";
+import { IntegrationsSettings } from "./IntegrationsSettings";
+
+const SYNC_NOW_EVENT = "taskmind:sync-now";
 
 const THEME_OPTIONS: {
   key: ThemePreference;
@@ -68,6 +75,7 @@ export default function SettingsView() {
   const { theme, setTheme, resolvedTheme } = useTheme();
   const { user, status, logout, pushData, pullData, deleteAccount } =
     useAuth();
+  const { isPro } = usePlan();
   const {
     history,
     templates,
@@ -78,14 +86,29 @@ export default function SettingsView() {
     importHistory,
     importTemplates,
     importBoard,
+    setAll,
   } = useTask();
   const fileRef = useRef<HTMLInputElement>(null);
   const [imported, setImported] = useState(false);
   const [importError, setImportError] = useState<string | null>(null);
   const [syncing, setSyncing] = useState<"push" | "pull" | null>(null);
   const [syncMessage, setSyncMessage] = useState<string | null>(null);
+  const [syncMeta, setSyncMeta] = useState(() => loadSyncMeta());
 
   const totalRecords = history.length + templates.length + board.length;
+
+  function refreshSyncMeta() {
+    setSyncMeta(loadSyncMeta());
+  }
+
+  function formatSyncedAt(ms: number | null): string {
+    if (!ms) return "never";
+    const diff = Date.now() - ms;
+    if (diff < 60_000) return "just now";
+    if (diff < 3_600_000) return `${Math.floor(diff / 60_000)} min ago`;
+    if (diff < 86_400_000) return `${Math.floor(diff / 3_600_000)} hr ago`;
+    return new Date(ms).toLocaleString();
+  }
 
   function clearAllData() {
     if (
@@ -185,6 +208,58 @@ export default function SettingsView() {
     } catch (err) {
       setSyncMessage(
         err instanceof Error ? err.message : "Sync failed. Try again."
+      );
+    } finally {
+      setSyncing(null);
+    }
+  }
+
+  useEffect(() => {
+    const refresh = () => refreshSyncMeta();
+    window.addEventListener("focus", refresh);
+    const timer = window.setInterval(refresh, 15_000);
+    window.addEventListener("storage", refresh);
+    return () => {
+      window.removeEventListener("focus", refresh);
+      window.clearInterval(timer);
+      window.removeEventListener("storage", refresh);
+    };
+  }, []);
+
+  function syncNow() {
+    setSyncMessage("Syncing…");
+    window.dispatchEvent(new CustomEvent(SYNC_NOW_EVENT));
+    window.setTimeout(() => {
+      refreshSyncMeta();
+      setSyncMessage("Sync requested. This device will push its changes now.");
+    }, 500);
+  }
+
+  async function restoreFromBackup() {
+    if (
+      !window.confirm(
+        "Replace everything on this device with the backup in your account? Local-only items not yet backed up will be removed."
+      )
+    ) {
+      return;
+    }
+    setSyncing("pull");
+    setSyncMessage(null);
+    try {
+      const data = await pullData();
+      if (data) {
+        setAll({
+          history: (data.history ?? []) as AnalysisRecord[],
+          templates: (data.templates ?? []) as Template[],
+          board: (data.board ?? []) as BoardItem[],
+        });
+      }
+      refreshSyncMeta();
+      setSyncMessage("Device restored from your cloud backup.");
+      toast("Backup restored", "success");
+    } catch (err) {
+      setSyncMessage(
+        err instanceof Error ? err.message : "Restore failed. Try again."
       );
     } finally {
       setSyncing(null);
@@ -379,40 +454,113 @@ export default function SettingsView() {
               <p className="text-sm text-muted">
                 Signed in as{" "}
                 <span className="font-medium text-ink">{user.email}</span>.
-                History, templates, and your actions board can be synced to
-                this account and merged on any device.
+                {isPro
+                  ? " Cloud sync keeps your history, templates, board, and theme in sync across devices."
+                  : " Free accounts can push or pull an opaque backup of this device to their account."}
               </p>
-              <div className="mt-4 flex flex-wrap items-center gap-2">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => void syncPush()}
-                  disabled={syncing !== null}
-                >
-                  {syncing === "push" ? (
-                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                  ) : (
-                    <CloudUpload className="h-3.5 w-3.5" />
+
+              {isPro ? (
+                <div className="mt-4 border-t border-line pt-4">
+                  <div className="flex items-center justify-between gap-3">
+                    <p className="text-sm text-ink">Cloud sync</p>
+                    <span
+                      className={`font-mono text-2xs uppercase tracking-label ${
+                        syncMeta.lastSyncStatus === "error"
+                          ? "text-high"
+                          : "text-muted"
+                      }`}
+                    >
+                      {syncMeta.lastSyncStatus === "error"
+                        ? "Sync error"
+                        : syncMeta.lastSyncAt
+                          ? `Last synced ${formatSyncedAt(syncMeta.lastSyncAt)}`
+                          : "Not synced yet"}
+                    </span>
+                  </div>
+                  <p className="mt-1 text-xs text-muted">
+                    {history.length} history · {templates.length} templates ·{" "}
+                    {board.length} board items on this device.
+                  </p>
+
+                  <div className="mt-3 flex flex-wrap items-center gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={syncNow}
+                      disabled={syncing !== null}
+                    >
+                      {syncing === "push" ? (
+                        <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                      ) : (
+                        <CloudUpload className="h-3.5 w-3.5" />
+                      )}
+                      Back up now
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => void restoreFromBackup()}
+                      disabled={syncing !== null}
+                    >
+                      {syncing === "pull" ? (
+                        <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                      ) : (
+                        <CloudDownload className="h-3.5 w-3.5" />
+                      )}
+                      Restore from backup
+                    </Button>
+                    <Button variant="ghost" size="sm" onClick={() => void logout()}>
+                      <LogIn className="h-3.5 w-3.5" /> Sign out
+                    </Button>
+                  </div>
+                  {syncMeta.lastSyncStatus === "error" && (
+                    <p role="alert" className="mt-3 text-xs text-high">
+                      The last sync failed. Your changes are saved on this
+                      device and will retry automatically — or press{" "}
+                      <button
+                        type="button"
+                        className="font-semibold underline"
+                        onClick={syncNow}
+                      >
+                        Sync now
+                      </button>
+                      .
+                    </p>
                   )}
-                  Back up local data
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => void syncPull()}
-                  disabled={syncing !== null}
-                >
-                  {syncing === "pull" ? (
-                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                  ) : (
-                    <CloudDownload className="h-3.5 w-3.5" />
-                  )}
-                  Merge account data
-                </Button>
-                <Button variant="ghost" size="sm" onClick={() => void logout()}>
-                  <LogIn className="h-3.5 w-3.5" /> Sign out
-                </Button>
-              </div>
+                </div>
+              ) : (
+                <div className="mt-4 flex flex-wrap items-center gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => void syncPush()}
+                    disabled={syncing !== null}
+                  >
+                    {syncing === "push" ? (
+                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                    ) : (
+                      <CloudUpload className="h-3.5 w-3.5" />
+                    )}
+                    Back up local data
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => void syncPull()}
+                    disabled={syncing !== null}
+                  >
+                    {syncing === "pull" ? (
+                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                    ) : (
+                      <CloudDownload className="h-3.5 w-3.5" />
+                    )}
+                    Merge account data
+                  </Button>
+                  <Button variant="ghost" size="sm" onClick={() => void logout()}>
+                    <LogIn className="h-3.5 w-3.5" /> Sign out
+                  </Button>
+                </div>
+              )}
               {syncMessage && (
                 <p aria-live="polite" className="mt-3 text-xs text-muted">
                   {syncMessage}
@@ -448,6 +596,12 @@ export default function SettingsView() {
           )}
         </div>
       </section>
+
+      <IntegrationsSettings />
+
+      <RemindersDigestSettings />
+
+      <SubscriptionCard />
 
       <p className="mt-8 text-center font-mono text-2xs uppercase tracking-label text-muted">
         TaskMind · Analyses powered by AI, with rule-based fallback

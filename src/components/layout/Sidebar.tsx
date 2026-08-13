@@ -35,7 +35,7 @@ export default function Sidebar() {
       >
         {!collapsed && <Logo />}
         {collapsed && (
-          <span className="flex h-8 w-8 items-center justify-center bg-accent text-white">
+          <span className="flex h-8 w-8 items-center justify-center bg-accent-btn text-white">
             <span className="font-display text-sm font-bold">T</span>
           </span>
         )}

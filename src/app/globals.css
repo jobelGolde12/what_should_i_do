@@ -20,6 +20,7 @@
   --line: #dcdcdc;
   --accent: #c8102e;
   --accent-dark: #9f0d24;
+  --accent-btn: #c8102e;
   --accent-soft: #fdebee;
   --night: #111111;
   --night-soft: #1a1a1a;
@@ -39,8 +40,9 @@
   --ink: #ededeb;
   --muted: #a3a3a0;
   --line: #2e2e2c;
-  --accent: #e2445f;
+  --accent: #ea5068;
   --accent-dark: #c8102e;
+  --accent-btn: #d13450;
   --accent-soft: rgba(200, 16, 46, 0.16);
   --night: #0a0a0a;
   --night-soft: #171717;
@@ -61,8 +63,9 @@
     --ink: #ededeb;
     --muted: #a3a3a0;
     --line: #2e2e2c;
-    --accent: #e2445f;
+    --accent: #ea5068;
     --accent-dark: #c8102e;
+    --accent-btn: #d13450;
     --accent-soft: rgba(200, 16, 46, 0.16);
     --night: #0a0a0a;
     --night-soft: #171717;
@@ -85,6 +88,7 @@
   --color-line: var(--line);
   --color-accent: var(--accent);
   --color-accent-dark: var(--accent-dark);
+  --color-accent-btn: var(--accent-btn);
   --color-accent-soft: var(--accent-soft);
   --color-night: var(--night);
   --color-night-soft: var(--night-soft);

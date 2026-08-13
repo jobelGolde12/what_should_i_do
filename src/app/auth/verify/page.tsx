@@ -3,7 +3,7 @@
 import { useEffect, useState, Suspense } from "react";
 import Link from "next/link";
 import { useSearchParams, useRouter } from "next/navigation";
-import { Loader2, CheckCircle2, XCircle, Mail } from "lucide-react";
+import { Loader2, CheckCircle2, XCircle } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import Logo from "@/components/layout/Logo";
 import SiteFooter from "@/components/layout/SiteFooter";
@@ -20,7 +20,11 @@ function VerifyContent() {
   const [loading, setLoading] = useState(Boolean(token && !successParam && !errorParam));
   const [success, setSuccess] = useState(successParam === "1");
   const [error, setError] = useState<string | null>(
-    errorParam ? "Invalid or expired verification token." : null
+    errorParam === "rate_limited"
+      ? "Too many verification attempts. Please wait a minute and try again."
+      : errorParam
+        ? "Invalid or expired verification token."
+        : null
   );
 
   useEffect(() => {

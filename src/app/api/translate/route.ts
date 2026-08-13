@@ -1,6 +1,9 @@
 import { NextRequest } from "next/server";
 import { createError } from "@/lib/errors";
 import { getClientIp, rateLimit } from "@/lib/rateLimit";
+import { getCurrentUserId } from "@/lib/auth/cookies";
+import { limitsForUser } from "@/lib/pro/entitlements";
+import { tryIncrement, limitReached } from "@/lib/pro/usage";
 
 export const runtime = "nodejs";
 
@@ -97,6 +100,9 @@ export async function POST(request: NextRequest) {
     );
   }
 
+  const userId = await getCurrentUserId();
+  const limits = await limitsForUser(userId);
+
   let body: { text?: unknown; target?: unknown };
   try {
     body = await request.json();
@@ -111,11 +117,27 @@ export async function POST(request: NextRequest) {
   if (!text) {
     return Response.json({ error: "Missing text" }, { status: 400 });
   }
+  if (text.length > limits.maxMessageChars) {
+    return Response.json(
+      { error: "Text is too long to translate." },
+      { status: 413 }
+    );
+  }
   if (!SUPPORTED_LANGS.has(target)) {
     return Response.json(
       { error: "Unsupported target language" },
       { status: 400 }
     );
+  }
+
+  // Per-user daily translation quota.
+  if (userId) {
+    const allowed = await tryIncrement(
+      userId,
+      "translations",
+      limits.translationsPerDay
+    );
+    if (!allowed) return limitReached("translations");
   }
 
   const cacheKey = `${hashText(text)}:${target}`;

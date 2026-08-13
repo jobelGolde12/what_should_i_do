@@ -61,7 +61,7 @@ export default function ActionList({
               onClick={() => toggle(i)}
               className={`mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center border transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent ${
                 done
-                  ? "border-accent bg-accent text-white"
+                  ? "border-accent bg-accent-btn text-white"
                   : "border-line bg-background hover:border-ink"
               }`}
             >

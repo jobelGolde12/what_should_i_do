@@ -18,7 +18,7 @@ function escapeIcs(text: string): string {
     .replace(/;/g, "\\;");
 }
 
-export function buildIcs(deadlines: string[]): string {
+export function buildIcs(deadlines: string[], actions: string[] = []): string {
   const now = new Date();
   const lines: string[] = [
     "BEGIN:VCALENDAR",
@@ -27,6 +27,10 @@ export function buildIcs(deadlines: string[]): string {
     "CALSCALE:GREGORIAN",
     "METHOD:PUBLISH",
   ];
+
+  const actionList = actions.length
+    ? `\nActions:\n${actions.map((a, i) => `${i + 1}. ${a}`).join("\n")}`
+    : "";
 
   deadlines.forEach((deadline, i) => {
     const start = parseDeadline(deadline).date;
@@ -40,7 +44,7 @@ export function buildIcs(deadlines: string[]): string {
       `DTSTART:${toIcalDate(start)}`,
       `DTEND:${toIcalDate(end)}`,
       `SUMMARY:${escapeIcs(deadline)}`,
-      "DESCRIPTION:Exported from TaskMind",
+      `DESCRIPTION:${escapeIcs(`Exported from TaskMind${actionList}`)}`,
       "END:VEVENT"
     );
   });
@@ -49,8 +53,8 @@ export function buildIcs(deadlines: string[]): string {
   return lines.join("\r\n") + "\r\n";
 }
 
-export function downloadIcs(deadlines: string[]): void {
-  const content = buildIcs(deadlines);
+export function downloadIcs(deadlines: string[], actions: string[] = []): void {
+  const content = buildIcs(deadlines, actions);
   const blob = new Blob([content], {
     type: "text/calendar;charset=utf-8",
   });

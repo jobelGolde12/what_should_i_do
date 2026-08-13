@@ -13,7 +13,7 @@ export default function BottomNav() {
       aria-label="Mobile navigation"
       style={{ paddingBottom: "env(safe-area-inset-bottom)" }}
     >
-      <div className="grid grid-cols-5">
+      <div className="grid grid-cols-6">
         {NAV_ITEMS.map((item) => {
           const active = isNavItemActive(item.href, pathname);
           const Icon = item.icon;

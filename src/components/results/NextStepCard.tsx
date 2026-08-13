@@ -45,7 +45,7 @@ export default function NextStepCard({
           variant="outline"
           size="sm"
           onClick={() => onToggleDone(actionIndex, true)}
-          className="mt-3 ml-6 border-accent text-accent hover:bg-accent hover:text-white"
+          className="mt-3 ml-6 border-accent text-accent hover:bg-accent-btn hover:text-white"
         >
           <Check className="h-3.5 w-3.5" />
           Mark as done

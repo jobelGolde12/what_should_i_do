@@ -112,6 +112,8 @@ export default function QuickSearch() {
   const [activeIndex, setActiveIndex] = useState(0);
   const inputRef = useRef<HTMLInputElement>(null);
   const listRef = useRef<HTMLUListElement>(null);
+  const dialogRef = useRef<HTMLDivElement>(null);
+  const lastFocusedRef = useRef<HTMLElement | null>(null);
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
@@ -137,9 +139,42 @@ export default function QuickSearch() {
 
   useEffect(() => {
     if (open) {
+      // Remember what had focus so it can be restored on close (WCAG 2.4.3).
+      lastFocusedRef.current = document.activeElement as HTMLElement | null;
       setTimeout(() => inputRef.current?.focus(), 10);
+      return () => {
+        try {
+          lastFocusedRef.current?.focus?.();
+        } catch {
+          /* element may have been removed during navigation */
+        }
+      };
     }
   }, [open]);
+
+  // Keep keyboard focus inside the dialog (Tab / Shift+Tab) so users can't
+  // tab out into the page behind the modal (WCAG 2.1.2 + 2.4.3).
+  function trapTab(e: React.KeyboardEvent) {
+    if (e.key !== "Tab") return;
+    const dialog = dialogRef.current;
+    if (!dialog) return;
+    const focusables = dialog.querySelectorAll<HTMLElement>(
+      'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+    );
+    if (focusables.length === 0) return;
+    const first = focusables[0];
+    const last = focusables[focusables.length - 1];
+    const active = document.activeElement;
+    if (e.shiftKey) {
+      if (active === first || !dialog.contains(active)) {
+        e.preventDefault();
+        last.focus();
+      }
+    } else if (active === last || !dialog.contains(active)) {
+      e.preventDefault();
+      first.focus();
+    }
+  }
 
   const rows = useMemo<Row[]>(() => {
     const commands = buildCommands(navigate);
@@ -257,8 +292,10 @@ export default function QuickSearch() {
       role="presentation"
     >
       <div
+        ref={dialogRef}
         className="w-full max-w-xl overflow-hidden rounded-tm border border-line bg-background shadow-2xl"
         onClick={(e) => e.stopPropagation()}
+        onKeyDown={trapTab}
         role="dialog"
         aria-modal="true"
         aria-label="Quick search"

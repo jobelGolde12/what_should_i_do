@@ -16,6 +16,7 @@ import ConfusingList from "./ConfusingList";
 import NextStepCard from "./NextStepCard";
 import TranslationBlock from "./TranslationBlock";
 import SummaryText from "./SummaryText";
+import ReplyPanel from "./ReplyPanel";
 
 type Stage = "streaming" | "settling" | "settled";
 type Field = Exclude<
@@ -95,6 +96,7 @@ export default function ResultsPanel({
   record,
   streaming = null,
   animate = true,
+  sourceLabel = null,
   onDelete,
   onToggleAction,
   onCancel,
@@ -102,6 +104,7 @@ export default function ResultsPanel({
   record: AnalysisRecord | null;
   streaming?: Partial<AnalysisResult> | null;
   animate?: boolean;
+  sourceLabel?: string | null;
   onDelete?: () => void;
   onToggleAction?: (index: number, done: boolean) => void;
   onCancel?: () => void;
@@ -224,7 +227,11 @@ export default function ResultsPanel({
 
         <section className={resolved.deadlines ? "settle-section revealed" : "settle-section"}>
           <SectionHeading>Deadlines</SectionHeading>
-          <DeadlineList deadlines={result?.deadlines ?? streaming?.deadlines ?? []} />
+          <DeadlineList
+            deadlines={result?.deadlines ?? streaming?.deadlines ?? []}
+            analysisId={record?.id ?? null}
+            actions={result?.actions ?? streaming?.actions ?? []}
+          />
         </section>
 
         <section className={resolved.urgency ? "settle-section revealed" : "settle-section"}>
@@ -275,6 +282,17 @@ export default function ResultsPanel({
           </div>
         </section>
       </div>
+
+      {record && result && (
+        <div className="px-5 pb-6 sm:px-6">
+          <ReplyPanel
+            draftKey={record.id}
+            message={record.input}
+            analysis={result}
+            sourceLabel={sourceLabel ?? record.sourceLabel ?? null}
+          />
+        </div>
+      )}
 
       {showShare && record && (
         <ShareDialog record={record} onClose={() => setShowShare(false)} />

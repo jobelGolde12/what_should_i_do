@@ -23,6 +23,7 @@ import {
 import type { LucideIcon } from "lucide-react";
 import InputArea from "@/components/input/InputArea";
 import ResultsPanel from "@/components/results/ResultsPanel";
+import BatchResults, { type BatchItem } from "@/components/results/BatchResults";
 import { LoadingState, ErrorState, EmptyState } from "@/components/ui/States";
 import { Button, LinkButton } from "@/components/ui/Button";
 import { AdBlock } from "@/components/layout/AdsRail";
@@ -39,6 +40,10 @@ const SPECS: { label: string; hint: string; icon: LucideIcon }[] = [
 export function DashboardHome() {
   const { saveAnalysis, deleteAnalysis, setItemStatus } = useTask();
   const [text, setText] = useState("");
+  const [sourceLabel, setSourceLabel] = useState<string | null>(null);
+  const [deep, setDeep] = useState(false);
+  const [batchItems, setBatchItems] = useState<BatchItem[] | null>(null);
+  const [batchLoading, setBatchLoading] = useState(false);
   const [partial, setPartial] = useState<Partial<AnalysisResult> | null>(null);
   const [result, setResult] = useState<AnalysisResult | null>(null);
   const [record, setRecord] = useState<AnalysisRecord | null>(null);
@@ -48,6 +53,7 @@ export function DashboardHome() {
   const [cancelled, setCancelled] = useState(false);
   const [streamed, setStreamed] = useState(false);
   const pendingTextRef = useRef("");
+  const pendingBatchRef = useRef<string[]>([]);
   const abortRef = useRef<AbortController | null>(null);
 
   // A template applied from another page (Saved / QuickSearch) fills the input.
@@ -84,10 +90,10 @@ export function DashboardHome() {
           (field, value) => {
             setPartial((prev) => ({ ...prev, [field]: value }));
           },
-          { signal: controller.signal }
+          { signal: controller.signal, deep }
         );
         setResult(res);
-        setRecord(saveAnalysis(finalText, res));
+        setRecord(saveAnalysis(finalText, res, sourceLabel ?? undefined));
         setStreamed(true);
       } catch (streamErr) {
         if (streamErr instanceof StreamCancelledError) {
@@ -105,7 +111,7 @@ export function DashboardHome() {
         try {
           const res = await analyzeText(finalText);
           setResult(res);
-          setRecord(saveAnalysis(finalText, res));
+          setRecord(saveAnalysis(finalText, res, sourceLabel ?? undefined));
         } catch (fallbackErr) {
           const message =
             fallbackErr instanceof Error
@@ -117,7 +123,48 @@ export function DashboardHome() {
         setLoading(false);
       }
     },
-    [saveAnalysis]
+    [saveAnalysis, sourceLabel, deep]
+  );
+
+  const runBatch = useCallback(
+    async (texts: string[]) => {
+      if (texts.length === 0) return;
+      pendingBatchRef.current = texts;
+      abortRef.current?.abort();
+      setBatchLoading(true);
+      setError(null);
+      setNotice(null);
+      setBatchItems(null);
+      setResult(null);
+      setRecord(null);
+      setPartial(null);
+      try {
+        const res = await fetch("/api/analyze/batch", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ texts }),
+        });
+        const body = (await res.json().catch(() => ({}))) as {
+          results?: { text: string; output: AnalysisResult }[];
+          error?: string;
+        };
+        if (!res.ok || !body.results) {
+          throw new Error(body.error ?? "Batch analysis failed. Try again.");
+        }
+        const items: BatchItem[] = body.results.map((item) => {
+          const record = saveAnalysis(item.text, item.output, sourceLabel ?? undefined);
+          return { id: record.id, input: item.text, output: item.output };
+        });
+        setBatchItems(items);
+      } catch (batchErr) {
+        const message =
+          batchErr instanceof Error ? batchErr.message : "Something went wrong.";
+        setError(message);
+      } finally {
+        setBatchLoading(false);
+      }
+    },
+    [saveAnalysis, sourceLabel]
   );
 
   const handleDelete = useCallback(() => {
@@ -222,71 +269,98 @@ export function DashboardHome() {
           onTextChange={setText}
           onAnalyze={runAnalyze}
           loading={loading}
+          onSourceLabel={setSourceLabel}
+          onAnalyzeBatch={runBatch}
+          batchLoading={batchLoading}
+          deep={deep}
+          onDeepChange={setDeep}
         />
 
         <div className="mt-8">
-          {loading && partial === null && !error && <LoadingState />}
+          {batchLoading && !batchItems && <LoadingState />}
           {error && (
             <ErrorState
               reason={error}
-              onRetry={() => runAnalyze(pendingTextRef.current)}
-            />
-          )}
-          {cancelled && (
-            <div
-              role="status"
-              className="border border-line bg-surface px-6 py-6"
-            >
-              <p className="text-sm font-semibold text-ink">
-                Analysis cancelled.
-              </p>
-              <p className="mt-1 text-sm text-muted">
-                Your input is still here — run it again when you&apos;re ready.
-              </p>
-              {pendingTextRef.current && (
-                <Button
-                  variant="dark"
-                  size="sm"
-                  className="mt-4"
-                  onClick={() => runAnalyze(pendingTextRef.current)}
-                >
-                  Try again
-                </Button>
-              )}
-            </div>
-          )}
-          {notice && !error && (
-            <p
-              role="status"
-              className="mt-4 border border-dashed border-line bg-surface px-4 py-3 text-xs leading-relaxed text-muted"
-            >
-              {notice}
-            </p>
-          )}
-          {showPanel && (
-            <ResultsPanel
-              record={record}
-              streaming={loading ? partial : null}
-              animate={!streamed}
-              onDelete={handleDelete}
-              onCancel={loading ? cancelAnalysis : undefined}
-              onToggleAction={(index, done) => {
-                if (record) {
-                  setItemStatus(
-                    `${record.id}:${index}`,
-                    done ? "done" : "todo"
-                  );
+              onRetry={() => {
+                if (pendingBatchRef.current.length > 0) {
+                  void runBatch(pendingBatchRef.current);
+                } else if (pendingTextRef.current) {
+                  runAnalyze(pendingTextRef.current);
                 }
               }}
             />
           )}
-          {!loading && !error && !cancelled && !result && !text.trim() && (
-            <EmptyState />
+          {batchItems && !batchLoading && (
+            <BatchResults
+              items={batchItems}
+              onClear={() => {
+                setBatchItems(null);
+                setText("");
+                setSourceLabel(null);
+              }}
+            />
           )}
-          {!loading && !error && !cancelled && !result && text.trim() && (
-            <p className="mt-8 border border-dashed border-line py-10 text-center font-mono text-xs uppercase tracking-label text-muted">
-              Press ⌘ Enter or hit Analyze to run
-            </p>
+          {!batchItems && (
+            <>
+              {loading && partial === null && !error && <LoadingState />}
+              {cancelled && (
+                <div
+                  role="status"
+                  className="border border-line bg-surface px-6 py-6"
+                >
+                  <p className="text-sm font-semibold text-ink">
+                    Analysis cancelled.
+                  </p>
+                  <p className="mt-1 text-sm text-muted">
+                    Your input is still here — run it again when you&apos;re ready.
+                  </p>
+                  {pendingTextRef.current && (
+                    <Button
+                      variant="dark"
+                      size="sm"
+                      className="mt-4"
+                      onClick={() => runAnalyze(pendingTextRef.current)}
+                    >
+                      Try again
+                    </Button>
+                  )}
+                </div>
+              )}
+              {notice && !error && (
+                <p
+                  role="status"
+                  className="mt-4 border border-dashed border-line bg-surface px-4 py-3 text-xs leading-relaxed text-muted"
+                >
+                  {notice}
+                </p>
+              )}
+              {showPanel && (
+                <ResultsPanel
+                  record={record}
+                  streaming={loading ? partial : null}
+                  animate={!streamed}
+                  sourceLabel={sourceLabel}
+                  onDelete={handleDelete}
+                  onCancel={loading ? cancelAnalysis : undefined}
+                  onToggleAction={(index, done) => {
+                    if (record) {
+                      setItemStatus(
+                        `${record.id}:${index}`,
+                        done ? "done" : "todo"
+                      );
+                    }
+                  }}
+                />
+              )}
+              {!loading && !error && !cancelled && !result && !text.trim() && (
+                <EmptyState />
+              )}
+              {!loading && !error && !cancelled && !result && text.trim() && (
+                <p className="mt-8 border border-dashed border-line py-10 text-center font-mono text-xs uppercase tracking-label text-muted">
+                  Press ⌘ Enter or hit Analyze to run
+                </p>
+              )}
+            </>
           )}
         </div>
 

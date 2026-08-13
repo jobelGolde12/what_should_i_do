@@ -1,6 +1,14 @@
 import { NextResponse } from 'next/server';
+import { isDebugAllowed, authorized, DEBUG_UNAVAILABLE } from '@/lib/debug/guard';
 
-export async function GET() {
+export async function GET(request: Request) {
+  if (!isDebugAllowed()) {
+    return NextResponse.json(DEBUG_UNAVAILABLE, { status: 404 });
+  }
+  if (!authorized(request)) {
+    return NextResponse.json({ error: "Unauthorized." }, { status: 401 });
+  }
+
   const tokenRouterKeys = Object.keys(process.env).filter(key =>
     key.startsWith('TOKENROUTER')
   );

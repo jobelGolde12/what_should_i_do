@@ -71,8 +71,7 @@ export function generateSignedToken(
 
 /** Verifies the HMAC signature + expiry. Does NOT check single-use state in DB. */
 export function validateSignedToken(
-  token: string,
-  ttlMs: number
+  token: string
 ): SignedTokenPayload | null {
   const parts = token.split(".");
   if (parts.length !== 2) return null;
@@ -160,7 +159,7 @@ export async function issueVerificationEmail(
 export async function verifyEmailToken(
   token: string
 ): Promise<SignedTokenPayload | null> {
-  const payload = validateSignedToken(token, VERIFICATION_TTL_MS);
+  const payload = validateSignedToken(token);
   if (!payload) return null;
   const tokenHash = hashToken(token);
   if (!(await hasVerificationToken(tokenHash))) return null;
@@ -210,7 +209,7 @@ export async function issuePasswordResetEmail(
 export async function verifyResetToken(
   token: string
 ): Promise<SignedTokenPayload | null> {
-  const payload = validateSignedToken(token, RESET_TTL_MS);
+  const payload = validateSignedToken(token);
   if (!payload) return null;
   const tokenHash = hashToken(token);
   const row = await findPasswordReset(tokenHash);

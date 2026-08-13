@@ -8,6 +8,8 @@ import {
   useState,
 } from "react";
 import type { ReactNode } from "react";
+import type { PlanTier } from "@/lib/pro/plans";
+import type { SyncChange } from "@/lib/sync";
 
 export type AuthUser = {
   id: string;
@@ -23,6 +25,8 @@ type AuthStatus = "loading" | "authed" | "anon";
 type AuthContextValue = {
   user: AuthUser | null;
   status: AuthStatus;
+  plan: PlanTier;
+  refreshPlan: () => Promise<void>;
   login: (email: string, password: string) => Promise<AuthUser>;
   register: (email: string, password: string) => Promise<{ user: AuthUser; requiresVerification: boolean }>;
   resendVerification: (email?: string) => Promise<void>;
@@ -30,6 +34,10 @@ type AuthContextValue = {
   refresh: () => Promise<void>;
   pushData: (data: AuthData) => Promise<void>;
   pullData: () => Promise<AuthData | null>;
+  sync: (body: { since: number; push: SyncChange[] }) => Promise<{
+    changes: SyncChange[];
+    now: number;
+  }>;
   deleteAccount: () => Promise<void>;
 };
 
@@ -54,6 +62,21 @@ async function readError(res: Response): Promise<AuthError> {
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<AuthUser | null>(null);
   const [status, setStatus] = useState<AuthStatus>("loading");
+  const [plan, setPlan] = useState<PlanTier>("free");
+
+  async function refreshPlan() {
+    try {
+      const res = await fetch("/api/billing/status");
+      if (res.ok) {
+        const body = (await res.json()) as { plan: PlanTier };
+        setPlan(body.plan ?? "free");
+      } else {
+        setPlan("free");
+      }
+    } catch {
+      setPlan("free");
+    }
+  }
 
   async function refresh() {
     try {
@@ -62,6 +85,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         const body = (await res.json()) as { user: AuthUser };
         setUser(body.user);
         setStatus("authed");
+        void refreshPlan();
       } else {
         setUser(null);
         setStatus("anon");
@@ -73,8 +97,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
     void refresh();
+    // Run once on mount; refresh only uses stable setters and fetch.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   async function login(email: string, password: string): Promise<AuthUser> {
@@ -87,6 +112,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const body = (await res.json()) as { user: AuthUser };
     setUser(body.user);
     setStatus("authed");
+    void refreshPlan();
     return body.user;
   }
 
@@ -107,6 +133,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (!body.requiresVerification) {
       setUser(body.user);
       setStatus("authed");
+      void refreshPlan();
     }
     return body;
   }
@@ -124,6 +151,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     () => ({
       user,
       status,
+      plan,
+      refreshPlan,
       login,
       register,
       resendVerification,
@@ -131,6 +160,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         await fetch("/api/auth/logout", { method: "POST" });
         setUser(null);
         setStatus("anon");
+        setPlan("free");
       },
       refresh,
       pushData: async (data) => {
@@ -147,6 +177,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         const body = (await res.json()) as { data: AuthData };
         return body.data;
       },
+      sync: async (body) => {
+        const res = await fetch("/api/users/me/sync", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(body),
+        });
+        if (!res.ok) throw await readError(res);
+        return (await res.json()) as { changes: SyncChange[]; now: number };
+      },
       deleteAccount: async () => {
         const res = await fetch("/api/users/me", { method: "DELETE" });
         if (!res.ok) throw await readError(res);
@@ -154,7 +193,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setStatus("anon");
       },
     }),
-    [user, status]
+    // Callbacks only close over stable setters + fetch; user/status/plan are
+    // the only state that must re-create the context value.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [user, status, plan]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

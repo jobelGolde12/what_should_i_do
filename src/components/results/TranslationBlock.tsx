@@ -101,7 +101,7 @@ export default function TranslationBlock({
                 }}
                 className={`rounded-tm px-2.5 py-1.5 text-xs font-medium transition-colors ${
                   language === l.code
-                    ? "bg-accent text-white"
+                    ? "bg-accent-btn text-white"
                     : "border border-line bg-background text-muted hover:text-ink"
                 }`}
               >

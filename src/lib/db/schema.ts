@@ -7,7 +7,46 @@
  */
 
 /** Bump this when you add/modify tables; ensureSchema() applies the delta. */
-export const SCHEMA_VERSION = 1;
+export const SCHEMA_VERSION = 5;
+
+/**
+ * Versioned migrations for databases that already exist. Each key is the target
+ * version; the statements are applied (best-effort, duplicate columns ignored)
+ * when `schema_migrations` reports a lower version. Fresh installs get the
+ * columns from `SCHEMA_DDL` directly, so these ALTERs are only for upgrades.
+ */
+export const SCHEMA_MIGRATIONS: Record<number, string[]> = {
+  3: [
+    // Cloud sync: per-record `updated_at` (LWW clock) + `deleted_at` tombstone.
+    "ALTER TABLE analyses ADD COLUMN updated_at INTEGER NOT NULL DEFAULT 0",
+    "ALTER TABLE analyses ADD COLUMN deleted_at INTEGER",
+    // Carry the source file label so history survives device sync intact.
+    "ALTER TABLE analyses ADD COLUMN source_label TEXT",
+    "ALTER TABLE board_items ADD COLUMN updated_at INTEGER NOT NULL DEFAULT 0",
+    "ALTER TABLE board_items ADD COLUMN deleted_at INTEGER",
+    "ALTER TABLE templates ADD COLUMN updated_at INTEGER NOT NULL DEFAULT 0",
+    "ALTER TABLE templates ADD COLUMN deleted_at INTEGER",
+    // Backfill timestamps for rows created before the migration so a first
+    // sync (since = 0) still returns them.
+    "UPDATE analyses SET updated_at = timestamp WHERE updated_at = 0",
+    "UPDATE templates SET updated_at = created_at WHERE updated_at = 0",
+    "UPDATE board_items SET updated_at = created_at WHERE updated_at = 0",
+  ],
+  4: [
+    // Deadline reminders: speed up the cron sweep (remind_at <= now, unsent).
+    "CREATE INDEX IF NOT EXISTS idx_reminders_due ON reminders(user_id, sent, remind_at)",
+  ],
+  5: [
+    // Pro inbox: message list from forwarded email + connected accounts.
+    "CREATE TABLE IF NOT EXISTS inbox_messages (" +
+      "id TEXT NOT NULL, user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE, " +
+      "provider TEXT NOT NULL, external_id TEXT NOT NULL DEFAULT '', sender TEXT NOT NULL DEFAULT '', " +
+      "subject TEXT NOT NULL DEFAULT '', snippet TEXT NOT NULL DEFAULT '', received_at INTEGER NOT NULL, " +
+      "body TEXT NOT NULL DEFAULT '', analysis_id TEXT NOT NULL DEFAULT '', analyzed INTEGER NOT NULL DEFAULT 0, " +
+      "replied INTEGER NOT NULL DEFAULT 0, created_at INTEGER NOT NULL, PRIMARY KEY (user_id, id))",
+    "CREATE INDEX IF NOT EXISTS idx_inbox_user ON inbox_messages(user_id, provider)",
+  ],
+};
 
 /**
  * Returns the DDL statements needed to reach `SCHEMA_VERSION` from scratch.
@@ -48,6 +87,9 @@ export const SCHEMA_DDL: string[] = [
     timestamp INTEGER NOT NULL,
     input TEXT NOT NULL,
     output TEXT NOT NULL,
+    updated_at INTEGER NOT NULL DEFAULT 0,
+    deleted_at INTEGER,
+    source_label TEXT,
     PRIMARY KEY (user_id, id)
   )`,
 
@@ -60,6 +102,8 @@ export const SCHEMA_DDL: string[] = [
     urgency TEXT NOT NULL,
     status TEXT NOT NULL,
     created_at INTEGER NOT NULL,
+    updated_at INTEGER NOT NULL DEFAULT 0,
+    deleted_at INTEGER,
     PRIMARY KEY (user_id, id)
   )`,
 
@@ -69,6 +113,8 @@ export const SCHEMA_DDL: string[] = [
     name TEXT NOT NULL,
     content TEXT NOT NULL,
     created_at INTEGER NOT NULL,
+    updated_at INTEGER NOT NULL DEFAULT 0,
+    deleted_at INTEGER,
     PRIMARY KEY (user_id, id)
   )`,
 
@@ -78,6 +124,119 @@ export const SCHEMA_DDL: string[] = [
     value TEXT NOT NULL,
     updated_at INTEGER NOT NULL,
     PRIMARY KEY (user_id, key)
+  )`,
+
+  // —— Pro: subscriptions (billing) ——
+  `CREATE TABLE IF NOT EXISTS subscriptions (
+    user_id TEXT PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+    stripe_customer_id TEXT NOT NULL DEFAULT '',
+    stripe_subscription_id TEXT NOT NULL DEFAULT '',
+    status TEXT NOT NULL DEFAULT 'free',
+    price_id TEXT,
+    current_period_end INTEGER,
+    plan TEXT NOT NULL DEFAULT 'free',
+    updated_at INTEGER NOT NULL
+  )`,
+
+  // —— Pro: usage metering (per metric, per window) ——
+  `CREATE TABLE IF NOT EXISTS pro_usage (
+    user_id TEXT NOT NULL,
+    metric TEXT NOT NULL,
+    window_start INTEGER NOT NULL,
+    count INTEGER NOT NULL DEFAULT 0,
+    PRIMARY KEY (user_id, metric, window_start)
+  )`,
+
+  // —— Pro: Stripe webhook dedupe ——
+  `CREATE TABLE IF NOT EXISTS webhook_events (
+    id TEXT PRIMARY KEY,
+    processed_at INTEGER NOT NULL
+  )`,
+
+  // —— Pro: deadline reminders ——
+  `CREATE TABLE IF NOT EXISTS reminders (
+    id TEXT PRIMARY KEY,
+    user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    analysis_id TEXT NOT NULL DEFAULT '',
+    deadline_text TEXT NOT NULL,
+    due_at INTEGER NOT NULL,
+    remind_at INTEGER NOT NULL,
+    sent INTEGER NOT NULL DEFAULT 0,
+    channel TEXT NOT NULL DEFAULT 'email',
+    created_at INTEGER NOT NULL
+  )`,
+  `CREATE INDEX IF NOT EXISTS idx_reminders_due ON reminders(user_id, sent, remind_at)`,
+
+  // —— Pro: email / calendar provider integrations (tokens encrypted) ——
+  `CREATE TABLE IF NOT EXISTS integrations (
+    user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    provider TEXT NOT NULL,
+    external_id TEXT NOT NULL DEFAULT '',
+    access_token_enc TEXT NOT NULL DEFAULT '',
+    refresh_token_enc TEXT NOT NULL DEFAULT '',
+    scopes TEXT NOT NULL DEFAULT '',
+    connected_at INTEGER NOT NULL,
+    updated_at INTEGER NOT NULL,
+    PRIMARY KEY (user_id, provider)
+  )`,
+
+  // —— Pro: inbox (forwarded emails + connected-account messages) ——
+  `CREATE TABLE IF NOT EXISTS inbox_messages (
+    id TEXT NOT NULL,
+    user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    provider TEXT NOT NULL,
+    external_id TEXT NOT NULL DEFAULT '',
+    sender TEXT NOT NULL DEFAULT '',
+    subject TEXT NOT NULL DEFAULT '',
+    snippet TEXT NOT NULL DEFAULT '',
+    received_at INTEGER NOT NULL,
+    body TEXT NOT NULL DEFAULT '',
+    analysis_id TEXT NOT NULL DEFAULT '',
+    analyzed INTEGER NOT NULL DEFAULT 0,
+    replied INTEGER NOT NULL DEFAULT 0,
+    created_at INTEGER NOT NULL,
+    PRIMARY KEY (user_id, id)
+  )`,
+  `CREATE INDEX IF NOT EXISTS idx_inbox_user ON inbox_messages(user_id, provider)`,
+
+  // —— Pro: forward-to-TaskMind inbound routes ——
+  `CREATE TABLE IF NOT EXISTS inbound_routes (
+    slug TEXT PRIMARY KEY,
+    user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    active INTEGER NOT NULL DEFAULT 1,
+    created_at INTEGER NOT NULL
+  )`,
+
+  // —— Pro: priority support tickets ——
+  `CREATE TABLE IF NOT EXISTS support_tickets (
+    id TEXT PRIMARY KEY,
+    user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    subject TEXT NOT NULL,
+    message TEXT NOT NULL,
+    status TEXT NOT NULL DEFAULT 'open',
+    priority TEXT NOT NULL DEFAULT 'normal',
+    created_at INTEGER NOT NULL
+  )`,
+
+  // —— Pro: automation rules ——
+  `CREATE TABLE IF NOT EXISTS rules (
+    id TEXT PRIMARY KEY,
+    user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    name TEXT NOT NULL,
+    condition_json TEXT NOT NULL,
+    actions_json TEXT NOT NULL,
+    enabled INTEGER NOT NULL DEFAULT 1,
+    created_at INTEGER NOT NULL,
+    updated_at INTEGER NOT NULL
+  )`,
+
+  // —— Pro: tags on analyses / board items / templates ——
+  `CREATE TABLE IF NOT EXISTS tags (
+    user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    target_type TEXT NOT NULL,
+    target_id TEXT NOT NULL,
+    tag TEXT NOT NULL,
+    PRIMARY KEY (user_id, target_type, target_id, tag)
   )`,
 
   // —— Shared rate limiting (DB-backed for multi-instance deployments) ——

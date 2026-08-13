@@ -16,9 +16,6 @@ export const AD_SLOT = process.env.NEXT_PUBLIC_ADSENSE_SLOT ?? "";
  */
 export const ADS_CONSENT_EVENT = "taskmind:ads-consent-changed";
 
-/** Storage key flag used to hide the consent banner after it is dismissed. */
-export const ADS_BANNER_DISMISSED_KEY = "taskmind:ads-banner-dismissed";
-
 export function hasAdsConfig(): boolean {
   return Boolean(AD_CLIENT && AD_SLOT);
 }

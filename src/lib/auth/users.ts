@@ -71,15 +71,15 @@ async function loadUserData(userId: string): Promise<UserData> {
   const database = await db();
   const [hist, tmpl, board] = await database.batch([
     [
-      "SELECT id, timestamp, input, output FROM analyses WHERE user_id = ? ORDER BY timestamp DESC",
+      "SELECT id, timestamp, input, output, source_label FROM analyses WHERE user_id = ? AND deleted_at IS NULL ORDER BY timestamp DESC",
       [userId],
     ],
     [
-      "SELECT id, name, content, created_at FROM templates WHERE user_id = ? ORDER BY created_at DESC",
+      "SELECT id, name, content, created_at FROM templates WHERE user_id = ? AND deleted_at IS NULL ORDER BY created_at DESC",
       [userId],
     ],
     [
-      "SELECT id, source_id, source_index, text, urgency, status, created_at FROM board_items WHERE user_id = ? ORDER BY created_at ASC",
+      "SELECT id, source_id, source_index, text, urgency, status, created_at FROM board_items WHERE user_id = ? AND deleted_at IS NULL ORDER BY created_at ASC",
       [userId],
     ],
   ]);
@@ -89,6 +89,7 @@ async function loadUserData(userId: string): Promise<UserData> {
       timestamp: Number(r.timestamp),
       input: r.input,
       output: safeJsonParse(r.output),
+      ...(r.source_label ? { sourceLabel: r.source_label as string } : {}),
     })),
     templates: (tmpl.rows ?? []).map((r) => ({
       id: r.id,
@@ -168,6 +169,7 @@ export async function updateUserData(
   data: UserData
 ): Promise<StoredUser | null> {
   const database = await db();
+  const now = Date.now();
   const stmts: InStatement[] = [
     { sql: "DELETE FROM analyses WHERE user_id = ?", args: [id] },
     { sql: "DELETE FROM board_items WHERE user_id = ?", args: [id] },
@@ -178,22 +180,32 @@ export async function updateUserData(
     const r = h as AnalysisRecord;
     if (++n > MAX_SYNC_ROWS) break;
     stmts.push({
-      sql: "INSERT INTO analyses(id, user_id, timestamp, input, output) VALUES (?, ?, ?, ?, ?)",
-      args: [r.id, id, r.timestamp, r.input, JSON.stringify(r.output)],
+      sql: "INSERT INTO analyses(id, user_id, timestamp, input, output, updated_at, source_label) VALUES (?, ?, ?, ?, ?, ?, ?)",
+      args: [
+        r.id,
+        id,
+        r.timestamp,
+        r.input,
+        JSON.stringify(r.output),
+        now,
+        r.sourceLabel ?? null,
+      ],
     });
   }
   for (const t of data.templates) {
     const tt = t as Template;
+    if (++n > MAX_SYNC_ROWS) break;
     stmts.push({
-      sql: "INSERT INTO templates(id, user_id, name, content, created_at) VALUES (?, ?, ?, ?, ?)",
-      args: [tt.id, id, tt.name, tt.content, tt.createdAt],
+      sql: "INSERT INTO templates(id, user_id, name, content, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)",
+      args: [tt.id, id, tt.name, tt.content, tt.createdAt, now],
     });
   }
   for (const b of data.board) {
     const bb = b as BoardItem;
+    if (++n > MAX_SYNC_ROWS) break;
     stmts.push({
-      sql: "INSERT INTO board_items(id, user_id, source_id, source_index, text, urgency, status, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
-      args: [bb.id, id, bb.sourceId, bb.sourceIndex, bb.text, bb.urgency, bb.status, bb.createdAt],
+      sql: "INSERT INTO board_items(id, user_id, source_id, source_index, text, urgency, status, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+      args: [bb.id, id, bb.sourceId, bb.sourceIndex, bb.text, bb.urgency, bb.status, bb.createdAt, now],
     });
   }
   await database.batch(stmts);
@@ -341,15 +353,19 @@ export async function upsertAnalysis(
   record: AnalysisRecord
 ): Promise<void> {
   const database = await db();
+  const now = Date.now();
   await database.execute(
-    "INSERT INTO analyses(id, user_id, timestamp, input, output) VALUES (?, ?, ?, ?, ?) " +
-      "ON CONFLICT(user_id, id) DO UPDATE SET timestamp = excluded.timestamp, input = excluded.input, output = excluded.output",
+    "INSERT INTO analyses(id, user_id, timestamp, input, output, updated_at, source_label, deleted_at) " +
+      "VALUES (?, ?, ?, ?, ?, ?, ?, NULL) " +
+      "ON CONFLICT(user_id, id) DO UPDATE SET timestamp = excluded.timestamp, input = excluded.input, output = excluded.output, updated_at = excluded.updated_at, source_label = excluded.source_label, deleted_at = NULL",
     [
       record.id,
       userId,
       record.timestamp,
       record.input,
       JSON.stringify(record.output),
+      now,
+      record.sourceLabel ?? null,
     ]
   );
 }
@@ -359,16 +375,12 @@ export async function upsertTemplate(
   template: Template
 ): Promise<void> {
   const database = await db();
+  const now = Date.now();
   await database.execute(
-    "INSERT INTO templates(id, user_id, name, content, created_at) VALUES (?, ?, ?, ?, ?) " +
-      "ON CONFLICT(user_id, id) DO UPDATE SET name = excluded.name, content = excluded.content, created_at = excluded.created_at",
-    [
-      template.id,
-      userId,
-      template.name,
-      template.content,
-      template.createdAt,
-    ]
+    "INSERT INTO templates(id, user_id, name, content, created_at, updated_at, deleted_at) " +
+      "VALUES (?, ?, ?, ?, ?, ?, NULL) " +
+      "ON CONFLICT(user_id, id) DO UPDATE SET name = excluded.name, content = excluded.content, created_at = excluded.created_at, updated_at = excluded.updated_at, deleted_at = NULL",
+    [template.id, userId, template.name, template.content, template.createdAt, now]
   );
 }
 
@@ -377,10 +389,11 @@ export async function upsertBoardItem(
   item: BoardItem
 ): Promise<void> {
   const database = await db();
+  const now = Date.now();
   await database.execute(
-    "INSERT INTO board_items(id, user_id, source_id, source_index, text, urgency, status, created_at) " +
-      "VALUES (?, ?, ?, ?, ?, ?, ?, ?) " +
-      "ON CONFLICT(user_id, id) DO UPDATE SET source_id = excluded.source_id, source_index = excluded.source_index, text = excluded.text, urgency = excluded.urgency, status = excluded.status, created_at = excluded.created_at",
+    "INSERT INTO board_items(id, user_id, source_id, source_index, text, urgency, status, created_at, updated_at, deleted_at) " +
+      "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NULL) " +
+      "ON CONFLICT(user_id, id) DO UPDATE SET source_id = excluded.source_id, source_index = excluded.source_index, text = excluded.text, urgency = excluded.urgency, status = excluded.status, created_at = excluded.created_at, updated_at = excluded.updated_at, deleted_at = NULL",
     [
       item.id,
       userId,
@@ -390,6 +403,7 @@ export async function upsertBoardItem(
       item.urgency,
       item.status,
       item.createdAt,
+      now,
     ]
   );
 }
@@ -401,8 +415,8 @@ export async function setBoardItemStatus(
 ): Promise<void> {
   const database = await db();
   await database.execute(
-    "UPDATE board_items SET status = ? WHERE user_id = ? AND id = ?",
-    [status, userId, id]
+    "UPDATE board_items SET status = ?, updated_at = ? WHERE user_id = ? AND id = ? AND deleted_at IS NULL",
+    [status, Date.now(), userId, id]
   );
 }
 
@@ -411,9 +425,10 @@ export async function deleteAnalysis(
   id: string
 ): Promise<number> {
   const database = await db();
+  const now = Date.now();
   const res = await database.execute(
-    "DELETE FROM analyses WHERE user_id = ? AND id = ?",
-    [userId, id]
+    "UPDATE analyses SET deleted_at = ?, updated_at = ? WHERE user_id = ? AND id = ? AND deleted_at IS NULL",
+    [now, now, userId, id]
   );
   return Number(res.rowsAffected);
 }
@@ -423,9 +438,10 @@ export async function deleteTemplate(
   id: string
 ): Promise<number> {
   const database = await db();
+  const now = Date.now();
   const res = await database.execute(
-    "DELETE FROM templates WHERE user_id = ? AND id = ?",
-    [userId, id]
+    "UPDATE templates SET deleted_at = ?, updated_at = ? WHERE user_id = ? AND id = ? AND deleted_at IS NULL",
+    [now, now, userId, id]
   );
   return Number(res.rowsAffected);
 }
@@ -435,9 +451,10 @@ export async function deleteBoardItem(
   id: string
 ): Promise<number> {
   const database = await db();
+  const now = Date.now();
   const res = await database.execute(
-    "DELETE FROM board_items WHERE user_id = ? AND id = ?",
-    [userId, id]
+    "UPDATE board_items SET deleted_at = ?, updated_at = ? WHERE user_id = ? AND id = ? AND deleted_at IS NULL",
+    [now, now, userId, id]
   );
   return Number(res.rowsAffected);
 }
@@ -478,6 +495,312 @@ export async function getSettings(userId: string): Promise<SettingsRecord> {
     out[key] = value;
   }
   return out;
+}
+
+export async function deleteSetting(userId: string, key: string): Promise<void> {
+  const database = await db();
+  await database.execute("DELETE FROM user_settings WHERE user_id = ? AND key = ?", [
+    userId,
+    key,
+  ]);
+}
+/* =========================================================
+   Incremental sync (Pro): per-record deltas + tombstones.
+   ========================================================= */
+
+export type SyncCollection = "history" | "templates" | "board" | "settings";
+
+export const SYNC_COLLECTIONS: readonly SyncCollection[] = [
+  "history",
+  "templates",
+  "board",
+  "settings",
+];
+
+/**
+ * One directional sync change. `record` carries the client-facing record
+ * object (same shape as `AuthData`) when `deleted` is false; for settings the
+ * record is `{ key, value }`.
+ */
+export type SyncChange = {
+  collection: SyncCollection;
+  id: string;
+  updatedAt: number;
+  deleted: boolean;
+  record?: unknown;
+};
+
+/** Loose validation used by the sync route before applying client deltas. */
+export function isSyncChange(value: unknown): value is SyncChange {
+  if (!value || typeof value !== "object") return false;
+  const c = value as Record<string, unknown>;
+  if (!SYNC_COLLECTIONS.includes(c.collection as SyncCollection)) return false;
+  if (typeof c.id !== "string" || c.id.length === 0 || c.id.length > 200) return false;
+  if (typeof c.updatedAt !== "number" || !Number.isFinite(c.updatedAt) || c.updatedAt < 0) return false;
+  if (typeof c.deleted !== "boolean") return false;
+  if (!c.deleted && (typeof c.record !== "object" || c.record === null)) return false;
+  return true;
+}
+
+const SYNC_TABLES: Record<SyncCollection, string> = {
+  history: "analyses",
+  templates: "templates",
+  board: "board_items",
+  settings: "user_settings",
+};
+
+type RawRow = Record<string, unknown>;
+
+function analysisRecordFromRow(r: RawRow): unknown {
+  return {
+    id: r.id,
+    timestamp: Number(r.timestamp),
+    input: r.input,
+    output: safeJsonParse(r.output),
+    ...(r.source_label ? { sourceLabel: r.source_label as string } : {}),
+  };
+}
+
+function templateRecordFromRow(r: RawRow): unknown {
+  return {
+    id: r.id,
+    name: r.name,
+    content: r.content,
+    createdAt: Number(r.created_at),
+  };
+}
+
+function boardItemFromRow(r: RawRow): unknown {
+  return {
+    id: r.id,
+    sourceId: r.source_id,
+    sourceIndex: Number(r.source_index),
+    text: r.text,
+    urgency: r.urgency,
+    status: r.status,
+    createdAt: Number(r.created_at),
+  };
+}
+
+function changeFromRow(
+  collection: SyncCollection,
+  r: RawRow
+): SyncChange | null {
+  const id = r.id as string;
+  if (typeof id !== "string" || !id) return null;
+  const deletedAt = r.deleted_at;
+  const deleted = deletedAt != null;
+  if (collection === "settings") {
+    return {
+      collection,
+      id,
+      updatedAt: Number(r.updated_at ?? 0),
+      deleted: false,
+      record: { key: id, value: safeJsonParse(r.value) },
+    };
+  }
+  const record = deleted
+    ? undefined
+    : collection === "history"
+      ? analysisRecordFromRow(r)
+      : collection === "templates"
+        ? templateRecordFromRow(r)
+        : boardItemFromRow(r);
+  return { collection, id, updatedAt: Number(r.updated_at ?? 0), deleted, record };
+}
+
+/** Returns every record (live or tombstoned) updated after `since`. */
+export async function getSyncChanges(
+  userId: string,
+  since: number
+): Promise<SyncChange[]> {
+  const database = await db();
+  const tables = [SYNC_TABLES.history, SYNC_TABLES.templates, SYNC_TABLES.board];
+  const out: SyncChange[] = [];
+  for (const table of tables) {
+    const col = table === "analyses" ? "history" : table === "templates" ? "templates" : "board";
+    const res = await database.execute(
+      `SELECT * FROM ${table} WHERE user_id = ? AND updated_at > ?`,
+      [userId, since]
+    );
+    for (const row of res.rows ?? []) {
+      const change = changeFromRow(col as SyncCollection, row as RawRow);
+      if (change) out.push(change);
+    }
+  }
+  const settings = await database.execute(
+    "SELECT key, value, updated_at FROM user_settings WHERE user_id = ? AND updated_at > ?",
+    [userId, since]
+  );
+  for (const row of settings.rows ?? []) {
+    const change = changeFromRow("settings", { id: row.key, value: row.value, updated_at: row.updated_at } as RawRow);
+    if (change) out.push(change);
+  }
+  return out;
+}
+
+/** Fetches the current server-side state of a single record (or null). */
+async function readServerChange(
+  userId: string,
+  collection: SyncCollection,
+  id: string
+): Promise<SyncChange | null> {
+  const database = await db();
+  const table = SYNC_TABLES[collection];
+  const idColumn = collection === "settings" ? "key" : "id";
+  const res = await database.execute(
+    `SELECT * FROM ${table} WHERE user_id = ? AND ${idColumn} = ?`,
+    [userId, id]
+  );
+  if (!res.rows?.length) return null;
+  const row = res.rows[0] as RawRow;
+  if (collection === "settings") {
+    return changeFromRow("settings", {
+      id: row.key,
+      value: row.value,
+      updated_at: row.updated_at,
+    } as RawRow);
+  }
+  return changeFromRow(collection, row);
+}
+
+/**
+ * Applies a batch of client deltas with last-write-wins semantics (a change is
+ * rejected when the stored `updated_at` is newer). Returns the rejected
+ * changes with their current server-side state so the caller can re-merge.
+ * Each change is applied atomically; a failing record never partially applies.
+ */
+export async function applySyncChanges(
+  userId: string,
+  changes: SyncChange[]
+): Promise<SyncChange[]> {
+  const database = await db();
+  const rejected: SyncChange[] = [];
+  for (const change of changes) {
+    if (change.collection === "settings") {
+      const key = change.id;
+      if (change.deleted) {
+        const res = await database.execute(
+          "SELECT updated_at FROM user_settings WHERE user_id = ? AND key = ?",
+          [userId, key]
+        );
+        const current = res.rows?.length ? Number(res.rows[0].updated_at ?? 0) : 0;
+        if (change.updatedAt >= current) {
+          await database.execute(
+            "DELETE FROM user_settings WHERE user_id = ? AND key = ?",
+            [userId, key]
+          );
+        } else {
+          const server = await readServerChange(userId, "settings", key);
+          if (server) rejected.push(server);
+        }
+        continue;
+      }
+      const record = (change.record ?? {}) as Record<string, unknown>;
+      const value = record.value ?? null;
+      const res = await database.execute(
+        "SELECT updated_at FROM user_settings WHERE user_id = ? AND key = ?",
+        [userId, key]
+      );
+      const current = res.rows?.length ? Number(res.rows[0].updated_at ?? 0) : 0;
+      if (change.updatedAt < current) {
+        const server = await readServerChange(userId, "settings", key);
+        if (server) rejected.push(server);
+        continue;
+      }
+      await database.execute(
+        "INSERT INTO user_settings(user_id, key, value, updated_at) VALUES (?, ?, ?, ?) " +
+          "ON CONFLICT(user_id, key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at",
+        [userId, key, JSON.stringify(value), change.updatedAt]
+      );
+      continue;
+    }
+
+    const table = SYNC_TABLES[change.collection];
+    const res = await database.execute(
+      `SELECT updated_at FROM ${table} WHERE user_id = ? AND id = ?`,
+      [userId, change.id]
+    );
+    const current = res.rows?.length ? Number(res.rows[0].updated_at ?? 0) : 0;
+    if (change.updatedAt < current) {
+      const server = await readServerChange(userId, change.collection, change.id);
+      if (server) rejected.push(server);
+      continue;
+    }
+
+    if (change.deleted) {
+      // Tombstone: mark the row deleted at the change's clock.
+      if (change.collection === "history") {
+        await database.execute(
+          "INSERT INTO analyses(id, user_id, timestamp, input, output, updated_at, deleted_at) " +
+            "VALUES (?, ?, ?, '', '', ?, ?) " +
+            "ON CONFLICT(user_id, id) DO UPDATE SET updated_at = excluded.updated_at, deleted_at = excluded.deleted_at",
+          [change.id, userId, change.updatedAt, change.updatedAt, change.updatedAt]
+        );
+      } else if (change.collection === "templates") {
+        await database.execute(
+          "INSERT INTO templates(id, user_id, name, content, created_at, updated_at, deleted_at) " +
+            "VALUES (?, ?, '', '', ?, ?, ?) " +
+            "ON CONFLICT(user_id, id) DO UPDATE SET updated_at = excluded.updated_at, deleted_at = excluded.deleted_at",
+          [change.id, userId, change.updatedAt, change.updatedAt, change.updatedAt]
+        );
+      } else {
+        await database.execute(
+          "INSERT INTO board_items(id, user_id, source_id, source_index, text, urgency, status, created_at, updated_at, deleted_at) " +
+            "VALUES (?, ?, '', 0, '', '', '', ?, ?, ?) " +
+            "ON CONFLICT(user_id, id) DO UPDATE SET updated_at = excluded.updated_at, deleted_at = excluded.deleted_at",
+          [change.id, userId, change.updatedAt, change.updatedAt, change.updatedAt]
+        );
+      }
+      continue;
+    }
+
+    // Live upsert.
+    if (change.collection === "history") {
+      const r = (change.record ?? {}) as Partial<AnalysisRecord>;
+      await database.execute(
+        "INSERT INTO analyses(id, user_id, timestamp, input, output, updated_at, source_label, deleted_at) " +
+          "VALUES (?, ?, ?, ?, ?, ?, ?, NULL) " +
+          "ON CONFLICT(user_id, id) DO UPDATE SET timestamp = excluded.timestamp, input = excluded.input, output = excluded.output, updated_at = excluded.updated_at, source_label = excluded.source_label, deleted_at = NULL",
+        [
+          change.id,
+          userId,
+          r.timestamp ?? 0,
+          r.input ?? "",
+          JSON.stringify(r.output ?? {}),
+          change.updatedAt,
+          r.sourceLabel ?? null,
+        ]
+      );
+    } else if (change.collection === "templates") {
+      const r = (change.record ?? {}) as Partial<Template>;
+      await database.execute(
+        "INSERT INTO templates(id, user_id, name, content, created_at, updated_at, deleted_at) " +
+          "VALUES (?, ?, ?, ?, ?, ?, NULL) " +
+          "ON CONFLICT(user_id, id) DO UPDATE SET name = excluded.name, content = excluded.content, created_at = excluded.created_at, updated_at = excluded.updated_at, deleted_at = NULL",
+        [change.id, userId, r.name ?? "", r.content ?? "", r.createdAt ?? 0, change.updatedAt]
+      );
+    } else {
+      const r = (change.record ?? {}) as Partial<BoardItem>;
+      await database.execute(
+        "INSERT INTO board_items(id, user_id, source_id, source_index, text, urgency, status, created_at, updated_at, deleted_at) " +
+          "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NULL) " +
+          "ON CONFLICT(user_id, id) DO UPDATE SET source_id = excluded.source_id, source_index = excluded.source_index, text = excluded.text, urgency = excluded.urgency, status = excluded.status, created_at = excluded.created_at, updated_at = excluded.updated_at, deleted_at = NULL",
+        [
+          change.id,
+          userId,
+          r.sourceId ?? "",
+          r.sourceIndex ?? 0,
+          r.text ?? "",
+          r.urgency ?? "Normal",
+          r.status ?? "todo",
+          r.createdAt ?? 0,
+          change.updatedAt,
+        ]
+      );
+    }
+  }
+  return rejected;
 }
 
 

@@ -55,6 +55,7 @@ export function DashboardHome() {
   const pendingTextRef = useRef("");
   const pendingBatchRef = useRef<string[]>([]);
   const abortRef = useRef<AbortController | null>(null);
+  const resultsRef = useRef<HTMLDivElement>(null);
 
   // A template applied from another page (Saved / QuickSearch) fills the input.
   useEffect(() => {
@@ -82,6 +83,11 @@ export function DashboardHome() {
       setRecord(null);
       setPartial(null);
       setStreamed(false);
+
+      // Auto-scroll to the results area after state updates trigger the loading UI
+      setTimeout(() => {
+        resultsRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+      }, 250);
 
       // Primary path: streaming analysis (sections appear progressively).
       try {
@@ -138,6 +144,12 @@ export function DashboardHome() {
       setResult(null);
       setRecord(null);
       setPartial(null);
+
+      // Auto-scroll to the results area after state updates trigger the loading UI
+      setTimeout(() => {
+        resultsRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+      }, 250);
+
       try {
         const res = await fetch("/api/analyze/batch", {
           method: "POST",
@@ -252,9 +264,6 @@ export function DashboardHome() {
                     <span className="min-w-0 flex-1 text-sm font-medium text-ink">
                       {spec.label}
                     </span>
-                    <span className="font-mono text-xxs uppercase tracking-label-mono text-muted">
-                      {spec.hint}
-                    </span>
                   </li>
                 );
               })}
@@ -276,7 +285,7 @@ export function DashboardHome() {
           onDeepChange={setDeep}
         />
 
-        <div className="mt-8">
+        <div className="mt-8 scroll-mt-24" ref={resultsRef}>
           {batchLoading && !batchItems && <LoadingState />}
           {error && (
             <ErrorState

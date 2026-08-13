@@ -1,8 +1,8 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Check, Copy, FileText, X, AlertTriangle } from "lucide-react";
-import { buildShareLink, buildShareMarkdown, copyText } from "@/lib/share";
+import { Check, Copy, FileText, X, AlertTriangle, Loader2 } from "lucide-react";
+import { buildShareMarkdown, copyText } from "@/lib/share";
 import type { AnalysisRecord } from "@/lib/types";
 import { Button } from "@/components/ui/Button";
 
@@ -20,6 +20,9 @@ export default function ShareDialog({ record, onClose }: ShareDialogProps) {
   const [linkCopied, setLinkCopied] = useState(false);
   const [mdCopied, setMdCopied] = useState(false);
   const [copyFailed, setCopyFailed] = useState(false);
+  const [link, setLink] = useState("");
+  const [linkError, setLinkError] = useState<string | null>(null);
+  const [creating, setCreating] = useState(true);
   const dialogRef = useRef<HTMLDivElement>(null);
   const linkInputRef = useRef<HTMLInputElement>(null);
 
@@ -60,7 +63,56 @@ export default function ShareDialog({ record, onClose }: ShareDialogProps) {
     [includeInput, sensitive]
   );
 
-  const link = useMemo(() => buildShareLink(record, options), [record, options]);
+  // Encrypt the share token server-side so the raw input can't be recovered
+  // from the URL. Regenerate whenever the record or options change.
+  useEffect(() => {
+    let active = true;
+    // Show the loading state while the new link is generated.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setCreating(true);
+    setLinkError(null);
+    const controller = new AbortController();
+
+    fetch("/api/share", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        payload: {
+          input: record.input,
+          output: record.output,
+          timestamp: record.timestamp,
+        },
+        options,
+      }),
+      signal: controller.signal,
+    })
+      .then(async (res) => {
+        const body = (await res.json().catch(() => ({}))) as {
+          link?: string;
+          error?: string;
+        };
+        if (!active) return;
+        if (!res.ok || !body.link) {
+          throw new Error(body.error || "Couldn't create share link.");
+        }
+        setLink(body.link);
+      })
+      .catch((err: unknown) => {
+        if (!active) return;
+        if (err instanceof DOMException && err.name === "AbortError") return;
+        setLinkError(
+          "Couldn't create the share link. Check your connection and try again."
+        );
+      })
+      .finally(() => {
+        if (active) setCreating(false);
+      });
+
+    return () => {
+      active = false;
+      controller.abort();
+    };
+  }, [record, options]);
 
   async function copyLink() {
     const ok = await copyText(link);
@@ -150,8 +202,9 @@ export default function ShareDialog({ record, onClose }: ShareDialogProps) {
               className="mt-3 flex items-start gap-2 rounded-tm border border-line bg-surface px-3 py-2 text-xs text-muted"
             >
               <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0 text-high" />
-              The raw input will not appear on the shared page. Results are
-              embedded in the URL and are not encrypted.
+              The raw input will not appear on the shared page. The link is
+              encrypted, so hidden content can&apos;t be recovered from the URL
+              alone.
             </p>
           )}
 
@@ -169,10 +222,25 @@ export default function ShareDialog({ record, onClose }: ShareDialogProps) {
                 readOnly
                 value={link}
                 onFocus={(e) => e.target.select()}
-                className="h-10 min-w-0 flex-1 rounded-tm border border-line bg-surface px-3 font-mono text-2xs text-ink outline-none focus:border-ink"
+                aria-busy={creating}
+                aria-describedby={
+                  linkError ? "share-link-error" : undefined
+                }
+                placeholder={
+                  creating ? "Creating encrypted link…" : "Link unavailable"
+                }
+                className="h-10 min-w-0 flex-1 rounded-tm border border-line bg-surface px-3 font-mono text-2xs text-ink outline-none focus:border-ink disabled:opacity-60"
+                disabled={creating || !!linkError}
               />
-              <Button variant="dark" size="sm" onClick={copyLink}>
-                {linkCopied ? (
+              <Button
+                variant="dark"
+                size="sm"
+                onClick={copyLink}
+                disabled={creating || !link || !!linkError}
+              >
+                {creating ? (
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                ) : linkCopied ? (
                   <>
                     <Check className="h-3.5 w-3.5" /> Copied
                   </>
@@ -183,6 +251,15 @@ export default function ShareDialog({ record, onClose }: ShareDialogProps) {
                 )}
               </Button>
             </div>
+            {linkError && (
+              <p
+                id="share-link-error"
+                className="mt-2 text-xs text-high"
+                role="alert"
+              >
+                {linkError}
+              </p>
+            )}
             {copyFailed && (
               <p className="mt-2 text-xs text-high">
                 Clipboard unavailable — select the link above and copy it
@@ -196,6 +273,7 @@ export default function ShareDialog({ record, onClose }: ShareDialogProps) {
               variant="outline"
               size="sm"
               onClick={copyMarkdown}
+              disabled={creating || !link}
               className="w-full"
             >
               {mdCopied ? (

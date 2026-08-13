@@ -1,11 +1,11 @@
 "use client";
 
 import { type ReactNode } from "react";
+import dynamic from "next/dynamic";
 import { Search } from "lucide-react";
 import { TaskProvider } from "@/context/TaskContext";
 import { DataCacheProvider } from "@/lib/data-cache";
 import { NavigationProvider } from "@/lib/navigation";
-import { SyncEngine } from "@/components/sync/SyncEngine";
 import Sidebar from "./Sidebar";
 import BottomNav from "./BottomNav";
 import { AdsRail } from "./AdsRail";
@@ -16,6 +16,13 @@ import RouteTransition from "@/components/navigation/RouteTransition";
 import { RouteErrorBoundary } from "@/components/navigation/RouteErrorBoundary";
 
 import UnverifiedBanner from "./UnverifiedBanner";
+
+// Background-only (renders null), pulls the sync/OAuth client code out of the
+// initial workspace bundle. ssr:false is safe — it does no SSR work.
+const SyncEngine = dynamic(
+  () => import("@/components/sync/SyncEngine").then((m) => m.SyncEngine),
+  { ssr: false }
+);
 
 export default function DashboardLayout({
   children,

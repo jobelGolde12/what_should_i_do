@@ -1,8 +1,6 @@
 "use client";
 
-import { useParams } from "next/navigation";
 import { useMemo } from "react";
-import { parseShareToken } from "@/lib/share";
 import ResultsPanel from "@/components/results/ResultsPanel";
 import { EmptyState } from "@/components/ui/States";
 import { LinkButton } from "@/components/ui/Button";
@@ -10,26 +8,29 @@ import Logo from "@/components/layout/Logo";
 import SiteFooter from "@/components/layout/SiteFooter";
 import { snippet } from "@/lib/format";
 import { ShieldAlert } from "lucide-react";
+import type { SharePayload } from "@/lib/types";
 
-export default function ShareView() {
-  const params = useParams<{ id: string }>();
-
+export default function ShareView({
+  payload,
+  shareToken,
+}: {
+  payload: SharePayload | null;
+  shareToken: string;
+}) {
   const record = useMemo(() => {
-    if (!params.id) return null;
-    const payload = parseShareToken(params.id);
     if (!payload) return null;
     return {
-      id: `share-${params.id.slice(0, 12)}`,
+      id: `share-${shareToken.slice(0, 12)}`,
       timestamp: payload.timestamp,
       input: payload.input,
       output: payload.output,
       includeInput: payload.includeInput,
       sensitive: payload.sensitive,
     };
-  }, [params.id]);
+  }, [payload, shareToken]);
 
   const showInput =
-    !!record && record.includeInput !== false && !record.sensitive;
+    !!record && record.includeInput !== false && record.input.length > 0;
 
   return (
     <div className="min-h-screen bg-background text-ink">

@@ -6,6 +6,7 @@ import {
   useEffect,
   useState,
   useCallback,
+  useRef,
 } from "react";
 import type { ReactNode } from "react";
 import type { AnalysisResult } from "@/app/actions/analyzeText";
@@ -77,20 +78,33 @@ export function TaskProvider({ children }: { children: ReactNode }) {
     setBoard(readStorage<BoardItem[]>(storageKeys().board, []));
   }, []);
 
-  useEffect(() => {
-    writeStorage(storageKeys().history, history);
-    if (isInstantNavEnabled()) getDataCacheStore().syncFromStorage();
-  }, [history]);
+  // Track the last-persisted slices so a save that touches two slices (e.g.
+  // `saveAnalysis` updates history AND board) does a single localStorage write
+  // round + one cache sync instead of one effect per slice (which re-parsed the
+  // whole snapshot for each).
+  const prevPersisted = useRef({ history, templates, board });
 
   useEffect(() => {
-    writeStorage(storageKeys().templates, templates);
-    if (isInstantNavEnabled()) getDataCacheStore().syncFromStorage();
-  }, [templates]);
-
-  useEffect(() => {
-    writeStorage(storageKeys().board, board);
-    if (isInstantNavEnabled()) getDataCacheStore().syncFromStorage();
-  }, [board]);
+    const prev = prevPersisted.current;
+    const next = { history, templates, board };
+    let changed = false;
+    if (prev.history !== history) {
+      writeStorage(storageKeys().history, history);
+      changed = true;
+    }
+    if (prev.templates !== templates) {
+      writeStorage(storageKeys().templates, templates);
+      changed = true;
+    }
+    if (prev.board !== board) {
+      writeStorage(storageKeys().board, board);
+      changed = true;
+    }
+    prevPersisted.current = next;
+    if (changed && isInstantNavEnabled()) {
+      getDataCacheStore().syncFromStorage();
+    }
+  }, [history, templates, board]);
 
   const saveAnalysis = useCallback(
     (input: string, output: AnalysisResult, sourceLabel?: string): AnalysisRecord => {
@@ -291,4 +305,11 @@ export function useTask() {
   const ctx = useContext(TaskContext);
   if (!ctx) throw new Error("useTask must be used within TaskProvider");
   return ctx;
+}
+
+/** Like `useTask` but returns `null` outside a TaskProvider — for components
+ *  that render on public pages (e.g. shared analyses) where task data doesn't
+ *  exist and must not throw. */
+export function useOptionalTask(): TaskContextValue | null {
+  return useContext(TaskContext);
 }

@@ -19,10 +19,32 @@ const nextConfig = {
       },
     ];
     if (process.env.NODE_ENV === "production") {
-      securityHeaders.push({
-        key: "Strict-Transport-Security",
-        value: "max-age=63072000; includeSubDomains; preload",
-      });
+      securityHeaders.push(
+        {
+          key: "Strict-Transport-Security",
+          value: "max-age=63072000; includeSubDomains; preload",
+        },
+        {
+          key: "Content-Security-Policy",
+          value: [
+            "default-src 'self'",
+            // Inline scripts: theme boot script + inline JSON-LD. 'unsafe-eval'
+            // needed by pdfjs/tesseract WASM workers (checked against the live
+            // build; see scripts/verify-browser.mjs).
+            "script-src 'self' 'unsafe-inline' 'unsafe-eval'",
+            "style-src 'self' 'unsafe-inline'",
+            "img-src 'self' data: blob: https:",
+            "font-src 'self' data:",
+            "connect-src 'self' https:",
+            "worker-src 'self' blob:",
+            "frame-src 'self'",
+            "object-src 'none'",
+            "base-uri 'self'",
+            "form-action 'self'",
+            "frame-ancestors 'none'",
+          ].join("; "),
+        }
+      );
     }
     return [{ source: "/:path*", headers: securityHeaders }];
   },

@@ -1,57 +1,14 @@
 import type { SharePayload } from "./types";
 
-const PREFIX = "enc:";
+/**
+ * Client-safe share helpers. Encryption/decryption lives in `./share-crypto`
+ * (server-only, imports node:crypto).
+ */
 
 export type ShareOptions = {
   includeInput?: boolean;
   sensitive?: boolean;
 };
-
-function encodePayload(payload: SharePayload): string {
-  const json = JSON.stringify(payload);
-  const encoded = btoa(unescape(encodeURIComponent(json)));
-  return PREFIX + encoded.replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
-}
-
-function decodePayload(token: string): SharePayload | null {
-  try {
-    let encoded = token.startsWith(PREFIX) ? token.slice(PREFIX.length) : token;
-    encoded = encoded.replace(/-/g, "+").replace(/_/g, "/");
-    while (encoded.length % 4) encoded += "=";
-    const json = decodeURIComponent(escape(atob(encoded)));
-    const parsed = JSON.parse(json) as SharePayload;
-    if (!parsed || !parsed.output) return null;
-    return parsed;
-  } catch {
-    return null;
-  }
-}
-
-export function buildShareLink(
-  record: {
-    input: string;
-    output: SharePayload["output"];
-    timestamp: number;
-  },
-  options: ShareOptions = {}
-): string {
-  const payload: SharePayload = {
-    input: record.input,
-    output: record.output,
-    timestamp: record.timestamp,
-    ...(options.includeInput !== undefined
-      ? { includeInput: options.includeInput }
-      : {}),
-    ...(options.sensitive ? { sensitive: true } : {}),
-  };
-  const base =
-    typeof window !== "undefined" ? window.location.origin : "";
-  return `${base}/share/${PREFIX}${encodePayload(payload).slice(PREFIX.length)}`;
-}
-
-export function parseShareToken(token: string): SharePayload | null {
-  return decodePayload(token);
-}
 
 /** Fallback copy that works even when navigator.clipboard is unavailable. */
 export async function copyText(text: string): Promise<boolean> {

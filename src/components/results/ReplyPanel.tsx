@@ -17,7 +17,7 @@ import { streamReplyDraft } from "@/lib/stream";
 import { copyText } from "@/lib/share";
 import { toast } from "@/lib/toast";
 import { usePlan } from "@/lib/pro/usePlan";
-import { useTask } from "@/context/TaskContext";
+import { useOptionalTask } from "@/context/TaskContext";
 import { Button } from "@/components/ui/Button";
 import { ProGate } from "@/components/ui/ProGate";
 
@@ -47,7 +47,8 @@ export default function ReplyPanel({
   sourceLabel?: string | null;
 }) {
   const { isPro } = usePlan();
-  const { templates } = useTask();
+  // Templates are optional UI on shared/embedded pages (no TaskProvider).
+  const { templates } = useOptionalTask() ?? { templates: [] };
   const [open, setOpen] = useState(false);
   const [tone, setTone] = useState<ReplyTone>("professional");
   const [draft, setDraft] = useState("");

@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { decryptShareToken } from "@/lib/share-crypto";
 import ShareView from "@/components/share/ShareView";
 import { SITE_NAME, OG_IMAGE } from "@/lib/site";
 
@@ -24,6 +25,16 @@ export const metadata: Metadata = {
   },
 };
 
-export default function SharePage() {
-  return <ShareView />;
+export default async function SharePage({
+  params,
+}: {
+  params: { id: string };
+}) {
+  // Decrypt on the server: a `sensitive` payload never sends the raw input to
+  // the browser at all, so it can't be recovered by editing the URL.
+  let payload = decryptShareToken(params.id);
+  if (payload?.sensitive) {
+    payload = { ...payload, input: "" };
+  }
+  return <ShareView payload={payload} shareToken={params.id} />;
 }

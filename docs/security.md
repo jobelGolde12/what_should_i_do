@@ -23,9 +23,11 @@ npm run security:audit   # npm audit --omit=dev
   30-day expiry), email verification via Mailgun API, single-use signed tokens
   stored as SHA-256 hashes, password reset flow, and Turso libSQL SQL persistence
   with relational schema (`users`, `analyses`, `board_items`, `templates`, `user_settings`).
-- **Share links**: base64-encoded payload embedded in the URL. Not encrypted,
-  no expiry. `includeInput`/`sensitive` options control whether raw input is
-  embedded and shown.
+- **Share links**: encrypted tokens (AES-256-GCM, `src/lib/share.ts`) created
+  via `POST /api/share` (rate-limited) and decrypted server-side on
+  `/share/[id]`; the plaintext is never embedded in the URL. A `sensitive`
+  payload is stripped of raw input before it reaches the browser. Legacy
+  pre-encryption tokens still decode for backward compatibility. No expiry.
 
 ## Endpoint inventory & controls
 
@@ -34,6 +36,7 @@ npm run security:audit   # npm audit --omit=dev
 | `POST /api/analyze/stream` | none | 15/min/IP | 20,000 chars (413) | SSE; falls back to rule-based |
 | `POST /api/summarize` | none | 10/min/IP | 20,000 chars (413) | offline model + extractive fallback |
 | `POST /api/translate` | none | 30/min/IP | chunked 480/sentence | cached |
+| `POST /api/share` | none | 60/min/IP (DB) | payload ≤ 20k input (400) | encrypts share token AES-256-GCM |
 | `POST /api/auth/login` | — | 10/min/IP (DB) | — | blocked if unverified |
 | `POST /api/auth/register` | — | 10/min/IP (DB) | — | 409 dup; sends Mailgun email |
 | `GET /api/auth/verify` | token | — | — | single-use HMAC token verification |
@@ -95,6 +98,10 @@ persisted to Turso, ensuring rate limits hold across multi-instance deployments.
 - [x] **Scoped OAuth + PKCE**: Gmail/Outlook connect uses a state nonce bound to
   the signed-in user (single-use, 10-min TTL in `user_settings`) and PKCE with
   minimal scopes (read/send only). Callbacks require a session.
+- [x] **Share links encrypted**: tokens are AES-256-GCM encrypted server-side
+  (`SHARE_SECRET`, falls back to `AUTH_SECRET`); raw input never appears in the
+  URL, and `sensitive` payloads are stripped before the client sees them. Link
+  creation is rate-limited (60/min/IP).
 - [x] **Inbound webhook verification**: the forward-to-TaskMind route
   (`POST /api/mailgun/inbound`) verifies the Mailgun HMAC signature within a
   15-minute window (replay protection), rate-limits per slug, and drops
@@ -117,8 +124,9 @@ persisted to Turso, ensuring rate limits hold across multi-instance deployments.
 3. **`underscore` (via `mammoth`)** — docx extraction only; parser DoS on
    untrusted `.docx`. Consider switching the docx extractor or pinning a patched
    underscore.
-4. **Share links do not expire** and are reversible — documented in `/privacy`;
-   password/expiry are future work (Feature 15).
+4. **Share links do not expire** — documented in `/privacy`; password/expiry
+   are future work (Feature 15). Tokens are now encrypted, so a link alone
+   (without the server secret) can't be decoded.
 
 ## Key rotation & least privilege
 

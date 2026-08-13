@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
+import dynamic from "next/dynamic";
 import {
   Monitor,
   Sun,
@@ -29,9 +30,38 @@ import { downloadJson, readJsonFile } from "@/lib/backup";
 import { toast } from "@/lib/toast";
 import { Button } from "@/components/ui/Button";
 import PageHeader from "@/components/ui/PageHeader";
-import { SubscriptionCard } from "./SubscriptionCard";
-import { RemindersDigestSettings } from "./RemindersDigestSettings";
-import { IntegrationsSettings } from "./IntegrationsSettings";
+
+// Below-the-fold Pro sections load on demand instead of inflating the initial
+// settings bundle (they pull in billing/integration client code).
+const IntegrationsSettings = dynamic(
+  () =>
+    import("./IntegrationsSettings").then((m) => m.IntegrationsSettings),
+  {
+    ssr: false,
+    loading: () => (
+      <div className="mt-6 h-24 animate-pulse border border-line bg-surface" />
+    ),
+  }
+);
+const RemindersDigestSettings = dynamic(
+  () =>
+    import("./RemindersDigestSettings").then((m) => m.RemindersDigestSettings),
+  {
+    ssr: false,
+    loading: () => (
+      <div className="mt-6 h-24 animate-pulse border border-line bg-surface" />
+    ),
+  }
+);
+const SubscriptionCard = dynamic(
+  () => import("./SubscriptionCard").then((m) => m.SubscriptionCard),
+  {
+    ssr: false,
+    loading: () => (
+      <div className="mt-6 h-24 animate-pulse border border-line bg-surface" />
+    ),
+  }
+);
 
 const SYNC_NOW_EVENT = "taskmind:sync-now";
 
@@ -435,8 +465,9 @@ export default function SettingsView() {
             Your analyses, templates, and board items live only in this
             browser&apos;s local storage. When you analyze text, that text is
             sent to the analysis provider to generate results, then stored
-            locally. Share links embed the result in the URL and are not
-            encrypted. Cleared data cannot be recovered.
+            locally. Share links are encrypted with a server-side key, so the
+            result can&apos;t be recovered from the URL alone. Cleared data
+            cannot be recovered.
           </p>
         </div>
       </section>

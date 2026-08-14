@@ -228,9 +228,26 @@ export function DashboardHome() {
             </p>
 
             <div className="mt-8 flex flex-col gap-4 sm:flex-row sm:items-center">
-          <Button size="lg" onClick={focusInput}>
-            <Play className="h-4 w-4" /> Start analyzing
-          </Button>
+   <Button 
+  size="lg" 
+  onClick={focusInput} 
+  className="tracing-border-btn relative overflow-hidden group transition-all duration-300 hover:shadow-lg"
+>
+  {/* Moving Light Lines */}
+  <span className="line-top" />
+  <span className="line-right" />
+  <span className="line-bottom" />
+  <span className="line-left" />
+
+  {/* Hover Overlay */}
+  <span className="absolute inset-0 bg-current opacity-0 transition-opacity duration-200 group-hover:opacity-10 pointer-events-none" />
+
+  {/* Button Content */}
+  <span className="relative z-10 flex items-center gap-2">
+    <Play className="h-4 w-4" /> 
+    Start analyzing
+  </span>
+</Button>
           <LinkButton variant="dark" size="lg" href="/actions">
             My actions board
           </LinkButton>

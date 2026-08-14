@@ -366,3 +366,65 @@ html.no-js .settle-section:not(.revealed) {
     scroll-behavior: auto;
   }
 }
+
+/* Tracing Border Lines */
+.tracing-border-btn .line-top {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 2px;
+  background: linear-gradient(to left, transparent, currentColor);
+  animation: traceTop 2s linear infinite;
+}
+
+.tracing-border-btn .line-right {
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 2px;
+  height: 100%;
+  background: linear-gradient(to top, transparent, currentColor);
+  animation: traceRight 2s linear infinite -1s;
+}
+
+.tracing-border-btn .line-bottom {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  width: 100%;
+  height: 2px;
+  background: linear-gradient(to right, transparent, currentColor);
+  animation: traceBottom 2s linear infinite;
+}
+
+.tracing-border-btn .line-left {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 2px;
+  height: 100%;
+  background: linear-gradient(to bottom, transparent, currentColor);
+  animation: traceLeft 2s linear infinite -1s;
+}
+
+/* Keyframes */
+@keyframes traceTop {
+  0% { transform: translateX(100%); }
+  100% { transform: translateX(-100%); }
+}
+
+@keyframes traceRight {
+  0% { transform: translateY(100%); }
+  100% { transform: translateY(-100%); }
+}
+
+@keyframes traceBottom {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(100%); }
+}
+
+@keyframes traceLeft {
+  0% { transform: translateY(-100%); }
+  100% { transform: translateY(100%); }
+}

@@ -12,10 +12,14 @@
  *   TokenRouter is tripped) plus the per-model route breaker.
  * - Every provider response routes through the single schema validation +
  *   repair engine in `validateAnalysis`.
- * - Quota exhaustion errors (402/out-of-credits) are propagated to callers so
- *   the UI can surface them instead of silently degrading to rule-based output.
+ * - Quota exhaustion errors are only classified from explicit billing/credit
+ *   signals (HTTP 402 or zero-balance codes). HTTP 429 is treated as a
+ *   temporary rate limit and goes through exponential backoff.
+ * - A route-level quota failure does not immediately exhaust the provider;
+ *   the next configured model route is attempted first.
  * - Telemetry/diagnostics never stores the input text (zero PII).
  */
+
 import type { AnalysisResult } from "@/app/actions/analyzeText";
 import { buildAnalysisMessages, PROMPT_VERSION } from "@/lib/prompts";
 import { analyzeRawResponse } from "@/lib/validateAnalysis";
@@ -25,24 +29,32 @@ export type ProviderName = "tokenrouter" | "openrouter";
 
 const DEFAULT_BASE_URL = "https://api.tokenrouter.com/v1";
 const OPENROUTER_BASE_URL = "https://openrouter.ai/api/v1";
+
 const OPENROUTER_DEFAULT_MODELS = [
-  "anthropic/claude-3.5-sonnet",
-  "meta-llama/llama-3.3-70b-instruct",
+  "openai/gpt-4o-mini",
+  "google/gemini-flash-1.5",
 ];
-const MAX_INPUT_CHARS = Number(process.env.TOKENROUTER_MAX_INPUT_CHARS ?? 20_000);
+
+const MAX_INPUT_CHARS = Number(
+  process.env.TOKENROUTER_MAX_INPUT_CHARS ?? 20_000
+);
+
 const RETRY_BASE_MS = 500;
 const RETRY_JITTER_MS = 200;
 
 export type AIUsage = {
   provider: ProviderName;
   model: string | undefined;
+
   /** 1-based attempt index within the winning provider. */
   attempt: number;
-  /** Attempts consumed within the winning provider (not cumulative across
-   *  the provider cascade — a fallback success may report 1/1). */
+
+  /** Attempts consumed within the winning provider. */
   attempts: number;
+
   latencyMs: number;
   repaired: boolean;
+
   tokenUsage?: {
     promptTokens?: number;
     completionTokens?: number;
@@ -67,14 +79,30 @@ interface ChatMessage {
 
 interface ChatResponse {
   choices: Array<{ message?: { content?: string } }>;
-  usage?: { prompt_tokens?: number; completion_tokens?: number; total_tokens?: number };
-  error?: { message?: string; code?: string };
+  usage?: {
+    prompt_tokens?: number;
+    completion_tokens?: number;
+    total_tokens?: number;
+  };
+  error?: {
+    message?: string;
+    code?: string;
+    status?: number;
+  };
 }
 
 interface ChatStreamChunk {
   choices?: Array<{ delta?: { content?: string } }>;
-  usage?: { prompt_tokens?: number; completion_tokens?: number; total_tokens?: number };
-  error?: { message?: string; code?: string };
+  usage?: {
+    prompt_tokens?: number;
+    completion_tokens?: number;
+    total_tokens?: number;
+  };
+  error?: {
+    message?: string;
+    code?: string;
+    status?: number;
+  };
 }
 
 /* =========================================================
@@ -82,9 +110,15 @@ interface ChatStreamChunk {
    ========================================================= */
 
 function isTransient(error: unknown): boolean {
-  const e = error as Error & { status?: number; code?: string };
+  const e = error as Error & {
+    status?: number;
+    code?: string;
+  };
+
   if (!e) return false;
+
   const message = e.message?.toLowerCase() ?? "";
+
   return (
     e.name === "AbortError" ||
     e.code === "aborted" ||
@@ -98,22 +132,49 @@ function isTransient(error: unknown): boolean {
 }
 
 function isRetryableStatus(error: unknown): boolean {
-  const e = error as Error & { status?: number };
+  const e = error as Error & {
+    status?: number;
+  };
+
   return e.status === 429 || (e.status !== undefined && e.status >= 500);
 }
 
+/**
+ * Billing/credit exhaustion only.
+ *
+ * IMPORTANT:
+ * - HTTP 429 is a temporary rate limit and MUST NOT be classified as quota.
+ * - Broad message matching such as "quota", "credit", "balance",
+ *   "insufficient", or "billing" is intentionally avoided because providers
+ *   commonly use those words for temporary throttling/routing conditions.
+ */
 function isQuotaError(error: unknown): boolean {
-  const e = error as Error & { status?: number; code?: string };
-  const message = `${e.message ?? ""} ${e.code ?? ""}`.toLowerCase();
+  const e = error as Error & {
+    status?: number;
+    code?: string;
+  };
+
+  const code = e.code?.trim().toLowerCase() ?? "";
+  const message = e.message?.trim().toLowerCase() ?? "";
+
+  // 429 is rate limiting, not billing quota exhaustion.
+  if (e.status === 429) return false;
+
+  // HTTP 402 is the explicit payment/quota status.
+  if (e.status === 402) return true;
+
+  const zeroBalanceCodes = new Set([
+    "insufficient_user_quota",
+    "insufficient_credits",
+    "insufficient_balance",
+    "zero_balance",
+    "out_of_credits",
+    "out of credits",
+  ]);
+
   return (
-    e.status === 402 ||
-    message.includes("credit") ||
-    message.includes("quota") ||
-    message.includes("insufficient") ||
-    message.includes("billing") ||
-    message.includes("balance") ||
-    e.code === "insufficient_user_quota" ||
-    e.code === "insufficient_credits"
+    zeroBalanceCodes.has(code) ||
+    message.includes("out of credits")
   );
 }
 
@@ -123,24 +184,40 @@ function isQuotaError(error: unknown): boolean {
  */
 function wrapFailure(message: string, cause: unknown): AnalysisError {
   const err = createError(message, "UNKNOWN_ERROR", true);
-  const c = cause as Error & { status?: number; code?: string };
+
+  const c = cause as Error & {
+    status?: number;
+    code?: string;
+  };
+
   if (typeof c?.status === "number") {
     (err as Error & { status?: number }).status = c.status;
   }
+
   if (typeof c?.code === "string") {
-    (err as Error & { status?: number; code?: string }).code = c.code;
+    (err as Error & { code?: string }).code = c.code;
   }
+
   return err;
 }
 
 /** Short, PII-free classification of a provider error for diagnostics. */
 function errorClass(error: unknown): string {
   if (isQuotaError(error)) return "quota";
-  const e = error as Error & { status?: number };
+
+  const e = error as Error & {
+    status?: number;
+  };
+
   if (isTransient(error)) return "transient";
   if (e.status === 429) return "rate-limit";
-  if (typeof e.status === "number" && e.status >= 500) return `http-${e.status}`;
+
+  if (typeof e.status === "number" && e.status >= 500) {
+    return `http-${e.status}`;
+  }
+
   if (error instanceof AnalysisError) return "schema";
+
   return "other";
 }
 
@@ -151,23 +228,33 @@ function errorClass(error: unknown): string {
 class CircuitBreaker {
   private readonly threshold: number;
   private readonly cooldownMs: number;
+
   private failures = new Map<string, number>();
   private openedAt = new Map<string, number>();
 
-  constructor(opts: { threshold?: number; cooldownMs?: number } = {}) {
+  constructor(
+    opts: {
+      threshold?: number;
+      cooldownMs?: number;
+    } = {}
+  ) {
     this.threshold = opts.threshold ?? 3;
     this.cooldownMs = opts.cooldownMs ?? 30_000;
   }
 
   isOpen(key: string): boolean {
     const opened = this.openedAt.get(key);
+
     if (!opened) return false;
+
     if (Date.now() - opened > this.cooldownMs) {
       // Half-open: allow one probe.
       this.openedAt.delete(key);
       this.failures.delete(key);
+
       return false;
     }
+
     return true;
   }
 
@@ -178,17 +265,36 @@ class CircuitBreaker {
 
   recordFailure(key: string) {
     const count = (this.failures.get(key) ?? 0) + 1;
+
     this.failures.set(key, count);
+
     if (count >= this.threshold) {
       this.openedAt.set(key, Date.now());
     }
   }
 
-  snapshot(): Record<string, { failures: number; open: boolean }> {
-    const out: Record<string, { failures: number; open: boolean }> = {};
-    for (const [key, count] of this.failures) {
-      out[key] = { failures: count, open: this.isOpen(key) };
+  snapshot(): Record<
+    string,
+    {
+      failures: number;
+      open: boolean;
     }
+  > {
+    const out: Record<
+      string,
+      {
+        failures: number;
+        open: boolean;
+      }
+    > = {};
+
+    for (const [key, count] of this.failures) {
+      out[key] = {
+        failures: count,
+        open: this.isOpen(key),
+      };
+    }
+
     return out;
   }
 }
@@ -251,9 +357,14 @@ abstract class AIProviderBase {
   }
 
   /** Which model/route to try for a 1-based attempt index. */
-  routeFor(attempt: number, models: string[] = this.models): string | undefined {
-    if (models.length === 0) return undefined; // auto-route
+  routeFor(
+    attempt: number,
+    models: string[] = this.models
+  ): string | undefined {
+    if (models.length === 0) return undefined;
+
     if (attempt <= 1) return models[0];
+
     return models[Math.min(attempt - 1, models.length - 1)];
   }
 
@@ -269,79 +380,164 @@ abstract class AIProviderBase {
       temperature: this.temperature,
       max_tokens: maxTokens,
     };
-    if (json) body.response_format = { type: "json_object" };
-    if (model) body.model = model;
-    if (stream) body.stream = true;
+
+    if (json) {
+      body.response_format = {
+        type: "json_object",
+      };
+    }
+
+    if (model) {
+      body.model = model;
+    }
+
+    if (stream) {
+      body.stream = true;
+    }
+
     return body;
   }
 
-  private async fetchWithTimeout(url: string, init: RequestInit): Promise<Response> {
+  private async fetchWithTimeout(
+    url: string,
+    init: RequestInit
+  ): Promise<Response> {
     const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), this.timeoutMs);
+
+    const timer = setTimeout(
+      () => controller.abort(),
+      this.timeoutMs
+    );
+
     try {
-      return await fetch(url, { ...init, signal: controller.signal });
+      return await fetch(url, {
+        ...init,
+        signal: controller.signal,
+      });
     } catch (error: unknown) {
-      if (error instanceof Error && error.name === "AbortError") {
+      if (
+        error instanceof Error &&
+        error.name === "AbortError"
+      ) {
         const err = new Error(
-          `Request timed out after ${Math.round(this.timeoutMs / 1000)}s`
+          `Request timed out after ${Math.round(
+            this.timeoutMs / 1000
+          )}s`
         );
+
         err.name = "AbortError";
+
         throw err;
       }
+
       throw error;
     } finally {
       clearTimeout(timer);
     }
   }
 
-  private async handleErrorResponse(response: Response): Promise<never> {
+  private async handleErrorResponse(
+    response: Response
+  ): Promise<never> {
     const data = await response.json().catch(() => ({}));
+
     const message =
-      data?.error?.message || data?.message || `HTTP ${response.status}`;
+      data?.error?.message ||
+      data?.message ||
+      `HTTP ${response.status}`;
+
     const code = data?.error?.code;
+
     const error = new Error(message);
-    (error as Error & { status?: number; code?: string }).status = response.status;
-    (error as Error & { status?: number; code?: string }).code = code;
+
+    (
+      error as Error & {
+        status?: number;
+        code?: string;
+      }
+    ).status = response.status;
+
+    (
+      error as Error & {
+        status?: number;
+        code?: string;
+      }
+    ).code = code;
+
     throw error;
   }
 
-  /** Waits with exponential backoff + jitter (no-op for non-transient). */
-  async backoff(attempt: number, error: unknown): Promise<void> {
-    if (!isTransient(error) && !isRetryableStatus(error)) return;
-    const base = RETRY_BASE_MS * 2 ** (attempt - 1);
-    const jitter = Math.round(Math.random() * RETRY_JITTER_MS);
-    await new Promise((resolve) => setTimeout(resolve, base + jitter));
+  /**
+   * Waits with exponential backoff + jitter for transient errors,
+   * HTTP 429 rate limits, and HTTP 5xx statuses.
+   *
+   * Quota/billing errors intentionally do not enter this path.
+   */
+  async backoff(
+    attempt: number,
+    error: unknown
+  ): Promise<void> {
+    if (
+      !isTransient(error) &&
+      !isRetryableStatus(error)
+    ) {
+      return;
+    }
+
+    const base =
+      RETRY_BASE_MS * 2 ** (attempt - 1);
+
+    const jitter = Math.round(
+      Math.random() * RETRY_JITTER_MS
+    );
+
+    await new Promise((resolve) =>
+      setTimeout(resolve, base + jitter)
+    );
   }
 
   async requestChat(
     messages: ChatMessage[],
     model: string | undefined
-  ): Promise<{ content: string; tokenUsage?: AIUsage["tokenUsage"] }> {
+  ): Promise<{
+    content: string;
+    tokenUsage?: AIUsage["tokenUsage"];
+  }> {
     const response = await this.fetchWithTimeout(
       `${this.baseUrl}/chat/completions`,
       {
         method: "POST",
         headers: this.headers(false),
-        body: JSON.stringify(this.buildBody(messages, model, false)),
+        body: JSON.stringify(
+          this.buildBody(messages, model, false)
+        ),
       }
     );
+
     if (!response.ok) {
       await this.handleErrorResponse(response);
     }
 
-    const data = (await response.json()) as ChatResponse;
+    const data =
+      (await response.json()) as ChatResponse;
 
     if (!data.choices?.[0]?.message?.content) {
-      throw new Error("Empty response from AI provider");
+      throw new Error(
+        "Empty response from AI provider"
+      );
     }
 
     return {
-      content: data.choices[0].message.content,
+      content:
+        data.choices[0].message.content,
       tokenUsage: data.usage
         ? {
-            promptTokens: data.usage.prompt_tokens,
-            completionTokens: data.usage.completion_tokens,
-            totalTokens: data.usage.total_tokens,
+            promptTokens:
+              data.usage.prompt_tokens,
+            completionTokens:
+              data.usage.completion_tokens,
+            totalTokens:
+              data.usage.total_tokens,
           }
         : undefined,
     };
@@ -353,13 +549,24 @@ abstract class AIProviderBase {
     onDelta: (accumulated: string) => void,
     json = true,
     maxTokens = this.maxTokens
-  ): Promise<{ content: string; tokenUsage?: AIUsage["tokenUsage"] }> {
+  ): Promise<{
+    content: string;
+    tokenUsage?: AIUsage["tokenUsage"];
+  }> {
     const response = await this.fetchWithTimeout(
       `${this.baseUrl}/chat/completions`,
       {
         method: "POST",
         headers: this.headers(true),
-        body: JSON.stringify(this.buildBody(messages, model, true, json, maxTokens)),
+        body: JSON.stringify(
+          this.buildBody(
+            messages,
+            model,
+            true,
+            json,
+            maxTokens
+          )
+        ),
       }
     );
 
@@ -368,53 +575,114 @@ abstract class AIProviderBase {
     }
 
     if (!response.body) {
-      throw new Error("Streaming response has no body");
+      throw new Error(
+        "Streaming response has no body"
+      );
     }
 
-    const reader = response.body.getReader();
+    const reader =
+      response.body.getReader();
+
     const decoder = new TextDecoder();
+
     let buffer = "";
     let accumulated = "";
     let done = false;
-    let tokenUsage: AIUsage["tokenUsage"];
+
+    let tokenUsage:
+      AIUsage["tokenUsage"];
 
     while (!done) {
-      const { done: finished, value } = await reader.read();
-      done = finished;
-      buffer += decoder.decode(value ?? new Uint8Array(), { stream: !finished });
+      const {
+        done: finished,
+        value,
+      } = await reader.read();
 
-      const lines = buffer.split("\n");
-      buffer = lines.pop() ?? "";
+      done = finished;
+
+      buffer += decoder.decode(
+        value ?? new Uint8Array(),
+        {
+          stream: !finished,
+        }
+      );
+
+      const lines =
+        buffer.split("\n");
+
+      buffer =
+        lines.pop() ?? "";
 
       for (const line of lines) {
         const trimmed = line.trim();
-        if (!trimmed.startsWith("data:")) continue;
-        const data = trimmed.slice(5).trim();
+
+        if (
+          !trimmed.startsWith("data:")
+        ) {
+          continue;
+        }
+
+        const data =
+          trimmed
+            .slice(5)
+            .trim();
+
         if (data === "[DONE]") {
           done = true;
           break;
         }
 
-        let chunk: ChatStreamChunk;
+        let chunk:
+          ChatStreamChunk;
+
         try {
-          chunk = JSON.parse(data);
+          chunk =
+            JSON.parse(
+              data
+            );
         } catch {
           continue;
         }
 
         if (chunk.error) {
-          throw new Error(chunk.error.message || "Streaming error from AI provider");
+          const streamError =
+            new Error(
+              chunk.error.message ||
+                "Streaming error from AI provider"
+            );
+
+          const streamErrorWithMeta =
+            streamError as Error & {
+              status?: number;
+              code?: string;
+            };
+
+          streamErrorWithMeta.status =
+            chunk.error.status;
+
+          streamErrorWithMeta.code =
+            chunk.error.code;
+
+          throw streamError;
         }
 
         if (chunk.usage) {
           tokenUsage = {
-            promptTokens: chunk.usage.prompt_tokens,
-            completionTokens: chunk.usage.completion_tokens,
-            totalTokens: chunk.usage.total_tokens,
+            promptTokens:
+              chunk.usage
+                .prompt_tokens,
+            completionTokens:
+              chunk.usage
+                .completion_tokens,
+            totalTokens:
+              chunk.usage.total_tokens,
           };
         }
 
-        const delta = chunk.choices?.[0]?.delta?.content;
+        const delta =
+          chunk.choices?.[0]?.delta
+            ?.content;
+
         if (delta) {
           accumulated += delta;
           onDelta(accumulated);
@@ -423,10 +691,15 @@ abstract class AIProviderBase {
     }
 
     if (!accumulated.trim()) {
-      throw new Error("Empty streaming response from AI provider");
+      throw new Error(
+        "Empty streaming response from AI provider"
+      );
     }
 
-    return { content: accumulated, tokenUsage };
+    return {
+      content: accumulated,
+      tokenUsage,
+    };
   }
 }
 
@@ -434,31 +707,74 @@ abstract class AIProviderBase {
    TokenRouter — primary provider
    ========================================================= */
 
-class TokenRouterProvider extends AIProviderBase {
+class TokenRouterProvider
+  extends AIProviderBase
+{
   constructor() {
     const models = [
       process.env.TOKENROUTER_MODEL?.trim(),
-      ...(process.env.TOKENROUTER_MODEL_FALLBACKS ?? "")
+      ...(process.env.TOKENROUTER_MODEL_FALLBACKS ??
+        "")
         .split(",")
         .map((m) => m.trim())
         .filter(Boolean),
-    ].filter((m): m is string => Boolean(m));
+    ].filter(
+      (m): m is string =>
+        Boolean(m)
+    );
+
     const deepModels = [
-      process.env.TOKENROUTER_MODEL_PRO?.trim(),
+      process.env
+        .TOKENROUTER_MODEL_PRO
+        ?.trim(),
       ...models,
-    ].filter((m): m is string => Boolean(m));
+    ].filter(
+      (m): m is string =>
+        Boolean(m)
+    );
+
     super({
       name: "tokenrouter",
-      apiKey: (process.env.TOKENROUTER_API_KEY ?? "").trim(),
+
+      apiKey: (
+        process.env
+          .TOKENROUTER_API_KEY ??
+        ""
+      ).trim(),
+
       baseUrl: (
-        process.env.TOKENROUTER_BASE_URL?.trim() || DEFAULT_BASE_URL
+        process.env
+          .TOKENROUTER_BASE_URL
+          ?.trim() ||
+        DEFAULT_BASE_URL
       ).replace(/\/+$/, ""),
+
       models,
       deepModels,
-      temperature: Number(process.env.TOKENROUTER_TEMPERATURE ?? 0.1),
-      maxTokens: Number(process.env.TOKENROUTER_MAX_TOKENS ?? 900),
-      timeoutMs: Number(process.env.TOKENROUTER_TIMEOUT_MS ?? 60_000),
-      maxAttempts: Number(process.env.TOKENROUTER_MAX_ATTEMPTS ?? 3),
+
+      temperature: Number(
+        process.env
+          .TOKENROUTER_TEMPERATURE ??
+          0.1
+      ),
+
+      maxTokens: Number(
+        process.env
+          .TOKENROUTER_MAX_TOKENS ??
+          900
+      ),
+
+      timeoutMs: Number(
+        process.env
+          .TOKENROUTER_TIMEOUT_MS ??
+          60_000
+      ),
+
+      maxAttempts: Number(
+        process.env
+          .TOKENROUTER_MAX_ATTEMPTS ??
+          3
+      ),
     });
   }
 }
@@ -467,43 +783,98 @@ class TokenRouterProvider extends AIProviderBase {
    OpenRouter — secondary fallback provider
    ========================================================= */
 
-class OpenRouterProvider extends AIProviderBase {
+class OpenRouterProvider
+  extends AIProviderBase
+{
   constructor() {
     const configured = [
-      process.env.OPENROUTER_MODEL?.trim(),
-      ...(process.env.OPENROUTER_MODEL_FALLBACKS ?? "")
+      process.env
+        .OPENROUTER_MODEL
+        ?.trim(),
+
+      ...(process.env
+        .OPENROUTER_MODEL_FALLBACKS ??
+        "")
         .split(",")
         .map((m) => m.trim())
         .filter(Boolean),
-    ].filter((m): m is string => Boolean(m));
-    // OpenRouter requires an explicit model id (no auto-routing like
-    // TokenRouter), so fall back to a curated default list when unset.
-    const models = configured.length > 0 ? configured : [...OPENROUTER_DEFAULT_MODELS];
+    ].filter(
+      (m): m is string =>
+        Boolean(m)
+    );
+
+    /**
+     * OpenRouter requires an explicit model id.
+     * Use budget-friendly paid defaults instead of
+     * relying on openrouter/free as the primary fallback.
+     */
+    const models =
+      configured.length > 0
+        ? configured
+        : [...OPENROUTER_DEFAULT_MODELS];
+
     super({
       name: "openrouter",
-      apiKey: (process.env.OPENROUTER_API_KEY ?? "").trim(),
+
+      apiKey: (
+        process.env
+          .OPENROUTER_API_KEY ??
+        ""
+      ).trim(),
+
       baseUrl: (
-        process.env.OPENROUTER_BASE_URL?.trim() || OPENROUTER_BASE_URL
+        process.env
+          .OPENROUTER_BASE_URL
+          ?.trim() ||
+        OPENROUTER_BASE_URL
       ).replace(/\/+$/, ""),
+
       models,
       deepModels: models,
-      temperature: Number(process.env.OPENROUTER_TEMPERATURE ?? 0.1),
-      maxTokens: Number(process.env.OPENROUTER_MAX_TOKENS ?? 900),
-      timeoutMs: Number(process.env.OPENROUTER_TIMEOUT_MS ?? 60_000),
-      maxAttempts: Number(process.env.OPENROUTER_MAX_ATTEMPTS ?? 2),
+
+      temperature: Number(
+        process.env
+          .OPENROUTER_TEMPERATURE ??
+          0.1
+      ),
+
+      maxTokens: Number(
+        process.env
+          .OPENROUTER_MAX_TOKENS ??
+          900
+      ),
+
+      timeoutMs: Number(
+        process.env
+          .OPENROUTER_TIMEOUT_MS ??
+          60_000
+      ),
+
+      maxAttempts: Number(
+        process.env
+          .OPENROUTER_MAX_ATTEMPTS ??
+          2
+      ),
     });
   }
 
-  protected extraHeaders(): Record<string, string> {
+  protected extraHeaders(): Record<
+    string,
+    string
+  > {
     return {
-      "HTTP-Referer": process.env.NEXT_PUBLIC_APP_URL || "https://taskmind.app",
+      "HTTP-Referer":
+        process.env
+          .NEXT_PUBLIC_APP_URL ||
+        "https://taskmind.app",
+
       "X-Title": "TaskMind",
     };
   }
 }
 
 /* =========================================================
-   Provider telemetry (zero PII — no input text is stored)
+   Provider telemetry (zero PII — no input text)
    ========================================================= */
 
 export type ProviderErrorStats = {
@@ -518,72 +889,177 @@ export type ProviderErrorStats = {
    ========================================================= */
 
 export class AIClient {
-  private readonly primary: TokenRouterProvider;
-  private readonly secondary: OpenRouterProvider;
-  private readonly breaker = new CircuitBreaker();
-  private readonly providerBreaker = new CircuitBreaker();
-  private lastProviderUsed: ProviderName | null = null;
-  private fallbackOccurred = false;
-  private readonly providerErrors: Record<ProviderName, ProviderErrorStats> = {
-    tokenrouter: { count: 0 },
-    openrouter: { count: 0 },
+  private readonly primary:
+    TokenRouterProvider;
+
+  private readonly secondary:
+    OpenRouterProvider;
+
+  /**
+   * Per-model route breaker.
+   *
+   * IMPORTANT:
+   * A route breaker is intentionally separate from the
+   * provider breaker so one bad model does not immediately
+   * disable all models belonging to the provider.
+   */
+  private readonly breaker =
+    new CircuitBreaker();
+
+  /**
+   * Provider-level breaker.
+   *
+   * This is only updated once an entire provider attempt
+   * path has failed.
+   */
+  private readonly providerBreaker =
+    new CircuitBreaker();
+
+  private lastProviderUsed:
+    ProviderName | null = null;
+
+  private fallbackOccurred =
+    false;
+
+  private readonly providerErrors: Record<
+    ProviderName,
+    ProviderErrorStats
+  > = {
+    tokenrouter: {
+      count: 0,
+    },
+    openrouter: {
+      count: 0,
+    },
   };
 
   constructor() {
-    this.primary = new TokenRouterProvider();
-    this.secondary = new OpenRouterProvider();
+    this.primary =
+      new TokenRouterProvider();
+
+    this.secondary =
+      new OpenRouterProvider();
   }
 
   get configured(): boolean {
-    return this.primary.configured || this.secondary.configured;
+    return (
+      this.primary.configured ||
+      this.secondary.configured
+    );
   }
 
-  private get providers(): AIProviderBase[] {
-    return [this.primary, this.secondary].filter((p) => p.configured);
+  private get providers():
+    AIProviderBase[] {
+    return [
+      this.primary,
+      this.secondary,
+    ].filter(
+      (p) => p.configured
+    );
   }
 
-  private routeKey(provider: ProviderName, model: string | undefined): string {
+  private routeKey(
+    provider: ProviderName,
+    model: string | undefined
+  ): string {
     return `${provider}:${model ?? "auto"}`;
   }
 
   getDiagnostics() {
     return {
       provider: "tokenrouter",
+
       configured: this.configured,
-      baseUrl: this.primary.baseUrl,
-      model: this.primary.models[0] ?? null,
-      fallbackModels: this.primary.models.slice(1),
-      autoRoute: this.primary.models.length === 0,
-      maxAttempts: this.primary.maxAttempts,
-      timeoutMs: this.primary.timeoutMs,
-      promptVersion: PROMPT_VERSION,
-      circuitBreaker: this.breaker.snapshot(),
-      // Secondary provider + telemetry.
+
+      baseUrl:
+        this.primary.baseUrl,
+
+      model:
+        this.primary.models[0] ??
+        null,
+
+      fallbackModels:
+        this.primary.models.slice(1),
+
+      autoRoute:
+        this.primary.models.length === 0,
+
+      maxAttempts:
+        this.primary.maxAttempts,
+
+      timeoutMs:
+        this.primary.timeoutMs,
+
+      promptVersion:
+        PROMPT_VERSION,
+
+      circuitBreaker:
+        this.breaker.snapshot(),
+
       providers: {
         tokenrouter: {
           name: "tokenrouter",
-          configured: this.primary.configured,
-          baseUrl: this.primary.baseUrl,
-          model: this.primary.models[0] ?? null,
-          fallbackModels: this.primary.models.slice(1),
-          autoRoute: this.primary.models.length === 0,
-          maxAttempts: this.primary.maxAttempts,
-          timeoutMs: this.primary.timeoutMs,
+
+          configured:
+            this.primary.configured,
+
+          baseUrl:
+            this.primary.baseUrl,
+
+          model:
+            this.primary.models[0] ??
+            null,
+
+          fallbackModels:
+            this.primary.models.slice(1),
+
+          autoRoute:
+            this.primary.models
+              .length === 0,
+
+          maxAttempts:
+            this.primary.maxAttempts,
+
+          timeoutMs:
+            this.primary.timeoutMs,
         },
+
         openrouter: {
           name: "openrouter",
-          configured: this.secondary.configured,
-          baseUrl: this.secondary.baseUrl,
-          model: this.secondary.models[0] ?? null,
-          fallbackModels: this.secondary.models.slice(1),
-          maxAttempts: this.secondary.maxAttempts,
-          timeoutMs: this.secondary.timeoutMs,
+
+          configured:
+            this.secondary.configured,
+
+          baseUrl:
+            this.secondary.baseUrl,
+
+          model:
+            this.secondary.models[0] ??
+            null,
+
+          fallbackModels:
+            this.secondary.models
+              .slice(1),
+
+          maxAttempts:
+            this.secondary.maxAttempts,
+
+          timeoutMs:
+            this.secondary.timeoutMs,
         },
       },
-      providerCircuitBreaker: this.providerBreaker.snapshot(),
-      lastProviderUsed: this.lastProviderUsed,
-      fallbackOccurred: this.fallbackOccurred,
-      providerErrors: this.providerErrors,
+
+      providerCircuitBreaker:
+        this.providerBreaker.snapshot(),
+
+      lastProviderUsed:
+        this.lastProviderUsed,
+
+      fallbackOccurred:
+        this.fallbackOccurred,
+
+      providerErrors:
+        this.providerErrors,
     };
   }
 
@@ -592,22 +1068,67 @@ export class AIClient {
     error: unknown,
     forceClass?: string
   ) {
-    const entry = this.providerErrors[provider];
+    const entry =
+      this.providerErrors[
+        provider
+      ];
+
     entry.count += 1;
-    const e = error as Error & { status?: number; code?: string };
-    if (typeof e?.status === "number") entry.lastStatus = e.status;
-    if (typeof e?.code === "string") entry.lastCode = e.code;
-    entry.lastClass = forceClass ?? errorClass(error);
+
+    const e = error as Error & {
+      status?: number;
+      code?: string;
+    };
+
+    if (
+      typeof e?.status ===
+      "number"
+    ) {
+      entry.lastStatus =
+        e.status;
+    }
+
+    if (
+      typeof e?.code ===
+      "string"
+    ) {
+      entry.lastCode =
+        e.code;
+    }
+
+    entry.lastClass =
+      forceClass ??
+      errorClass(error);
   }
 
-  private normalizeInput(input: string): string {
-    const cleaned = input.replace(/\n+/g, " ").replace(/\s{2,}/g, " ").trim();
-    return cleaned.length > MAX_INPUT_CHARS
-      ? cleaned.slice(0, MAX_INPUT_CHARS)
+  private normalizeInput(
+    input: string
+  ): string {
+    const cleaned =
+      input
+        .replace(
+          /\n+/g,
+          " "
+        )
+        .replace(
+          /\s{2,}/g,
+          " "
+        )
+        .trim();
+
+    return cleaned.length >
+      MAX_INPUT_CHARS
+      ? cleaned.slice(
+          0,
+          MAX_INPUT_CHARS
+        )
       : cleaned;
   }
 
-  private guardAndBuild(input: string, deep = false): ChatMessage[] {
+  private guardAndBuild(
+    input: string,
+    deep = false
+  ): ChatMessage[] {
     if (!this.configured) {
       throw createError(
         "No AI provider configured (set TOKENROUTER_API_KEY or OPENROUTER_API_KEY)",
@@ -615,67 +1136,163 @@ export class AIClient {
         true
       );
     }
-    const normalized = this.normalizeInput(input);
-    if (normalized.length < 10) {
+
+    const normalized =
+      this.normalizeInput(
+        input
+      );
+
+    if (
+      normalized.length < 10
+    ) {
       throw createError(
         "Text too short - please provide more content",
         "INPUT_TOO_SHORT"
       );
     }
-    return buildAnalysisMessages(normalized, deep);
+
+    return buildAnalysisMessages(
+      normalized,
+      deep
+    );
   }
 
   /**
-   * Non-streaming structured analysis. Tries each configured provider in
-   * cascade (TokenRouter → OpenRouter) with bounded per-provider attempts;
-   * on total exhaustion throws so callers decide between rules-fallback or
-   * surfacing the error (quota errors always propagate).
+   * Non-streaming structured analysis.
+   *
+   * Cascade:
+   * TokenRouter model routes -> OpenRouter model routes.
+   *
+   * Route-level quota errors move to the next model for the
+   * same provider. They are not immediately turned into
+   * ALL_KEYS_EXHAUSTED.
    */
-  async analyzeStructured(input: string): Promise<AIClientResult> {
-    const messages = this.guardAndBuild(input);
-    const started = Date.now();
-    const available = this.providers;
-    let firstError: unknown;
-    let attempted = 0;
-    let quotaFailures = 0;
+  async analyzeStructured(
+    input: string
+  ): Promise<AIClientResult> {
+    const messages =
+      this.guardAndBuild(
+        input
+      );
 
-    for (const provider of available) {
-      if (this.providerBreaker.isOpen(provider.name)) {
-        const skipError = createError(
-          `Provider "${provider.name}" is temporarily unavailable`,
-          "NETWORK_ERROR",
-          true
+    const started =
+      Date.now();
+
+    const available =
+      this.providers;
+
+    let firstError:
+      | unknown;
+
+    let attempted =
+      0;
+
+    let quotaFailures =
+      0;
+
+    for (
+      const provider of available
+    ) {
+      if (
+        this.providerBreaker.isOpen(
+          provider.name
+        )
+      ) {
+        const skipError =
+          createError(
+            `Provider "${provider.name}" is temporarily unavailable`,
+            "NETWORK_ERROR",
+            true
+          );
+
+        this.recordProviderError(
+          provider.name,
+          skipError,
+          "breaker-open"
         );
-        this.recordProviderError(provider.name, skipError, "breaker-open");
-        if (!firstError) firstError = skipError;
+
+        if (!firstError) {
+          firstError =
+            skipError;
+        }
+
         continue;
       }
 
       attempted += 1;
+
       try {
-        const { result, usage } = await this.runStructuredAttempts(
-          provider,
-          messages,
-          started
-        );
-        this.providerBreaker.recordSuccess(provider.name);
-        this.lastProviderUsed = provider.name;
+        const {
+          result,
+          usage,
+        } =
+          await this.runStructuredAttempts(
+            provider,
+            messages,
+            started
+          );
+
+        this.providerBreaker
+          .recordSuccess(
+            provider.name
+          );
+
+        this.lastProviderUsed =
+          provider.name;
+
         this.fallbackOccurred =
-          this.fallbackOccurred || provider.name !== "tokenrouter";
-        result.aiProviderUsed = provider.name;
-        return { result, usage };
-      } catch (error: unknown) {
-        this.providerBreaker.recordFailure(provider.name);
-        this.recordProviderError(provider.name, error);
-        if (!firstError) firstError = error;
-        if (isQuotaError(error)) quotaFailures += 1;
+          this.fallbackOccurred ||
+          provider.name !==
+            "tokenrouter";
+
+        result.aiProviderUsed =
+          provider.name;
+
+        return {
+          result,
+          usage,
+        };
+      } catch (
+        error: unknown
+      ) {
+        /**
+         * Provider breaker is recorded only after the
+         * provider's model-route strategy has been exhausted.
+         * A single model quota failure cannot instantly trip
+         * the provider breaker.
+         */
+        this.providerBreaker
+          .recordFailure(
+            provider.name
+          );
+
+        this.recordProviderError(
+          provider.name,
+          error
+        );
+
+        if (!firstError) {
+          firstError =
+            error;
+        }
+
+        if (
+          isQuotaError(error)
+        ) {
+          quotaFailures += 1;
+        }
       }
     }
 
-    // Only report quota exhaustion when every provider that was actually
-    // attempted hit a quota error (per the cascade contract). Otherwise the
-    // first provider's error is the more honest story.
-    if (quotaFailures > 0 && quotaFailures === attempted) {
+    /**
+     * Only report quota exhaustion when every configured
+     * provider that was actually attempted ended with an
+     * explicit quota/credit exhaustion condition.
+     */
+    if (
+      quotaFailures > 0 &&
+      quotaFailures === attempted
+    ) {
       throw createError(
         "AI providers quota exhausted. Add credits or switch provider.",
         "ALL_KEYS_EXHAUSTED",
@@ -683,165 +1300,444 @@ export class AIClient {
       );
     }
 
-    if (firstError instanceof AnalysisError) throw firstError;
+    if (
+      firstError instanceof
+      AnalysisError
+    ) {
+      throw firstError;
+    }
+
     throw createError(
-      `AI analysis failed: ${getErrorMessage(firstError)}`,
+      `AI analysis failed: ${getErrorMessage(
+        firstError
+      )}`,
       "UNKNOWN_ERROR",
       true
     );
   }
 
-  /** Bounded per-provider attempts across model routes. */
+  /**
+   * Bounded per-provider attempts across model routes.
+   *
+   * Important behavior:
+   *
+   * 1. Quota errors:
+   *    Record failure for only the current route and move to
+   *    the next available model.
+   *
+   * 2. 429 rate limits:
+   *    Never classify as billing quota. Stay on the retry path
+   *    with exponential backoff.
+   *
+   * 3. Schema/JSON failures:
+   *    Move to the next route so analyzeRawResponse remains
+   *    the single validation/repair path.
+   *
+   * 4. Non-retryable errors:
+   *    Stop the current provider and let the outer cascade
+   *    try the next provider.
+   */
   private async runStructuredAttempts(
     provider: AIProviderBase,
     messages: ChatMessage[],
     started: number
   ): Promise<AIClientResult> {
-    let lastError: unknown;
+    let lastError:
+      | unknown;
 
-    for (let attempt = 1; attempt <= provider.maxAttempts; attempt++) {
-      const model = provider.routeFor(attempt);
-      const route = this.routeKey(provider.name, model);
+    /**
+     * Treat configured models as distinct routes.
+     *
+     * Deduping prevents accidental repeat attempts against
+     * the exact same model when it appears multiple times in
+     * environment configuration.
+     */
+    const configuredModels =
+      provider.models.length > 0
+        ? [...new Set(
+            provider.models
+          )]
+        : [undefined];
 
-      if (this.breaker.isOpen(route)) {
-        lastError = createError(
-          `Route "${route}" is temporarily unavailable`,
-          "NETWORK_ERROR",
-          true
+    let routeIndex = 0;
+    let attempt = 0;
+
+    while (
+      attempt <
+        provider.maxAttempts &&
+      routeIndex <
+        configuredModels.length
+    ) {
+      const model =
+        configuredModels[
+          routeIndex
+        ];
+
+      const route =
+        this.routeKey(
+          provider.name,
+          model
         );
+
+      /**
+       * Route-specific circuit breaker.
+       * Skipping one route does not block sibling routes.
+       */
+      if (
+        this.breaker.isOpen(
+          route
+        )
+      ) {
+        lastError =
+          createError(
+            `Route "${route}" is temporarily unavailable`,
+            "NETWORK_ERROR",
+            true
+          );
+
+        routeIndex += 1;
         continue;
       }
 
+      attempt += 1;
+
       try {
-        const { content, tokenUsage } = await provider.requestChat(messages, model);
-        const { result, repaired } = analyzeRawResponse(content);
-        this.breaker.recordSuccess(route);
+        const {
+          content,
+          tokenUsage,
+        } =
+          await provider.requestChat(
+            messages,
+            model
+          );
+
+        /**
+         * Preserve the existing response validation and
+         * JSON repair pipeline.
+         */
+        const {
+          result,
+          repaired,
+        } =
+          analyzeRawResponse(
+            content
+          );
+
+        this.breaker
+          .recordSuccess(
+            route
+          );
+
         return {
           result,
+
           usage: {
-            provider: provider.name,
+            provider:
+              provider.name,
+
             model,
+
             attempt,
-            attempts: attempt,
-            latencyMs: Date.now() - started,
+
+            attempts:
+              attempt,
+
+            latencyMs:
+              Date.now() -
+              started,
+
             repaired,
+
             tokenUsage,
           },
         };
-      } catch (error: unknown) {
-        lastError = error;
-        this.breaker.recordFailure(route);
+      } catch (
+        error: unknown
+      ) {
+        lastError =
+          error;
 
-        if (isQuotaError(error)) {
-          throw createError(
-            "AI provider quota exhausted. Add credits or switch provider.",
-            "ALL_KEYS_EXHAUSTED",
-            false
+        /**
+         * Circuit state belongs to the route, not the provider.
+         */
+        this.breaker
+          .recordFailure(
+            route
           );
+
+        /**
+         * HARD QUOTA/BILLING FAILURE
+         *
+         * Do NOT create ALL_KEYS_EXHAUSTED here.
+         *
+         * This only means the current model route cannot be
+         * used. Move to the next model route in this provider.
+         */
+        if (
+          isQuotaError(
+            error
+          )
+        ) {
+          routeIndex += 1;
+          continue;
         }
 
-        if (error instanceof AnalysisError) {
-          // Schema/JSON failures: retry on the next route immediately.
-          if (attempt < provider.maxAttempts) continue;
-          break;
+        /**
+         * Schema/JSON failures:
+         * move directly to the next route while preserving
+         * analyzeRawResponse's repair/validation behavior.
+         */
+        if (
+          error instanceof
+          AnalysisError
+        ) {
+          routeIndex += 1;
+          continue;
         }
 
-        if (isTransient(error) || isRetryableStatus(error)) {
-          if (attempt < provider.maxAttempts) {
-            await provider.backoff(attempt, error);
+        /**
+         * Temporary network/server/rate-limit failures:
+         * retry with exponential backoff.
+         *
+         * Since isQuotaError explicitly excludes 429,
+         * HTTP 429 always lands here.
+         */
+        if (
+          isTransient(error) ||
+          isRetryableStatus(
+            error
+          )
+        ) {
+          if (
+            attempt <
+            provider.maxAttempts
+          ) {
+            await provider.backoff(
+              attempt,
+              error
+            );
+
             continue;
           }
+
           break;
         }
 
-        break; // non-retryable (4xx, auth, etc.)
+        /**
+         * Non-retryable:
+         * authentication, malformed request, permanent 4xx, etc.
+         */
+        break;
       }
     }
 
     throw wrapFailure(
-      `AI analysis failed after ${provider.maxAttempts} attempts: ${getErrorMessage(lastError)}`,
+      `AI analysis failed after ${attempt} attempts: ${getErrorMessage(
+        lastError
+      )}`,
       lastError
     );
   }
 
   /**
-   * Shared streaming retry loop for a single provider (structured JSON and
-   * free-text streams). Partial streams are never retried (deltas would be
-   * duplicated) — the error is thrown for the caller to handle.
+   * Shared streaming retry loop for a single provider.
+   *
+   * Model-route quota failures fall through to the next model.
+   * 429 rate limits use exponential backoff.
+   *
+   * Partial streams are NEVER retried because the caller may
+   * already have rendered emitted deltas.
    */
   private async runStream(
     provider: AIProviderBase,
     messages: ChatMessage[],
-    onDelta: (accumulated: string) => void,
+    onDelta: (
+      accumulated: string
+    ) => void,
     json: boolean,
     maxTokens?: number,
     models?: string[]
   ): Promise<AIStreamResult> {
-    const started = Date.now();
-    let lastError: unknown;
+    const started =
+      Date.now();
 
-    for (let attempt = 1; attempt <= provider.maxAttempts; attempt++) {
-      const model = provider.routeFor(attempt, models);
-      const route = this.routeKey(provider.name, model);
+    let lastError:
+      | unknown;
 
-      if (this.breaker.isOpen(route)) {
-        lastError = createError(
-          `Route "${route}" is temporarily unavailable`,
-          "NETWORK_ERROR",
-          true
+    /**
+     * When an explicit model list is provided, use it.
+     * Otherwise use the provider's normal model routes.
+     *
+     * Deduping avoids wasting attempts on identical routes.
+     */
+    const candidateModels =
+      models &&
+      models.length > 0
+        ? [...new Set(models)]
+        : provider.models.length >
+          0
+          ? [
+              ...new Set(
+                provider.models
+              ),
+            ]
+          : [undefined];
+
+    let routeIndex = 0;
+    let attempt = 0;
+
+    while (
+      attempt <
+        provider.maxAttempts &&
+      routeIndex <
+        candidateModels.length
+    ) {
+      const model =
+        candidateModels[
+          routeIndex
+        ];
+
+      const route =
+        this.routeKey(
+          provider.name,
+          model
         );
+
+      if (
+        this.breaker.isOpen(
+          route
+        )
+      ) {
+        lastError =
+          createError(
+            `Route "${route}" is temporarily unavailable`,
+            "NETWORK_ERROR",
+            true
+          );
+
+        routeIndex += 1;
         continue;
       }
 
-      let anyDelta = false;
+      attempt += 1;
+
+      let anyDelta =
+        false;
+
       try {
-        const { content, tokenUsage } = await provider.streamFromModel(
-          messages,
-          model,
-          (acc) => {
-            anyDelta = true;
-            onDelta(acc);
-          },
-          json,
-          maxTokens
-        );
-        this.breaker.recordSuccess(route);
+        const {
+          content,
+          tokenUsage,
+        } =
+          await provider.streamFromModel(
+            messages,
+            model,
+            (acc) => {
+              anyDelta = true;
+              onDelta(acc);
+            },
+            json,
+            maxTokens
+          );
+
+        this.breaker
+          .recordSuccess(
+            route
+          );
+
         return {
           content,
+
           usage: {
-            provider: provider.name,
+            provider:
+              provider.name,
+
             model,
+
             attempt,
-            attempts: attempt,
-            latencyMs: Date.now() - started,
+
+            attempts:
+              attempt,
+
+            latencyMs:
+              Date.now() -
+              started,
+
             repaired: false,
+
             tokenUsage,
           },
         };
-      } catch (error: unknown) {
-        lastError = error;
-        this.breaker.recordFailure(route);
+      } catch (
+        error: unknown
+      ) {
+        lastError =
+          error;
 
-        if (anyDelta) throw error; // partial stream — do not retry
-
-        if (isQuotaError(error)) {
-          throw createError(
-            "AI provider quota exhausted. Add credits or switch provider.",
-            "ALL_KEYS_EXHAUSTED",
-            false
+        this.breaker
+          .recordFailure(
+            route
           );
+
+        /**
+         * Partial stream safety:
+         * once the caller has received a delta, never retry
+         * or switch model/provider.
+         */
+        if (
+          anyDelta
+        ) {
+          throw error;
         }
 
-        if (error instanceof AnalysisError) {
-          if (attempt < provider.maxAttempts) continue;
-          break;
+        /**
+         * Route-level quota:
+         * move to the next model instead of immediately
+         * manufacturing ALL_KEYS_EXHAUSTED.
+         */
+        if (
+          isQuotaError(
+            error
+          )
+        ) {
+          routeIndex += 1;
+          continue;
         }
 
-        if (isTransient(error) || isRetryableStatus(error)) {
-          if (attempt < provider.maxAttempts) {
-            await provider.backoff(attempt, error);
+        /**
+         * Schema errors in structured streams:
+         * try another configured route.
+         */
+        if (
+          error instanceof
+          AnalysisError
+        ) {
+          routeIndex += 1;
+          continue;
+        }
+
+        /**
+         * Temporary failures, including HTTP 429:
+         * use exponential backoff before the next retry.
+         */
+        if (
+          isTransient(error) ||
+          isRetryableStatus(
+            error
+          )
+        ) {
+          if (
+            attempt <
+            provider.maxAttempts
+          ) {
+            await provider.backoff(
+              attempt,
+              error
+            );
+
             continue;
           }
+
           break;
         }
 
@@ -850,71 +1746,159 @@ export class AIClient {
     }
 
     throw wrapFailure(
-      `AI streaming failed after ${provider.maxAttempts} attempts: ${getErrorMessage(lastError)}`,
+      `AI streaming failed after ${attempt} attempts: ${getErrorMessage(
+        lastError
+      )}`,
       lastError
     );
   }
 
   /**
-   * Runs a stream across the provider cascade. Falls back to the next provider
-   * only when the previous one failed before any content was delivered; a
-   * partial stream is re-thrown. Quota errors propagate to the caller.
+   * Runs a stream across the provider cascade.
+   *
+   * Fallback behavior:
+   * - Before any content: move to the next route/provider.
+   * - After any content: throw immediately to prevent duplicate deltas.
+   * - Quota errors only become ALL_KEYS_EXHAUSTED when every
+   *   configured provider has exhausted its available routes.
    */
   private async streamWithFallback(
     messages: ChatMessage[],
-    onDelta: (accumulated: string) => void,
+    onDelta: (
+      accumulated: string
+    ) => void,
     json: boolean,
     opts: {
       maxTokens?: number;
-      models?: (provider: AIProviderBase) => string[] | undefined;
+      models?: (
+        provider: AIProviderBase
+      ) => string[] | undefined;
     } = {}
   ): Promise<AIStreamResult> {
-    const available = this.providers;
-    let firstError: unknown;
+    const available =
+      this.providers;
+
+    let firstError:
+      | unknown;
+
     let attempted = 0;
     let quotaFailures = 0;
 
-    for (const provider of available) {
-      if (this.providerBreaker.isOpen(provider.name)) {
-        const skipError = createError(
-          `Provider "${provider.name}" is temporarily unavailable`,
-          "NETWORK_ERROR",
-          true
+    for (
+      const provider of available
+    ) {
+      if (
+        this.providerBreaker.isOpen(
+          provider.name
+        )
+      ) {
+        const skipError =
+          createError(
+            `Provider "${provider.name}" is temporarily unavailable`,
+            "NETWORK_ERROR",
+            true
+          );
+
+        this.recordProviderError(
+          provider.name,
+          skipError,
+          "breaker-open"
         );
-        this.recordProviderError(provider.name, skipError, "breaker-open");
-        if (!firstError) firstError = skipError;
+
+        if (!firstError) {
+          firstError =
+            skipError;
+        }
+
         continue;
       }
 
       attempted += 1;
-      let deliveredAny = false;
+
+      let deliveredAny =
+        false;
+
       try {
-        const streamResult = await this.runStream(
-          provider,
-          messages,
-          (acc) => {
-            deliveredAny = true;
-            onDelta(acc);
-          },
-          json,
-          opts.maxTokens,
-          opts.models?.(provider)
-        );
-        this.providerBreaker.recordSuccess(provider.name);
-        this.lastProviderUsed = provider.name;
+        const streamResult =
+          await this.runStream(
+            provider,
+            messages,
+            (acc) => {
+              deliveredAny = true;
+              onDelta(acc);
+            },
+            json,
+            opts.maxTokens,
+            opts.models?.(
+              provider
+            )
+          );
+
+        this.providerBreaker
+          .recordSuccess(
+            provider.name
+          );
+
+        this.lastProviderUsed =
+          provider.name;
+
         this.fallbackOccurred =
-          this.fallbackOccurred || provider.name !== "tokenrouter";
+          this.fallbackOccurred ||
+          provider.name !==
+            "tokenrouter";
+
         return streamResult;
-      } catch (error: unknown) {
-        this.providerBreaker.recordFailure(provider.name);
-        this.recordProviderError(provider.name, error);
-        if (deliveredAny) throw error; // partial stream — never fall back
-        if (!firstError) firstError = error;
-        if (isQuotaError(error)) quotaFailures += 1;
+      } catch (
+        error: unknown
+      ) {
+        /**
+         * Record the provider breaker only after the provider's
+         * model routes have already been exhausted.
+         */
+        this.providerBreaker
+          .recordFailure(
+            provider.name
+          );
+
+        this.recordProviderError(
+          provider.name,
+          error
+        );
+
+        /**
+         * Partial stream:
+         * never fall through to another provider.
+         */
+        if (
+          deliveredAny
+        ) {
+          throw error;
+        }
+
+        if (!firstError) {
+          firstError =
+            error;
+        }
+
+        /**
+         * If every route for this provider ultimately ended in
+         * an explicit quota condition, count this provider as
+         * quota-exhausted for the final ALL_KEYS_EXHAUSTED check.
+         */
+        if (
+          isQuotaError(
+            error
+          )
+        ) {
+          quotaFailures += 1;
+        }
       }
     }
 
-    if (quotaFailures > 0 && quotaFailures === attempted) {
+    if (
+      quotaFailures > 0 &&
+      quotaFailures === attempted
+    ) {
       throw createError(
         "AI providers quota exhausted. Add credits or switch provider.",
         "ALL_KEYS_EXHAUSTED",
@@ -922,46 +1906,96 @@ export class AIClient {
       );
     }
 
-    if (firstError instanceof AnalysisError) throw firstError;
+    if (
+      firstError instanceof
+      AnalysisError
+    ) {
+      throw firstError;
+    }
+
     throw createError(
-      `AI streaming failed: ${getErrorMessage(firstError)}`,
+      `AI streaming failed: ${getErrorMessage(
+        firstError
+      )}`,
       "UNKNOWN_ERROR",
       true
     );
   }
 
   /**
-   * Streaming structured analysis. Returns the accumulated raw JSON text and
-   * usage. Once any content has streamed, failures are not retried (they would
-   * duplicate deltas); the caller decides how to handle the partial stream.
-   * `deep` uses the higher-effort prompt and the Pro model tier when configured.
+   * Streaming structured analysis.
+   *
+   * Returns the accumulated raw JSON text and usage.
+   *
+   * Once any content has streamed, failures are not retried
+   * because retrying would duplicate deltas.
+   *
+   * `deep` uses the higher-effort prompt and Pro model tier
+   * when configured.
    */
   async streamStructured(
     input: string,
-    onDelta: (accumulated: string) => void,
-    opts: { deep?: boolean; maxTokens?: number } = {}
+    onDelta: (
+      accumulated: string
+    ) => void,
+    opts: {
+      deep?: boolean;
+      maxTokens?: number;
+    } = {}
   ): Promise<AIStreamResult> {
-    const messages = this.guardAndBuild(input, opts.deep ?? false);
-    return this.streamWithFallback(messages, onDelta, true, {
-      maxTokens: opts.maxTokens,
-      models: (provider) => (opts.deep ? provider.deepModels : undefined),
-    });
+    const messages =
+      this.guardAndBuild(
+        input,
+        opts.deep ?? false
+      );
+
+    return this.streamWithFallback(
+      messages,
+      onDelta,
+      true,
+      {
+        maxTokens:
+          opts.maxTokens,
+
+        models: (
+          provider
+        ) =>
+          opts.deep
+            ? provider.deepModels
+            : undefined,
+      }
+    );
   }
 
   /**
-   * Streaming free-text generation (e.g. reply drafts) from caller-provided
-   * messages. Shares the same provider cascade + retry/backoff/circuit-breaker
-   * path as the structured stream, minus JSON validation.
+   * Streaming free-text generation
+   * (e.g. reply drafts) from
+   * caller-provided messages.
+   *
+   * Shares the same provider cascade +
+   * retry/backoff/circuit-breaker path as
+   * the structured stream, minus JSON validation.
    */
   async streamText(
     messages: ChatMessage[],
-    onDelta: (accumulated: string) => void,
-    opts: { maxTokens?: number } = {}
+    onDelta: (
+      accumulated: string
+    ) => void,
+    opts: {
+      maxTokens?: number;
+    } = {}
   ): Promise<AIStreamResult> {
-    return this.streamWithFallback(messages, onDelta, false, {
-      maxTokens: opts.maxTokens,
-    });
+    return this.streamWithFallback(
+      messages,
+      onDelta,
+      false,
+      {
+        maxTokens:
+          opts.maxTokens,
+      }
+    );
   }
 }
 
-export const aiClient = new AIClient();
+export const aiClient =
+  new AIClient();

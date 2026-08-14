@@ -5,7 +5,7 @@ import { Crown, ExternalLink, Loader2 } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { usePlan } from "@/lib/pro/usePlan";
 import { toast } from "@/lib/toast";
-import { Button } from "@/components/ui/Button";
+import { Button, LinkButton } from "@/components/ui/Button";
 import { ProBadge } from "@/components/ui/ProGate";
 
 type StatusBody = {
@@ -18,7 +18,7 @@ export function SubscriptionCard() {
   const { user, status: authStatus, refreshPlan } = useAuth();
   const { isPro } = usePlan();
   const [periodEnd, setPeriodEnd] = useState<number | null>(null);
-  const [busy, setBusy] = useState<"monthly" | "annual" | "portal" | null>(null);
+  const [busy, setBusy] = useState<"portal" | null>(null);
 
   useEffect(() => {
     if (!user) {
@@ -37,27 +37,6 @@ export function SubscriptionCard() {
       active = false;
     };
   }, [user]);
-
-  async function startCheckout(price: "monthly" | "annual") {
-    setBusy(price);
-    try {
-      const res = await fetch("/api/billing/checkout", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ price }),
-      });
-      const body = (await res.json().catch(() => ({}))) as { url?: string; error?: string };
-      if (!res.ok || !body.url) {
-        toast(body.error ?? "Couldn't start checkout. Try again.", "error");
-        return;
-      }
-      window.location.href = body.url;
-    } catch {
-      toast("Couldn't start checkout. Try again.", "error");
-    } finally {
-      setBusy(null);
-    }
-  }
 
   async function openPortal() {
     setBusy("portal");
@@ -139,31 +118,14 @@ export function SubscriptionCard() {
               reply drafting, batch analysis, and more.
             </p>
             <div className="mt-4 flex flex-wrap items-center gap-2">
-              <Button
+              <LinkButton
+                href="/settings/billing"
                 size="sm"
-                onClick={() => void startCheckout("monthly")}
-                disabled={busy !== null}
+                aria-label="Upgrade to TaskMind Pro"
               >
-                {busy === "monthly" ? (
-                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                ) : (
-                  <Crown className="h-3.5 w-3.5" />
-                )}
-                Upgrade — monthly
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => void startCheckout("annual")}
-                disabled={busy !== null}
-              >
-                {busy === "annual" ? (
-                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                ) : (
-                  <Crown className="h-3.5 w-3.5" />
-                )}
-                Upgrade — annual
-              </Button>
+                <Crown className="h-3.5 w-3.5" />
+                Upgrade to Pro
+              </LinkButton>
               <button
                 type="button"
                 onClick={() => void refreshPlan()}

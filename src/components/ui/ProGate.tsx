@@ -44,7 +44,7 @@ export function ProGate({
         </span>
       </p>
       <a
-        href="/settings#billing"
+        href="/settings/billing"
         className="inline-flex shrink-0 items-center gap-1.5 rounded-tm bg-accent-btn px-3 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-accent-dark"
       >
         <Crown className="h-3.5 w-3.5" /> Upgrade

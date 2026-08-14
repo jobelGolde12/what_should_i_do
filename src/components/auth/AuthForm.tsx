@@ -55,6 +55,7 @@ export default function AuthForm({ mode }: AuthFormProps) {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [verificationSent, setVerificationSent] = useState(false);
+  const [mailFailed, setMailFailed] = useState(false);
   const [resendStatus, setResendStatus] = useState<string | null>(null);
   const [resending, setResending] = useState(false);
   const [isUnverifiedError, setIsUnverifiedError] = useState(false);
@@ -90,11 +91,12 @@ export default function AuthForm({ mode }: AuthFormProps) {
       const msg = err instanceof Error ? err.message : "Something went wrong.";
       // Machine-readable flag from the API (login 403 / register 502) replaces
       // the previous string-match on "verify your email".
-      const needsVerification =
-        err instanceof Error && (err as AuthError).requiresVerification;
+      const authErr = err instanceof Error ? (err as AuthError) : null;
+      const needsVerification = Boolean(authErr?.requiresVerification);
       if (!isLogin && needsVerification) {
         // Registration succeeded but the verification email couldn't be sent —
         // treat it like a pending sign-up so the resend flow is offered.
+        setMailFailed(Boolean(authErr?.mailFailed));
         setVerificationSent(true);
       } else {
         setError(msg);
@@ -136,12 +138,25 @@ export default function AuthForm({ mode }: AuthFormProps) {
               <Mail className="h-6 w-6" />
             </div>
             <h1 className="mt-4 font-display text-xl font-medium text-ink">
-              Check your email
+              {mailFailed ? "Account created" : "Check your email"}
             </h1>
             <p className="mt-2 text-sm leading-relaxed text-muted">
-              We sent a verification link to{" "}
-              <strong className="font-medium text-ink">{email}</strong>. Please check
-              your inbox and click the link to activate your account.
+              {mailFailed ? (
+                <>
+                  Your account for{" "}
+                  <strong className="font-medium text-ink">{email}</strong> was
+                  created, but we could not send the verification link — the
+                  mail service rejected the request. Press resend below to try
+                  again.
+                </>
+              ) : (
+                <>
+                  We sent a verification link to{" "}
+                  <strong className="font-medium text-ink">{email}</strong>.
+                  Please check your inbox and click the link to activate your
+                  account.
+                </>
+              )}
             </p>
 
             {resendStatus && (

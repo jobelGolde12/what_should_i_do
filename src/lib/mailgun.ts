@@ -94,10 +94,13 @@ export async function sendMail(
       .text()
       .catch(() => "")
       .then((t) => t.slice(0, 300));
-    logWarn("mail", { status: res.status, detail, to });
-    const error = res.status === 404
-      ? "mailgun_domain_not_found"
-      : `http_${res.status}`;
+    logWarn("mail", { status: res.status, detail, to, endpoint });
+    const error =
+      res.status === 404
+        ? "mailgun_domain_not_found"
+        : res.status === 401 || res.status === 403
+          ? "mailgun_invalid_key"
+          : `http_${res.status}`;
     return { ok: false, error, messageId: detail || undefined };
   }
 

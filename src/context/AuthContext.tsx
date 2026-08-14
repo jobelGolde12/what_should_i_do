@@ -43,16 +43,21 @@ type AuthContextValue = {
 
 const AuthContext = createContext<AuthContextValue | null>(null);
 
-export type AuthError = Error & { requiresVerification?: boolean };
+export type AuthError = Error & {
+  requiresVerification?: boolean;
+  mailFailed?: boolean;
+};
 
 async function readError(res: Response): Promise<AuthError> {
   try {
     const body = (await res.json()) as {
       error?: string;
       requiresVerification?: boolean;
+      mailFailed?: boolean;
     };
     const err = new Error(body.error ?? "Something went wrong.") as AuthError;
     if (body.requiresVerification) err.requiresVerification = true;
+    if (body.mailFailed) err.mailFailed = true;
     return err;
   } catch {
     return new Error("Something went wrong.");

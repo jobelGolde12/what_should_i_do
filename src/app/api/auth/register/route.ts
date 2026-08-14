@@ -104,9 +104,11 @@ export async function POST(request: Request) {
       return NextResponse.json(
         {
           error:
-            "Account created, but we could not send the verification email. " +
-            "Please try resending from the sign-in page.",
+            "Your account was created, but the verification email could not " +
+            "be sent (the mail service rejected the request). You can retry " +
+            "from the sign-in page.",
           requiresVerification: true,
+          mailFailed: true,
           email: user.email,
         },
         { status: 502 }

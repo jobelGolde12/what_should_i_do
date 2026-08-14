@@ -56,7 +56,7 @@ describe("validateAnalysis", () => {
 
   it("repairs missing fields and clamps invalid urgency", () => {
     const { result, repaired } = analyzeRawResponse({
-      actions: "not-an-array",
+      actions: null,
       deadlines: [123, "Friday"],
       urgency: "URGENT!",
       confusingParts: undefined,
@@ -69,6 +69,25 @@ describe("validateAnalysis", () => {
     expect(result.urgency).toBe("Informational");
     expect(result.nextStep).toBe("No action specified");
     expect(result.summary).toBe("");
+  });
+
+  it("coerces string primitives and standardizes urgency casing (OpenRouter variations)", () => {
+    const { result, repaired } = analyzeRawResponse({
+      actions: "Submit the report, Call the office",
+      deadlines: "Friday; Monday",
+      urgency: "important",
+      confusingParts: { sentence: "What now?", explanation: "Not clear." },
+      nextStep: "Submit the report",
+      nextStepReason: "Only action",
+      nextStepActionIndex: 0,
+      summary: "Do it soon.",
+    });
+    expect(repaired).toBe(true);
+    expect(result.actions).toEqual(["Submit the report", "Call the office"]);
+    expect(result.deadlines).toEqual(["Friday", "Monday"]);
+    expect(result.urgency).toBe("Important");
+    expect(result.confusingParts).toHaveLength(1);
+    expect(result.confusingParts[0].sentence).toBe("What now?");
   });
 
   it("salvages truncated JSON via completed fields", () => {
@@ -131,6 +150,9 @@ describe("AIClient.analyzeStructured", () => {
       TOKENROUTER_MODEL_FALLBACKS: "model-b",
       TOKENROUTER_MAX_ATTEMPTS: "3",
       TOKENROUTER_TIMEOUT_MS: "5000",
+      // Isolate this suite to the primary provider (fallback tests live in
+      // their own describe block below).
+      OPENROUTER_API_KEY: "",
     };
   });
 
@@ -219,7 +241,9 @@ describe("AIClient.analyzeStructured", () => {
   });
 
   it("throws API_KEY_EXHAUSTED when no key is configured", async () => {
+    // Clear both providers so the client is genuinely unconfigured.
     process.env.TOKENROUTER_API_KEY = "";
+    process.env.OPENROUTER_API_KEY = "";
     const client = new AIClient();
     await expect(client.analyzeStructured("test input")).rejects.toThrow(/TOKENROUTER_API_KEY/);
   });
@@ -234,12 +258,138 @@ describe("AIClient.analyzeStructured", () => {
   });
 });
 
+describe("AIClient provider fallback (TokenRouter → OpenRouter)", () => {
+  let originalEnv: NodeJS.ProcessEnv;
+
+  beforeEach(() => {
+    originalEnv = process.env;
+    process.env = {
+      ...originalEnv,
+      TOKENROUTER_API_KEY: "tr-key",
+      TOKENROUTER_BASE_URL: "https://api.testrouter.test/v1",
+      TOKENROUTER_MODEL: "model-a",
+      TOKENROUTER_MAX_ATTEMPTS: "1",
+      OPENROUTER_API_KEY: "or-key",
+      OPENROUTER_MODEL: "anthropic/claude-3.5-sonnet",
+      OPENROUTER_MAX_ATTEMPTS: "1",
+    };
+  });
+
+  afterEach(() => {
+    process.env = originalEnv;
+    vi.restoreAllMocks();
+  });
+
+  it("uses TokenRouter when it succeeds and records provider telemetry", async () => {
+    vi.stubGlobal(
+      "fetch",
+      fetchMockImpl([
+        jsonResponse({ choices: [{ message: { content: JSON.stringify(VALID_RESULT) } }] }),
+      ])
+    );
+    const client = new AIClient();
+    const { result, usage } = await client.analyzeStructured("test input");
+    expect(usage.provider).toBe("tokenrouter");
+    expect(result.aiProviderUsed).toBe("tokenrouter");
+    const diagnostics = client.getDiagnostics();
+    expect(diagnostics.lastProviderUsed).toBe("tokenrouter");
+    expect(diagnostics.fallbackOccurred).toBe(false);
+    expect(diagnostics.providerErrors.tokenrouter.count).toBe(0);
+  });
+
+  it("falls back to OpenRouter when TokenRouter fails", async () => {
+    vi.stubGlobal(
+      "fetch",
+      fetchMockImpl([
+        jsonResponse({ error: { message: "boom" } }, { status: 500 }),
+        jsonResponse({ choices: [{ message: { content: JSON.stringify(VALID_RESULT) } }] }),
+      ])
+    );
+    const client = new AIClient();
+    const { result, usage } = await client.analyzeStructured("test input");
+    expect(usage.provider).toBe("openrouter");
+    expect(usage.model).toBe("anthropic/claude-3.5-sonnet");
+    expect(result.analysisMethod).toBe("ai");
+    expect(result.aiProviderUsed).toBe("openrouter");
+    const diagnostics = client.getDiagnostics();
+    expect(diagnostics.lastProviderUsed).toBe("openrouter");
+    expect(diagnostics.fallbackOccurred).toBe(true);
+    expect(diagnostics.providerErrors.tokenrouter.count).toBe(1);
+    expect(diagnostics.providerErrors.tokenrouter.lastStatus).toBe(500);
+  });
+
+  it("skips to OpenRouter when the TokenRouter circuit breaker is open", async () => {
+    // Model-aware mock: TokenRouter always 500s, OpenRouter always succeeds,
+    // so the primary accumulates failures without tripping the secondary.
+    const fetchMock = vi.fn(async (_url: string, init: RequestInit) => {
+      const body = JSON.parse(String(init.body)) as { model?: string };
+      if (body.model === "model-a") {
+        return jsonResponse({ error: { message: "boom" } }, { status: 500 });
+      }
+      return jsonResponse({
+        choices: [{ message: { content: JSON.stringify(VALID_RESULT) } }],
+      });
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const client = new AIClient();
+    // First three calls: TokenRouter fails, OpenRouter serves the result.
+    for (let i = 0; i < 3; i++) {
+      const { usage } = await client.analyzeStructured("test input");
+      expect(usage.provider).toBe("openrouter");
+    }
+    expect(client.getDiagnostics().providerCircuitBreaker.tokenrouter).toEqual({
+      failures: 3,
+      open: true,
+    });
+
+    // Fourth call: TokenRouter breaker is open → OpenRouter serves it directly
+    // (no attempt is made against the primary).
+    const before = fetchMock.mock.calls.length;
+    const { usage } = await client.analyzeStructured("test input");
+    expect(usage.provider).toBe("openrouter");
+    expect(fetchMock.mock.calls.length).toBe(before + 1);
+  });
+
+  it("propagates quota errors when both providers are exhausted", async () => {
+    vi.stubGlobal(
+      "fetch",
+      fetchMockImpl([
+        jsonResponse({ error: { message: "insufficient credits" } }, { status: 403 }),
+        jsonResponse({ error: { message: "out of credits" } }, { status: 402 }),
+      ])
+    );
+    const client = new AIClient();
+    await expect(client.analyzeStructured("test input")).rejects.toThrow(/quota exhausted/);
+    const diagnostics = client.getDiagnostics();
+    expect(diagnostics.providerErrors.openrouter.lastClass).toBe("quota");
+  });
+
+  it("reports the primary error when only the secondary hits quota", async () => {
+    vi.stubGlobal(
+      "fetch",
+      fetchMockImpl([
+        jsonResponse({ error: { message: "boom" } }, { status: 500 }),
+        jsonResponse({ error: { message: "out of credits" } }, { status: 402 }),
+      ])
+    );
+    const client = new AIClient();
+    // The primary's failure is the honest story — not a blanket quota notice.
+    await expect(client.analyzeStructured("test input")).rejects.toThrow(/boom/);
+  });
+});
+
 describe("AIClient.streamStructured", () => {
   let originalEnv: NodeJS.ProcessEnv;
 
   beforeEach(() => {
     originalEnv = process.env;
-    process.env = { ...originalEnv, TOKENROUTER_API_KEY: "test-key", TOKENROUTER_MAX_ATTEMPTS: "2" };
+    process.env = {
+      ...originalEnv,
+      TOKENROUTER_API_KEY: "test-key",
+      TOKENROUTER_MAX_ATTEMPTS: "2",
+      OPENROUTER_API_KEY: "",
+    };
   });
 
   afterEach(() => {

@@ -12,7 +12,7 @@ export async function GET(request: Request) {
   const tokenRouterKeys = Object.keys(process.env).filter(key =>
     key.startsWith('TOKENROUTER')
   );
-  const legacyOpenRouterKeys = Object.keys(process.env).filter(key =>
+  const openRouterKeys = Object.keys(process.env).filter(key =>
     key.startsWith('OPENROUTER')
   );
 
@@ -28,10 +28,16 @@ export async function GET(request: Request) {
           allTokenRouterKeys: tokenRouterKeys,
         },
       },
-      legacyOpenRouter: {
-        present: legacyOpenRouterKeys.length > 0,
-        keys: legacyOpenRouterKeys,
-        deprecated: true,
+      openRouter: {
+        // Secondary fallback provider — used when the primary fails or its
+        // circuit breaker is open.
+        apiKey: process.env.OPENROUTER_API_KEY ? 'exists' : 'missing',
+        baseUrl: process.env.OPENROUTER_BASE_URL || '(default: https://openrouter.ai/api/v1)',
+        model: process.env.OPENROUTER_MODEL || '(defaults: anthropic/claude-3.5-sonnet, meta-llama/llama-3.3-70b-instruct)',
+        fallbacks: process.env.OPENROUTER_MODEL_FALLBACKS || '(none)',
+        envCheck: {
+          allOpenRouterKeys: openRouterKeys,
+        },
       },
     },
   });

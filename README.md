@@ -216,12 +216,18 @@ Model: Configurable via TokenRouter (OpenAI-compatible gateway)
 Privacy: Local-first storage; only the text you analyze is sent to the AI provider
 
 🚀 AI Integration
-TaskMind routes analysis through a provider-agnostic AI client (TokenRouter) with schema-validated JSON output, automatic retries/failover, and a rule-based fallback:
+TaskMind routes analysis through a multi-tier fallback cascade with schema-validated JSON output, automatic retries/failover, and a rule-based last resort:
 
-- `src/lib/ai.ts` — the AI client (streaming + non-streaming, timeouts, backoff, circuit breaker)
+1. **TokenRouter** (primary) — `TOKENROUTER_*` env vars
+2. **OpenRouter** (secondary) — `OPENROUTER_*` env vars, used automatically when the primary fails, times out, or its circuit breaker is open
+3. **Rule-based analyzer** — local fallback when both AI providers are unavailable
+
+- `src/lib/ai.ts` — the AI client (streaming + non-streaming, provider cascade, timeouts, backoff, per-provider + per-route circuit breakers, telemetry)
 - `src/lib/prompts.ts` — versioned analysis prompt with few-shot examples
-- `src/lib/validateAnalysis.ts` — strict zod validation + repair of model output
-- `TOKENROUTER_API_KEY` / `TOKENROUTER_MODEL` — configure the provider (see `.env.example`)
+- `src/lib/validateAnalysis.ts` — strict zod validation + repair of model output (coerces string arrays / urgency casing variations from any provider)
+- `TOKENROUTER_API_KEY` / `TOKENROUTER_MODEL` + `OPENROUTER_API_KEY` / `OPENROUTER_MODEL` — configure the providers (see `.env.example`)
+
+Quota exhaustion errors (HTTP 402/429/out-of-credits) are never silently downgraded — they surface to the user so credits can be topped up.
 
 Mistral-7B-Instruct-v0.2-q4f32_1
 

@@ -11,7 +11,7 @@ import {
 } from "@/lib/stream";
 import { consumePendingTemplate } from "@/lib/applyTemplate";
 import {
-  Sparkles,
+  Play,
   ArrowDown,
   ListChecks,
   CalendarDays,
@@ -205,15 +205,15 @@ export function DashboardHome() {
   return (
     <div className="mx-auto max-w-4xl">
       <header className="dot-grid-fade relative border-b border-line">
-        <div className="grid gap-10 py-10 sm:py-14 lg:grid-cols-[1.55fr_1fr] lg:gap-14 lg:py-20">
-          <div>
+        <div className="grid gap-10 py-10 sm:py-14 lg:grid-cols-[1.5fr_1fr] lg:gap-16 lg:py-9">
+          <div className="flex flex-col justify-center">
             <p className="flex items-center gap-2 font-mono text-2xs uppercase tracking-label-wide">
               <span className="text-accent">TaskMind</span>
               <span className="h-px w-6 bg-line" aria-hidden="true" />
               <span className="text-muted">Clarity engine</span>
             </p>
 
-            <h1 className="mt-5 font-display text-[2.5rem] font-medium leading-[1.02] tracking-[-0.03em] text-ink sm:text-6xl">
+            <h1 className="mt-6 font-display text-4xl font-medium leading-[1.05] tracking-[-0.03em] text-ink sm:text-5xl lg:text-6xl">
               Turn noise into
               <br />
               <span className="underline decoration-accent decoration-2 underline-offset-[10px]">
@@ -221,54 +221,76 @@ export function DashboardHome() {
               </span>
             </h1>
 
-            <p className="mt-6 max-w-md text-base leading-relaxed text-muted">
+            <p className="mt-6 max-w-lg text-lg leading-relaxed text-muted">
               Paste a message or drop a document. TaskMind pulls out the
               actions, deadlines, and urgency — then hands you one clear next
               step.
             </p>
 
-            <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:items-center">
-              <Button size="lg" onClick={focusInput}>
-                <Sparkles className="h-4 w-4" /> Start analyzing
-              </Button>
-              <LinkButton variant="dark" size="lg" href="/actions">
-                My actions board
-              </LinkButton>
-            </div>
+            <div className="mt-8 flex flex-col gap-4 sm:flex-row sm:items-center">
+          <Button size="lg" onClick={focusInput}>
+            <Play className="h-4 w-4" /> Start analyzing
+          </Button>
+          <LinkButton variant="dark" size="lg" href="/actions">
+            My actions board
+          </LinkButton>
+        </div>
 
-            <p className="mt-8 inline-flex items-center gap-2.5 font-mono text-2xs uppercase tracking-label text-muted">
-              <ArrowDown className="h-3.5 w-3.5 text-accent" aria-hidden="true" />
+            <div className="mt-10 inline-flex max-w-max items-center gap-3 rounded-full border border-line bg-surface px-4 py-2.5 font-mono text-2xs uppercase tracking-label text-muted shadow-sm">
+              <ArrowDown className="h-3.5 w-3.5 text-accent animate-bounce" aria-hidden="true" />
               Paste or drop a document to begin
-            </p>
+            </div>
           </div>
 
-          <div className="hidden self-end border border-line bg-background lg:block">
-            <div className="flex items-center justify-between border-b border-line px-4 py-3">
-              <p className="font-mono text-xxs uppercase tracking-label text-muted">
-                Extracted from any text
-              </p>
-              <span className="h-1.5 w-1.5 rounded-full bg-accent" aria-hidden="true" />
+         <aside className="hidden self-start lg:block">
+  <div className="sticky top-8 overflow-hidden rounded-xl border border-line bg-background shadow-sm transition-shadow duration-300 hover:shadow-md motion-reduce:transition-none">
+    <div className="flex items-center justify-between border-b border-line bg-surface px-5 py-3">
+      <p className="font-mono text-xxs uppercase tracking-label text-muted">
+        Extracted from any text
+      </p>
+      <span className="relative flex h-2 w-2" aria-hidden="true">
+        <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-accent opacity-75 motion-reduce:animate-none"></span>
+        <span className="relative inline-flex h-2 w-2 rounded-full bg-accent"></span>
+      </span>
+    </div>
+
+    <ul className="divide-y divide-line">
+      {SPECS.map((spec, i) => {
+        const Icon = spec.icon;
+        return (
+          <li
+            key={spec.label}
+            className="group px-5 py-4 transition-colors duration-200 hover:bg-surface motion-reduce:transition-none"
+          >
+            <div className="flex items-start gap-3.5">
+              <span className="mt-1 font-mono text-xxs text-muted transition-colors duration-200 group-hover:text-accent motion-reduce:transition-none">
+                {String(i + 1).padStart(2, "0")}
+              </span>
+
+              <div className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-md border border-line bg-background transition-transform duration-300 ease-out group-hover:-translate-y-0.5 group-hover:scale-105 motion-reduce:transform-none motion-reduce:transition-none">
+                <Icon className="h-3.5 w-3.5 shrink-0 text-accent" />
+              </div>
+
+              <div className="min-w-0 flex-1">
+                <p className="text-sm font-medium leading-5 text-ink transition-transform duration-300 ease-out group-hover:translate-x-0.5 motion-reduce:transform-none motion-reduce:transition-none">
+                  {spec.label}
+                </p>
+                <p className="mt-1 break-words text-xs leading-5 text-muted transition-all duration-300 ease-out group-hover:translate-x-0.5 group-hover:text-ink motion-reduce:transform-none motion-reduce:transition-none">
+                  {spec.hint}
+                </p>
+              </div>
+
+              <span
+                className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-line transition-all duration-300 group-hover:scale-125 group-hover:bg-accent motion-reduce:transform-none motion-reduce:transition-none"
+                aria-hidden="true"
+              />
             </div>
-            <ul className="divide-y divide-line">
-              {SPECS.map((spec, i) => {
-                const Icon = spec.icon;
-                return (
-                  <li
-                    key={spec.label}
-                    className="flex items-center gap-3 px-4 py-2.5"
-                  >
-                    <span className="font-mono text-xxs text-muted">
-                      {String(i + 1).padStart(2, "0")}
-                    </span>
-                    <Icon className="h-3.5 w-3.5 shrink-0 text-accent" />
-                    <span className="min-w-0 flex-1 text-sm font-medium text-ink">
-                      {spec.label}
-                    </span>
-                  </li>
-                );
-              })}
-            </ul>
-          </div>
+          </li>
+        );
+      })}
+    </ul>
+  </div>
+</aside>
         </div>
       </header>
 

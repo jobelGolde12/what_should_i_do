@@ -22,29 +22,32 @@ type Stage = "streaming" | "settling" | "settled";
 type Field = Exclude<
   keyof AnalysisResult,
   | "analysisMethod"
+  | "aiProviderUsed"
   | "urgencyReason"
   | "urgencyConfidence"
   | "nextStepReason"
   | "nextStepActionIndex"
 >;
 
+// Reordered to match the visual layout (Inverted Pyramid UX principle)
 const FIELDS: Field[] = [
+  "summary",
   "actions",
   "deadlines",
   "urgency",
   "confusingParts",
   "nextStep",
-  "summary",
 ];
 
 const FIELD_LABELS: Record<Field, string> = {
+  summary: "Summary",
   actions: "Actions",
   deadlines: "Deadlines",
   urgency: "Urgency",
   confusingParts: "Unclear",
   nextStep: "Next step",
-  summary: "Summary",
 };
+
 function SectionHeading({ children }: { children: ReactNode }) {
   return (
     <h3 className="mb-3 flex items-center gap-2 font-mono text-2xs font-medium uppercase tracking-label text-muted">
@@ -216,6 +219,15 @@ export default function ResultsPanel({
         aria-live="polite"
         aria-atomic="false"
       >
+        {/* Summary moved to the top for the "Inverted Pyramid" UX principle */}
+        <section className={resolved.summary ? "settle-section revealed" : "settle-section"}>
+          <SectionHeading>Summary</SectionHeading>
+          <SummaryText summary={result?.summary ?? streaming?.summary ?? ""} />
+          <div className="mt-4">
+            <TranslationBlock summary={result?.summary ?? streaming?.summary ?? ""} />
+          </div>
+        </section>
+
         <section className={resolved.actions ? "settle-section revealed" : "settle-section"}>
           <SectionHeading>Actions</SectionHeading>
           <ActionList
@@ -272,14 +284,6 @@ export default function ResultsPanel({
             }
             onToggleDone={onToggleAction}
           />
-        </section>
-
-        <section className={resolved.summary ? "settle-section revealed" : "settle-section"}>
-          <SectionHeading>Summary</SectionHeading>
-          <SummaryText summary={result?.summary ?? streaming?.summary ?? ""} />
-          <div className="mt-4">
-            <TranslationBlock summary={result?.summary ?? streaming?.summary ?? ""} />
-          </div>
         </section>
       </div>
 

@@ -39,6 +39,8 @@ export type AnalysisResult = {
   nextStepActionIndex?: number;
   summary: string;
   analysisMethod: "ai" | "fallback";
+  /** Which AI provider produced the result (set when analysisMethod is "ai"). */
+  aiProviderUsed?: "tokenrouter" | "openrouter";
 };
 
 /* =========================================================

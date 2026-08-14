@@ -15,9 +15,10 @@ npm run security:audit   # npm audit --omit=dev
   (`src/lib/storage.ts`). Nothing is stored server-side except optional synced
   account data.
 - **Transmission**: only the text you analyze is sent to the configured AI
-  provider (TokenRouter, OpenAI-compatible) via `/api/analyze/stream` or the
-  `analyzeText` server action (`src/lib/ai.ts`). Translation sends the summary
-  to MyMemory. Input text is never logged.
+  providers (TokenRouter primary, OpenRouter secondary fallback — both
+  OpenAI-compatible) via `/api/analyze/stream` or the `analyzeText` server
+  action (`src/lib/ai.ts`). Translation sends the summary to MyMemory. Input
+  text is never logged.
 - **Auth & Database** (Phase 1-3): scrypt password hashing with timing-safe
   compare, HMAC-signed HttpOnly/SameSite session cookies (`taskmind_session`,
   30-day expiry), email verification via Mailgun API, single-use signed tokens
@@ -81,8 +82,8 @@ persisted to Turso, ensuring rate limits hold across multi-instance deployments.
 - [x] **Structured logging** (`src/lib/log.ts`): request id + metadata only —
   analyzed text is never logged.
 - [x] **Secret handling**: API keys are server-only env vars
-  (`TOKENROUTER_API_KEY`, legacy `OPENROUTER_API_KEY*` deprecated); `.env*` and
-  `.data/` gitignored.
+  (`TOKENROUTER_API_KEY` primary, `OPENROUTER_API_KEY` secondary fallback);
+  `.env*` and `.data/` gitignored.
 - [x] **Strict AI output validation**: model output is schema-validated and
   auto-repaired (`src/lib/validateAnalysis.ts`, zod); sanitizes HTML/markdown
   from actions/deadlines/summary; bounded multi-attempt routing with a circuit

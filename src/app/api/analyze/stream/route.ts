@@ -5,7 +5,7 @@ import {
   extractCompletedFields,
   STREAM_FIELD_ORDER,
 } from "@/lib/streamParse";
-import { createError, getErrorMessage } from "@/lib/errors";
+import { createError, getErrorMessage, AnalysisError, ERROR_CODES } from "@/lib/errors";
 import { getClientIp, rateLimit } from "@/lib/rateLimit";
 import { logRequest } from "@/lib/log";
 import { getCurrentUserId } from "@/lib/auth/cookies";
@@ -123,7 +123,7 @@ export async function POST(req: Request) {
         const previous = new Set<string>();
         let completedAny = false;
 
-        const { content } = await aiClient.streamStructured(text, (accumulated) => {
+        const { content, usage } = await aiClient.streamStructured(text, (accumulated) => {
           const fields = extractCompletedFields(
             accumulated,
             STREAM_FIELD_ORDER,
@@ -139,13 +139,21 @@ export async function POST(req: Request) {
         // Final authoritative result (validates + repairs the streamed JSON,
         // salvaging truncated output where possible).
         const result = validateAndRepairAnalysis(content);
+        result.aiProviderUsed = usage.provider;
         send({ type: "done", result, streamed: completedAny });
       } catch (error: unknown) {
-        // Fall back to the rule-based analyser (mirrors the server action).
         const message = getErrorMessage(error);
-        console.warn("Streaming analysis failed, falling back to rules:", message);
+        console.warn("Streaming analysis failed:", message);
 
-        if (text.length < 10) {
+        // Quota exhaustion must surface to the user — never silently degrade
+        // to the rule-based fallback. (A missing API key is NOT a quota
+        // condition: without any key the route still serves rule-based results.)
+        if (
+          error instanceof AnalysisError &&
+          error.code === ERROR_CODES.ALL_KEYS_EXHAUSTED
+        ) {
+          send({ type: "error", message });
+        } else if (text.length < 10) {
           send({
             type: "error",
             message: "Text too short - please provide more content.",

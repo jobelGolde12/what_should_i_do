@@ -61,17 +61,34 @@ function trimStr(value: unknown, max = 500): string | undefined {
   return t.length > max ? `${t.slice(0, max - 1)}…` : t;
 }
 
+/**
+ * Coerces model output into a string array. Some OpenRouter models return a
+ * single comma/newline-separated string instead of a real array; split those
+ * so the downstream pipeline sees the same shape from every provider.
+ */
 function asStringArray(value: unknown): string[] {
-  if (!Array.isArray(value)) return [];
-  return value
+  let list: unknown[];
+  if (Array.isArray(value)) {
+    list = value;
+  } else if (typeof value === "string" && value.trim()) {
+    list = value.split(/[,;\n]+/);
+  } else {
+    return [];
+  }
+  return list
     .filter((v): v is string => typeof v === "string")
     .map((v) => sanitizeSummary(v.trim()))
     .filter(Boolean);
 }
 
 function asConfusingParts(value: unknown): ConfusingPart[] {
-  if (!Array.isArray(value)) return [];
-  return value.filter((v): v is ConfusingPart => {
+  // Accept a single object (some models return one confusing part directly).
+  const list = Array.isArray(value)
+    ? value
+    : value && typeof value === "object"
+      ? [value]
+      : [];
+  return list.filter((v): v is ConfusingPart => {
     if (typeof v !== "object" || v === null) return false;
     const o = v as Record<string, unknown>;
     return (
@@ -88,18 +105,28 @@ function clampConfidence(value: unknown): number | undefined {
 }
 
 /**
+ * Standardizes urgency casing variations from different models
+ * ("urgent", "IMPORTANT", "Informational.") to the canonical values.
+ */
+function normalizeUrgency(value: unknown): AnalysisResult["urgency"] {
+  if (typeof value === "string") {
+    const t = value.trim();
+    const exact = URGENCIES.find((u) => u === t);
+    if (exact) return exact;
+    const folded = URGENCIES.find((u) => u.toLowerCase() === t.toLowerCase());
+    if (folded) return folded;
+  }
+  return "Informational";
+}
+
+/**
  * Assembles a validated `AnalysisResult` from a parsed JSON object. This is a
  * total function: every field is coerced or defaulted, never throws.
  */
 function assemble(raw: Record<string, unknown>): AnalysisResult {
   const actions = dedupeActions(asStringArray(raw.actions)).slice(0, MAX_LIST_ITEMS);
   const deadlines = [...new Set(asStringArray(raw.deadlines))].slice(0, MAX_LIST_ITEMS);
-  const urgencyRaw = raw.urgency as string;
-  const urgency: AnalysisResult["urgency"] = URGENCIES.includes(
-    urgencyRaw as (typeof URGENCIES)[number]
-  )
-    ? (urgencyRaw as AnalysisResult["urgency"])
-    : "Informational";
+  const urgency = normalizeUrgency(raw.urgency);
 
   let nextStepActionIndex: number | undefined;
   if (

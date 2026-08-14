@@ -47,7 +47,8 @@ describe("reply prompt assembly", () => {
       tone: "brief",
     });
     expect(messages[0].content).toBe(REPLY_SYSTEM_PROMPT);
-    const user = messages[1].content;
+    // The actual request is the final user message (after the few-shot examples).
+    const user = messages[messages.length - 1].content;
     expect(user).toContain(MESSAGE);
     expect(user).toContain("Submit the final report via the online portal");
     expect(user).toContain(TONE_PRESETS.brief);
@@ -58,10 +59,12 @@ describe("reply prompt assembly", () => {
     expect(lower).not.toContain("<html");
     expect(lower).not.toContain("<p>");
     expect(lower).not.toContain("<h1");
-    expect(lower).not.toContain("**");
+    // The prompt may mention markdown symbols to forbid them, but it must
+    // never instruct the model to emit markdown as an output format.
+    expect(lower).not.toMatch(/^.*(?:return|format|output).*markdown.*$/m);
     expect(lower).toContain("plain text only");
-    expect(lower).toContain("no html");
-    expect(lower).toContain("no markdown");
+    expect(lower).toContain("do not use html");
+    expect(lower).toContain("do not use markdown");
   });
 });
 

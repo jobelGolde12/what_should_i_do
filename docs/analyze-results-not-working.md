@@ -18,8 +18,9 @@ User Input
 src/app/actions/analyzeText.ts            (server action — blocking)
 src/app/api/analyze/stream/route.ts       (SSE streaming — primary UI path)
     ↓
-src/lib/ai.ts  (AIClient — TokenRouter, OpenAI-compatible)
-    │  retries / backoff / circuit breaker / multi-model routing
+src/lib/ai.ts  (AIClient — TokenRouter primary, OpenRouter secondary)
+    │  retries / backoff / circuit breakers / multi-model routing
+    │  → OpenRouter fallback when TokenRouter fails or is tripped
     ↓
 src/lib/validateAnalysis.ts  (zod strict parse → repair → quality gate)
     ↓ Success              ↓ Failure (after N attempts)
@@ -37,9 +38,9 @@ src/lib/validateAnalysis.ts  (zod strict parse → repair → quality gate)
 
 ### 1. AI Provider Key Not Configured
 
-**Symptom:** "No AI provider configured (TOKENROUTER_API_KEY is missing)"
+**Symptom:** "No AI provider configured (set TOKENROUTER_API_KEY or OPENROUTER_API_KEY)"
 
-**Cause:** `TOKENROUTER_API_KEY` is not set in the environment.
+**Cause:** Neither `TOKENROUTER_API_KEY` nor `OPENROUTER_API_KEY` is set.
 
 **Solution:**
 ```bash
@@ -47,6 +48,10 @@ src/lib/validateAnalysis.ts  (zod strict parse → repair → quality gate)
 TOKENROUTER_API_KEY=tr-xxxxxxxx
 TOKENROUTER_BASE_URL=https://api.tokenrouter.com/v1
 TOKENROUTER_MODEL=            # optional: model id or routing tag
+
+# Optional secondary fallback used when TokenRouter fails/times out:
+OPENROUTER_API_KEY=sk-or-xxxxxxxx
+# OPENROUTER_MODEL=anthropic/claude-3.5-sonnet  # defaults if unset
 ```
 
 **Location in code:** `src/lib/ai.ts` (the `AIClient` constructor).
@@ -65,7 +70,8 @@ TOKENROUTER_MODEL=            # optional: model id or routing tag
 2. Or set a different `TOKENROUTER_API_KEY` / `TOKENROUTER_MODEL`.
 
 The app detects quota errors and surfaces them (`ALL_KEYS_EXHAUSTED`) instead of
-retrying. The streaming UI path still falls back to the rule-based analyzer.
+retrying or silently degrading — on both the server action and the streaming
+UI path (quota errors never fall back to the rule-based analyzer).
 
 ---
 
@@ -80,8 +86,12 @@ timeout / network)
 - Wait a bit and retry.
 - The client already retries with exponential backoff + jitter and can switch
   to `TOKENROUTER_MODEL_FALLBACKS` (comma-separated) across attempts.
+- When TokenRouter is down (or its circuit breaker is open), requests
+  automatically fall through to the secondary OpenRouter provider before the
+  rule-based analyzer is considered.
 - `TOKENROUTER_TIMEOUT_MS` (default 60000) and `TOKENROUTER_MAX_ATTEMPTS`
-  (default 3) tune the behavior.
+  (default 3) tune the primary provider; `OPENROUTER_TIMEOUT_MS` and
+  `OPENROUTER_MAX_ATTEMPTS` tune the secondary.
 
 **Location in code:** `src/lib/ai.ts` — `backoff()`, attempt loops, and the
 `RouteCircuitBreaker`.
@@ -156,7 +166,7 @@ server at `http://localhost:3001`.
 |----------|--------|---------|
 | `/api/debug/ai` | POST | Runs `aiClient.analyzeStructured` directly (raw AI path) with usage + diagnostics |
 | `/api/debug/server-action` | POST | Runs the full `analyzeText` server action (AI + rule fallback) |
-| `/api/debug/env` | GET | Shows which `TOKENROUTER_*` / legacy `OPENROUTER_*` vars exist |
+| `/api/debug/env` | GET | Shows which `TOKENROUTER_*` / `OPENROUTER_*` vars exist |
 | `/api/debug/health` | GET | Uptime + AI client config (public) |
 
 The POST endpoints accept an optional JSON body to override the sample input:
@@ -188,12 +198,18 @@ auto-route state, prompt version, and circuit-breaker state.
 | `TOKENROUTER_MAX_TOKENS` | No | Max output tokens (default `900`) |
 | `TOKENROUTER_TIMEOUT_MS` | No | Request timeout (default `60000`) |
 | `TOKENROUTER_MAX_ATTEMPTS` | No | Max routing attempts (default `3`) |
-| `NEXT_PUBLIC_APP_URL` | No | App URL for canonical metadata |
+| `OPENROUTER_API_KEY` | No | Secondary fallback provider key (used when TokenRouter fails) |
+| `OPENROUTER_BASE_URL` | No | OpenRouter base URL (default `https://openrouter.ai/api/v1`) |
+| `OPENROUTER_MODEL` | No | OpenRouter model id (default `anthropic/claude-3.5-sonnet`) |
+| `OPENROUTER_MODEL_FALLBACKS` | No | Comma-separated OpenRouter fallback models |
+| `OPENROUTER_MAX_ATTEMPTS` | No | Max attempts on OpenRouter (default `2`) |
+| `NEXT_PUBLIC_APP_URL` | No | App URL (also sent as `HTTP-Referer` to OpenRouter) |
 | `AUTH_SECRET` | Yes (prod) | HMAC secret for session tokens |
 | `ADMIN_TOKEN` | No | Bearer token guarding debug endpoints in production |
 
-Legacy `OPENROUTER_API_KEY1/2/3` variables are no longer read by the app
-(kept commented out in `.env.local` for rollback reference).
+`OPENROUTER_API_KEY` is now the **secondary fallback provider**: it is used
+automatically when TokenRouter fails, times out, or its circuit breaker is
+open. Legacy `OPENROUTER_API_KEY1/2/3` variables are no longer read by the app.
 
 ---
 
@@ -228,7 +244,7 @@ npm test                # unit/integration tests (mocked provider)
 
 | File | Purpose |
 |------|---------|
-| `src/lib/ai.ts` | TokenRouter AI client (routing, retries, breaker) |
+| `src/lib/ai.ts` | AI client (TokenRouter → OpenRouter → rules cascade, retries, breakers) |
 | `src/lib/prompts.ts` | Versioned analysis prompt + few-shot examples |
 | `src/lib/validateAnalysis.ts` | zod schema validation + repair |
 | `src/lib/streamParse.ts` | Streaming SSE parser + progressive fields |

@@ -18,9 +18,11 @@ import type { SharePayload } from "./types";
  *
  * Token format:  `enc:<base64url(iv | ciphertext | authTag)>`
  *
- * Legacy (pre-encryption) base64 tokens still decode for backward
- * compatibility; they were plaintext at creation time, so keeping them
- * readable does not reduce security.
+ * Legacy (pre-encryption) base64 tokens were dropped in the security pass:
+ * they were unauthenticated plaintext by design, and every share link now
+ * expires 30 days after creation — long enough that no valid legacy link
+ * remains. Accepting them would keep an unauthenticated decode path alive for
+ * no benefit, so `decryptShareToken` only accepts `enc:` tokens.
  */
 
 export const SHARE_PREFIX = "enc:";
@@ -69,8 +71,8 @@ export function encryptSharePayload(
   );
 }
 
-/** Decrypts an `enc:` token. Returns null on tampering / bad secret, falling
- * back to the legacy base64 format for pre-encryption links. Server-side. */
+/** Decrypts an `enc:` token. Returns null on tampering / bad secret / wrong
+ * format. Legacy unencrypted base64 tokens are no longer accepted. Server-side. */
 export function decryptShareToken(
   token: string,
   secret?: string
@@ -79,57 +81,29 @@ export function decryptShareToken(
   // Next.js may hand the route param back with the prefix colon percent-encoded
   // (`enc%3A…`), so normalize it before parsing.
   const normalized = token.replace(/%3A/gi, ":");
-  const body = normalized.startsWith(SHARE_PREFIX)
-    ? normalized.slice(SHARE_PREFIX.length)
-    : normalized;
+  if (!normalized.startsWith(SHARE_PREFIX)) return null;
+  const body = normalized.slice(SHARE_PREFIX.length);
 
-  if (keySecret && body) {
-    try {
-      const raw = Buffer.from(body, "base64url");
-      if (raw.length < IV_LEN + TAG_LEN + 1) return null;
-      const iv = raw.subarray(0, IV_LEN);
-      const tag = raw.subarray(raw.length - TAG_LEN);
-      const ciphertext = raw.subarray(IV_LEN, raw.length - TAG_LEN);
-      const decipher = createDecipheriv(
-        "aes-256-gcm",
-        deriveKey(keySecret),
-        iv
-      );
-      decipher.setAuthTag(tag);
-      const decrypted = Buffer.concat([
-        decipher.update(ciphertext),
-        decipher.final(),
-      ]);
-      const parsed = JSON.parse(decrypted.toString("utf8")) as SharePayload;
-      if (!parsed || !parsed.output || !Array.isArray(parsed.output.actions))
-        return null;
-      if (shareExpired(parsed)) return null;
-      return parsed;
-    } catch {
-      // Tampered ciphertext, wrong secret, or expired — fall through to the
-      // legacy format (which is also age-checked).
-    }
-  }
-
-  return decodeLegacyPayload(normalized);
-}
-
-/** Legacy base64url decode used before tokens were encrypted. */
-function decodeLegacyPayload(token: string): SharePayload | null {
+  if (!keySecret || !body) return null;
   try {
-    const body = token.startsWith(SHARE_PREFIX)
-      ? token.slice(SHARE_PREFIX.length)
-      : token;
-    let encoded = body.replace(/-/g, "+").replace(/_/g, "/");
-    while (encoded.length % 4) encoded += "=";
-    const parsed = JSON.parse(
-      Buffer.from(encoded, "base64").toString("utf8")
-    ) as SharePayload;
+    const raw = Buffer.from(body, "base64url");
+    if (raw.length < IV_LEN + TAG_LEN + 1) return null;
+    const iv = raw.subarray(0, IV_LEN);
+    const tag = raw.subarray(raw.length - TAG_LEN);
+    const ciphertext = raw.subarray(IV_LEN, raw.length - TAG_LEN);
+    const decipher = createDecipheriv("aes-256-gcm", deriveKey(keySecret), iv);
+    decipher.setAuthTag(tag);
+    const decrypted = Buffer.concat([
+      decipher.update(ciphertext),
+      decipher.final(),
+    ]);
+    const parsed = JSON.parse(decrypted.toString("utf8")) as SharePayload;
     if (!parsed || !parsed.output || !Array.isArray(parsed.output.actions))
       return null;
     if (shareExpired(parsed)) return null;
     return parsed;
   } catch {
+    // Tampered ciphertext, wrong secret, expired, or malformed token.
     return null;
   }
 }

@@ -14,7 +14,7 @@ import { isMailgunConfigured } from "@/lib/mailgun";
 import { issueVerificationEmail as sendVerification } from "@/lib/auth/verify";
 import { rateLimitDb, rlKey } from "@/lib/rateLimitDb";
 import { getClientIp } from "@/lib/rateLimit";
-import { logAuthEvent } from "@/lib/log";
+import { logAuthEvent, maskEmail } from "@/lib/log";
 
 export const runtime = "nodejs";
 
@@ -68,7 +68,11 @@ export async function POST(request: Request) {
 
     const existing = await findUserByEmail(email);
     if (existing) {
-      logAuthEvent("register", { ip, email, outcome: "duplicate" });
+      logAuthEvent("register", {
+        ip,
+        emailHash: maskEmail(email),
+        outcome: "duplicate",
+      });
       return NextResponse.json(
         { error: "An account with this email already exists." },
         { status: 409 }
@@ -93,11 +97,11 @@ export async function POST(request: Request) {
     // the existing "register -> signed in" flow still works. Production always
     // requires email verification.
     if (!isMailgunConfigured()) {
-      await setUserVerified(user.id, Date.now());
-      setSessionCookie({ id: user.id, email: user.email });
+      const authVersion = await setUserVerified(user.id, Date.now());
+      await setSessionCookie({ id: user.id, email: user.email, v: authVersion });
       logAuthEvent("register", {
         ip,
-        email,
+        emailHash: maskEmail(user.email),
         outcome: "created_auto_verified_dev",
       });
       return NextResponse.json(
@@ -117,7 +121,7 @@ export async function POST(request: Request) {
     const result = await sendVerification(user.id, user.email);
     logAuthEvent("register", {
       ip,
-      email,
+      emailHash: maskEmail(user.email),
       outcome: result.ok ? "created_pending_verification" : "created_mail_failed",
       sent: result.sent,
     });

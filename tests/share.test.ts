@@ -90,18 +90,11 @@ describe("share token crypto", () => {
       expect(decryptShareToken("not-a-token", SECRET)).toBeNull();
       expect(decryptShareToken("", SECRET)).toBeNull();
     });
-  });
 
-  describe("legacy (pre-encryption) tokens", () => {
-    it("still decodes old base64url tokens for backward compatibility", () => {
+    it("rejects legacy unencrypted base64 tokens (removed in the security pass)", () => {
       const json = JSON.stringify(RECORD);
       const legacy = Buffer.from(json, "utf8").toString("base64url");
-      const payload = decryptShareToken(legacy, SECRET);
-      expect(payload).not.toBeNull();
-      expect(payload?.output).toEqual(RECORD.output);
-    });
-
-    it("rejects malformed legacy tokens", () => {
+      expect(decryptShareToken(legacy, SECRET)).toBeNull();
       expect(decryptShareToken("not-base64!!!", SECRET)).toBeNull();
     });
   });

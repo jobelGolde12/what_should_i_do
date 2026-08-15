@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth/cookies";
 import { updateUserData, deleteUser } from "@/lib/auth/users";
+import { validateSyncBatch } from "@/lib/auth/validation";
 import { logSyncEvent } from "@/lib/log";
 
 export const runtime = "nodejs";
@@ -42,10 +43,28 @@ export async function PUT(request: Request) {
     return NextResponse.json({ error: "Payload too large." }, { status: 413 });
   }
 
+  // Strict whitelist validation: every record must match its schema. Any
+  // malformed record rejects the whole batch (all-or-nothing).
+  const result = validateSyncBatch(body);
+  if (!result.ok) {
+    logSyncEvent("sync_error", {
+      userId: user.id,
+      reason: result.reason,
+      invalid: result.invalid,
+      size,
+    });
+    return NextResponse.json(
+      { error: "Invalid records in the sync payload." },
+      { status: 400 }
+    );
+  }
+
+  // Collections not present in the body keep their existing server state.
   const next = {
-    history: Array.isArray(body.history) ? body.history : user.data.history,
-    templates: Array.isArray(body.templates) ? body.templates : user.data.templates,
-    board: Array.isArray(body.board) ? body.board : user.data.board,
+    history: body.history !== undefined ? result.next.history : user.data.history,
+    templates:
+      body.templates !== undefined ? result.next.templates : user.data.templates,
+    board: body.board !== undefined ? result.next.board : user.data.board,
   };
   const updated = await updateUserData(user.id, next);
   if (!updated) return NextResponse.json({ error: "User not found." }, { status: 404 });

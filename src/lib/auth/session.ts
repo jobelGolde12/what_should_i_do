@@ -64,15 +64,17 @@ export function requireAuthSecret(): void {
   }
 }
 
-type SessionPayload = { sub: string; email: string; exp: number };
+type SessionPayload = { sub: string; email: string; exp: number; v?: number };
 
 export function signSession(payload: {
   sub: string;
   email: string;
+  v?: number;
 }): string {
   const body: SessionPayload = {
     sub: payload.sub,
     email: payload.email,
+    v: payload.v ?? 0,
     exp: Math.floor(Date.now() / 1000) + SESSION_TTL_SECONDS,
   };
   const bodyB64 = Buffer.from(JSON.stringify(body))

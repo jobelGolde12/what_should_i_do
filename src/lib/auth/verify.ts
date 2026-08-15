@@ -1,27 +1,27 @@
 /**
  * Email-verification (and password-reset) token helpers.
  *
- * Tokens are HMAC-SHA256 signed (tamper-evident) AND single-use. Only the
- * SHA-256 hash of the token is stored server-side, so a database leak does not
- * expose usable tokens. The signed token encodes `{ userId, email, exp }`.
+ * Tokens are stateless HMAC-SHA256 signed URLs: the payload is
+ * `{ userId, email, expiresAt, v }` where `v` is the user's `auth_version` at
+ * issue time. No token hash is stored in the database. Single-use and
+ * freshness are enforced by `users.auth_version`:
+ *
+ *   - issuing a new link bumps `auth_version`, invalidating every older link,
+ *   - verifying bumps it again, so a consumed token can never be replayed,
+ *   - setting a new password bumps it, invalidating both sessions and links.
  *
  * Token shape:  `<base64url(payload)>.<base64url(hmac)>`
- * Stored hash:  `sha256hex(token)`
  *
  * The signing secret is the same `AUTH_SECRET` used for sessions (see
  * `session.ts`), so a single secret rotates both.
  */
-import { createHmac, createHash, timingSafeEqual } from "crypto";
+import { createHmac, timingSafeEqual } from "crypto";
 import { getSessionSecret } from "./session";
 import { sendMail, isMailgunConfigured, buildAppUrl } from "@/lib/mailgun";
 import {
-  storeVerificationToken,
-  hasVerificationToken,
-  consumeVerificationToken,
+  bumpAuthVersion,
+  findUserAuthById,
   setUserVerified,
-  storePasswordReset,
-  findPasswordReset,
-  consumePasswordReset,
 } from "./users";
 import { logWarn } from "@/lib/log";
 
@@ -32,11 +32,11 @@ export interface SignedTokenPayload {
   userId: string;
   email: string;
   expiresAt: number;
+  v?: number;
 }
 
 export interface SignedToken {
   token: string;
-  tokenHash: string;
   expiresAt: number;
 }
 
@@ -47,29 +47,26 @@ export interface IssueEmailResult {
   messageId?: string;
 }
 
-/** SHA-256 hex of the token string — what gets persisted / looked up. */
-export function hashToken(token: string): string {
-  return createHash("sha256").update(token).digest("hex");
-}
-
-/** Builds `<payloadB64>.<signature>` (does not persist anything). */
+/** Builds `<payloadB64>.<signature>` bound to the user's current auth version
+ * (does not persist anything). */
 export function generateSignedToken(
   userId: string,
   email: string,
-  ttlMs: number
+  ttlMs: number,
+  version = 0
 ): SignedToken {
   const expiresAt = Date.now() + ttlMs;
   const payload = Buffer.from(
-    JSON.stringify({ userId, email, expiresAt })
+    JSON.stringify({ userId, email, expiresAt, v: version })
   ).toString("base64url");
   const signature = createHmac("sha256", getSessionSecret())
     .update(payload)
     .digest("base64url");
-  const token = `${payload}.${signature}`;
-  return { token, tokenHash: hashToken(token), expiresAt };
+  return { token: `${payload}.${signature}`, expiresAt };
 }
 
-/** Verifies the HMAC signature + expiry. Does NOT check single-use state in DB. */
+/** Verifies the HMAC signature + expiry. Does NOT check single-use state (the
+ * caller must compare `payload.v` against the user's current auth_version). */
 export function validateSignedToken(
   token: string
 ): SignedTokenPayload | null {
@@ -115,17 +112,19 @@ export function resetLink(token: string): string {
    Email orchestration
    ========================================================= */
 
-/** Generates, persists (as hash), and emails a verification link. */
+/** Generates, version-stamps, and emails a verification link. Issuing a new
+ * link invalidates any older ones (and any sessions held by the account). */
 export async function issueVerificationEmail(
   userId: string,
   email: string
 ): Promise<IssueEmailResult> {
-  const { token, tokenHash, expiresAt } = generateSignedToken(
+  const version = await bumpAuthVersion(userId);
+  const { token } = generateSignedToken(
     userId,
     email,
-    VERIFICATION_TTL_MS
+    VERIFICATION_TTL_MS,
+    version
   );
-  await storeVerificationToken(userId, tokenHash, expiresAt);
 
   if (!isMailgunConfigured()) {
     if (process.env.NODE_ENV === "production") {
@@ -155,29 +154,35 @@ export async function issueVerificationEmail(
   };
 }
 
-/** Validates a verification token, marks the account verified (single-use). */
+/** Validates a verification token against the user's current auth version and
+ * marks the account verified. Returns the NEW auth version (for signing the
+ * follow-up session) or null on any failure (tampered, expired, stale, replay,
+ * unknown user, or already verified). */
 export async function verifyEmailToken(
   token: string
-): Promise<SignedTokenPayload | null> {
+): Promise<{ userId: string; email: string; authVersion: number } | null> {
   const payload = validateSignedToken(token);
   if (!payload) return null;
-  const tokenHash = hashToken(token);
-  if (!(await hasVerificationToken(tokenHash))) return null;
-  await consumeVerificationToken(tokenHash);
-  await setUserVerified(payload.userId, Date.now());
-  return payload;
+  const auth = await findUserAuthById(payload.userId);
+  if (!auth) return null;
+  if (auth.email !== payload.email) return null;
+  if (auth.authVersion !== (payload.v ?? 0)) return null; // stale / replayed
+  if (auth.verified) return null; // already verified — token cannot be reused
+  const authVersion = await setUserVerified(payload.userId, Date.now());
+  return { userId: payload.userId, email: payload.email, authVersion };
 }
 
 export async function issuePasswordResetEmail(
   userId: string,
   email: string
 ): Promise<IssueEmailResult> {
-  const { token, tokenHash, expiresAt } = generateSignedToken(
+  const version = await bumpAuthVersion(userId);
+  const { token } = generateSignedToken(
     userId,
     email,
-    RESET_TTL_MS
+    RESET_TTL_MS,
+    version
   );
-  await storePasswordReset(userId, tokenHash, expiresAt);
 
   if (!isMailgunConfigured()) {
     if (process.env.NODE_ENV === "production") {
@@ -205,17 +210,18 @@ export async function issuePasswordResetEmail(
   };
 }
 
-/** Validates a reset token and consumes it. Returns the user id or null. */
+/** Validates a reset token. Returns the payload when the signature, expiry,
+ * email, and current auth version all match; the token becomes unusable as soon
+ * as `setNewPassword` bumps the version. */
 export async function verifyResetToken(
   token: string
 ): Promise<SignedTokenPayload | null> {
   const payload = validateSignedToken(token);
   if (!payload) return null;
-  const tokenHash = hashToken(token);
-  const row = await findPasswordReset(tokenHash);
-  if (!row) return null;
-  await consumePasswordReset(tokenHash);
-  if (Date.now() > row.expiresAt) return null; // expired
+  const auth = await findUserAuthById(payload.userId);
+  if (!auth) return null;
+  if (auth.email !== payload.email) return null;
+  if (auth.authVersion !== (payload.v ?? 0)) return null; // stale / replayed
   return payload;
 }
 /* =========================================================

@@ -9,7 +9,7 @@
  *   MAILGUN_FROM        override From address (optional)
  *   MAILGUN_BASE_URL    API base incl /v3 (optional, default https://api.mailgun.com/v3)
  */
-import { logWarn } from "@/lib/log";
+import { logWarn, maskEmail } from "@/lib/log";
 
 export type MailResult = {
   ok: boolean;
@@ -85,7 +85,7 @@ export async function sendMail(
     });
   } catch (err) {
     const message = err instanceof Error ? err.message : "network error";
-    logWarn("mail", { error: message, to });
+    logWarn("mail", { error: message, toHash: maskEmail(to) });
     return { ok: false, error: "network_error" };
   }
 
@@ -94,7 +94,12 @@ export async function sendMail(
       .text()
       .catch(() => "")
       .then((t) => t.slice(0, 300));
-    logWarn("mail", { status: res.status, detail, to, endpoint });
+    logWarn("mail", {
+      status: res.status,
+      detail,
+      toHash: maskEmail(to),
+      endpoint,
+    });
     const error =
       res.status === 404
         ? "mailgun_domain_not_found"

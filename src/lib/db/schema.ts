@@ -7,7 +7,7 @@
  */
 
 /** Bump this when you add/modify tables; ensureSchema() applies the delta. */
-export const SCHEMA_VERSION = 5;
+export const SCHEMA_VERSION = 6;
 
 /**
  * Versioned migrations for databases that already exist. Each key is the target
@@ -46,6 +46,12 @@ export const SCHEMA_MIGRATIONS: Record<number, string[]> = {
       "replied INTEGER NOT NULL DEFAULT 0, created_at INTEGER NOT NULL, PRIMARY KEY (user_id, id))",
     "CREATE INDEX IF NOT EXISTS idx_inbox_user ON inbox_messages(user_id, provider)",
   ],
+  6: [
+    // Session/verification-token revocation: bump `auth_version` on every
+    // security-relevant event (password change, token issue/consume) so any
+    // session or email link signed with an older version is rejected.
+    "ALTER TABLE users ADD COLUMN auth_version INTEGER NOT NULL DEFAULT 0",
+  ],
 };
 
 /**
@@ -61,9 +67,13 @@ export const SCHEMA_DDL: string[] = [
     password_hash TEXT NOT NULL,
     verified INTEGER NOT NULL DEFAULT 0,
     email_verified_at INTEGER,
-    created_at INTEGER NOT NULL
+    created_at INTEGER NOT NULL,
+    auth_version INTEGER NOT NULL DEFAULT 0
   )`,
 
+  // Deprecated since SCHEMA_VERSION 6: verification/reset tokens are now
+  // stateless signed URLs (single-use enforced by `users.auth_version`).
+  // The tables are kept so older deployments can roll back cleanly.
   // Single-use verification tokens (the token sent by email; only the hash is stored).
   `CREATE TABLE IF NOT EXISTS email_verifications (
     token_hash TEXT PRIMARY KEY,

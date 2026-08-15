@@ -3,7 +3,7 @@ import { findUserByEmail } from "@/lib/auth/users";
 import { issuePasswordResetEmail } from "@/lib/auth/verify";
 import { rateLimitDb, rlKey } from "@/lib/rateLimitDb";
 import { getClientIp } from "@/lib/rateLimit";
-import { logAuthEvent } from "@/lib/log";
+import { logAuthEvent, maskEmail } from "@/lib/log";
 
 export const runtime = "nodejs";
 
@@ -34,7 +34,11 @@ export async function POST(request: Request) {
     // Per-account throttle so reset spam can't be spread across many IPs.
     const rlAccount = await rateLimitDb(rlKey("forgot-account", email), 5);
     if (!rlAccount.allowed) {
-      logAuthEvent("forgot_password", { ip, email, outcome: "rate_limited" });
+      logAuthEvent("forgot_password", {
+        ip,
+        emailHash: maskEmail(email),
+        outcome: "rate_limited",
+      });
       return NextResponse.json(
         { error: "Too many attempts. Try again in a minute." },
         { status: 429 }
@@ -44,7 +48,11 @@ export async function POST(request: Request) {
     const user = await findUserByEmail(email);
     // Generic response to protect user privacy / avoid enumeration
     if (!user) {
-      logAuthEvent("forgot_password", { ip, email, outcome: "not_found" });
+      logAuthEvent("forgot_password", {
+        ip,
+        emailHash: maskEmail(email),
+        outcome: "not_found",
+      });
       return NextResponse.json({
         ok: true,
         message: "If an account with that email exists, we sent a password reset link.",
@@ -54,7 +62,7 @@ export async function POST(request: Request) {
     const result = await issuePasswordResetEmail(user.id, user.email);
     logAuthEvent("forgot_password", {
       ip,
-      email: user.email,
+      emailHash: maskEmail(user.email),
       userId: user.id,
       outcome: result.ok ? "sent" : "failed",
     });

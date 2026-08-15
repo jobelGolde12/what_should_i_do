@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import Link from 'next/link';
 import { useAuth } from '@/context/AuthContext';
 import { usePlan } from '@/lib/pro/usePlan';
 import { toast } from '@/lib/toast';
@@ -141,10 +142,12 @@ export default function BillingPage() {
               unlimited analyses, bigger messages, and batch tools.
             </p>
             <div className="mt-6 flex flex-wrap items-center justify-center gap-2">
-              <Button onClick={() => (window.location.href = '/auth/login')}>Sign in</Button>
-              <Button variant="outline" onClick={() => (window.location.href = '/auth/register')}>
-                Create an account
-              </Button>
+              <Link href="/auth/login">
+                <Button>Sign in</Button>
+              </Link>
+              <Link href="/auth/register">
+                <Button variant="outline">Create an account</Button>
+              </Link>
             </div>
           </div>
         </div>

@@ -8,7 +8,7 @@ import {
 } from "@/lib/auth/session";
 import { rateLimitDb, rlKey } from "@/lib/rateLimitDb";
 import { getClientIp } from "@/lib/rateLimit";
-import { logAuthEvent } from "@/lib/log";
+import { logAuthEvent, maskEmail } from "@/lib/log";
 
 export const runtime = "nodejs";
 
@@ -60,7 +60,7 @@ export async function POST(request: Request) {
     logAuthEvent("reset_password", {
       ip,
       userId: payload.userId,
-      email: payload.email,
+      emailHash: maskEmail(payload.email),
       outcome: "success",
     });
 

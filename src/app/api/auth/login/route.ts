@@ -4,7 +4,7 @@ import { findUserByEmail } from "@/lib/auth/users";
 import { setSessionCookie } from "@/lib/auth/cookies";
 import { getClientIp } from "@/lib/rateLimit";
 import { rateLimitDb, rlKey } from "@/lib/rateLimitDb";
-import { logAuthEvent } from "@/lib/log";
+import { logAuthEvent, maskEmail } from "@/lib/log";
 
 export const runtime = "nodejs";
 
@@ -43,7 +43,11 @@ export async function POST(request: Request) {
     // can't be spread across many IPs against a single account.
     const rlAccount = await rateLimitDb(rlKey("login-account", email), 10);
     if (!rlAccount.allowed) {
-      logAuthEvent("login_blocked", { ip, email, reason: "account_rate_limited" });
+      logAuthEvent("login_blocked", {
+        ip,
+        emailHash: maskEmail(email),
+        reason: "account_rate_limited",
+      });
       return NextResponse.json(
         { error: "Too many attempts. Try again in a minute." },
         { status: 429 }
@@ -52,7 +56,11 @@ export async function POST(request: Request) {
 
     const user = await findUserByEmail(email);
     if (!user || !verifyPassword(password, user.passwordHash)) {
-      logAuthEvent("login", { ip, email, outcome: "invalid_credentials" });
+      logAuthEvent("login", {
+        ip,
+        emailHash: maskEmail(email),
+        outcome: "invalid_credentials",
+      });
       return NextResponse.json(
         { error: "Incorrect email or password." },
         { status: 401 }
@@ -60,7 +68,12 @@ export async function POST(request: Request) {
     }
 
     if (!user.verified) {
-      logAuthEvent("login_blocked", { ip, email, userId: user.id, reason: "unverified" });
+      logAuthEvent("login_blocked", {
+        ip,
+        emailHash: maskEmail(email),
+        userId: user.id,
+        reason: "unverified",
+      });
       return NextResponse.json(
         {
           error: "Please verify your email address before signing in.",
@@ -71,8 +84,17 @@ export async function POST(request: Request) {
       );
     }
 
-    setSessionCookie({ id: user.id, email: user.email });
-    logAuthEvent("login", { ip, email: user.email, userId: user.id, outcome: "success" });
+    await setSessionCookie({
+      id: user.id,
+      email: user.email,
+      v: user.authVersion,
+    });
+    logAuthEvent("login", {
+      ip,
+      emailHash: maskEmail(user.email),
+      userId: user.id,
+      outcome: "success",
+    });
 
     return NextResponse.json({
       user: {

@@ -56,6 +56,16 @@ function BoardCard({
   return (
     <div
       draggable
+      tabIndex={0}
+      role="group"
+      aria-label={`Action: ${item.text}`}
+      aria-keyshortcuts="ArrowLeft ArrowRight"
+      onKeyDown={(e) => {
+        if (e.key === "ArrowLeft" || e.key === "ArrowRight") {
+          e.preventDefault();
+          onMove(item.id, e.key === "ArrowLeft" ? -1 : 1);
+        }
+      }}
       onDragStart={(e) => {
         e.dataTransfer.setData("text/plain", item.id);
         e.dataTransfer.effectAllowed = "move";
@@ -66,7 +76,7 @@ function BoardCard({
         e.preventDefault();
         onDropCard(item.id);
       }}
-      className={`group cursor-grab rounded-tm border border-line bg-background p-3 transition-colors active:cursor-grabbing ${
+      className={`group cursor-grab rounded-tm border border-line bg-background p-3 outline-none transition-colors focus-visible:border-accent active:cursor-grabbing ${
         dragging ? "opacity-50" : "hover:border-ink"
       }`}
     >
@@ -155,7 +165,7 @@ export default function ActionsBoard() {
     <div className="mx-auto max-w-5xl">
       <PageHeader
         title="My Actions"
-        kicker="Every action from your history, in one board. Drag between columns."
+        kicker="Every action from your history, in one board. Drag between columns, or use ← / → to move with the keyboard."
       />
 
       <div className="flex flex-col gap-3 border border-line bg-surface px-4 py-3">

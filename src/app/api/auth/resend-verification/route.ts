@@ -4,7 +4,7 @@ import { issueVerificationEmail } from "@/lib/auth/verify";
 import { getCurrentUser } from "@/lib/auth/cookies";
 import { rateLimitDb, rlKey } from "@/lib/rateLimitDb";
 import { getClientIp } from "@/lib/rateLimit";
-import { logAuthEvent } from "@/lib/log";
+import { logAuthEvent, maskEmail } from "@/lib/log";
 
 export const runtime = "nodejs";
 
@@ -50,7 +50,11 @@ export async function POST(request: Request) {
     const user = await findUserByEmail(email);
     // Generic response to avoid email enumeration
     if (!user || user.verified) {
-      logAuthEvent("resend_verification", { ip, email, outcome: user ? "already_verified" : "user_not_found" });
+      logAuthEvent("resend_verification", {
+        ip,
+        emailHash: maskEmail(email),
+        outcome: user ? "already_verified" : "user_not_found",
+      });
       return NextResponse.json({
         ok: true,
         message: "If an unverified account exists, a verification link has been sent.",
@@ -60,7 +64,7 @@ export async function POST(request: Request) {
     const result = await issueVerificationEmail(user.id, user.email);
     logAuthEvent("resend_verification", {
       ip,
-      email: user.email,
+      emailHash: maskEmail(user.email),
       userId: user.id,
       outcome: result.ok ? "sent" : "failed",
     });

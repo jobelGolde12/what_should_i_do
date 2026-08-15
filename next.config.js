@@ -1,13 +1,11 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
-  experimental: {
-    serverComponentsExternalPackages: [
-      "@xenova/transformers",
-      "onnxruntime-node",
-      "pdfjs-dist",
-    ],
-  },
+  serverExternalPackages: [
+    "@xenova/transformers",
+    "onnxruntime-node",
+    "pdfjs-dist",
+  ],
   webpack: (config) => {
     config.externals.push({ 'onnxruntime-node': 'commonjs onnxruntime-node' });
     // pdfjs-dist ships only ESM (.mjs) builds. Bundling them through webpack
@@ -43,6 +41,11 @@ const nextConfig = {
             // Inline scripts: theme boot script + inline JSON-LD. 'unsafe-eval'
             // needed by pdfjs/tesseract WASM workers (checked against the live
             // build; see scripts/verify-browser.mjs).
+            // SEC-13: per-request nonces would drop 'unsafe-inline', but that
+            // requires a custom Node server to stamp nonces into the HTML;
+            // Next (self-hosted, `next start`) has no built-in nonce support.
+            // Assessed and deferred — 'unsafe-inline' stays until a custom
+            // server is in place.
             "script-src 'self' 'unsafe-inline' 'unsafe-eval'",
             "style-src 'self' 'unsafe-inline'",
             "img-src 'self' data: blob: https:",

@@ -29,11 +29,12 @@ export const metadata: Metadata = {
 export default async function SharePage({
   params,
 }: {
-  params: { id: string };
+  params: Promise<{ id: string }>;
 }) {
+  const { id } = await params;
   // Decrypt on the server: a `sensitive` payload never sends the raw input to
   // the browser at all, so it can't be recovered by editing the URL.
-  let payload = decryptShareToken(params.id);
+  let payload = decryptShareToken(id);
   if (!payload) {
     // A tampered / invalid token is a real 404 — not a 200 page.
     notFound();
@@ -41,5 +42,5 @@ export default async function SharePage({
   if (payload.sensitive) {
     payload = { ...payload, input: "" };
   }
-  return <ShareView payload={payload} shareToken={params.id} />;
+  return <ShareView payload={payload} shareToken={id} />;
 }

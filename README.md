@@ -84,7 +84,7 @@ Kinakailangan ang agarang aksyon dahil sa nalalapit na presentasyon at mahigpit 
 
 🛠️ Quick Start
 Prerequisites
-Node.js 18.0.0 or higher
+Node.js 22 or higher (required for Next 16 / sharp 0.35)
 
 npm or yarn package manager
 
@@ -104,6 +104,9 @@ npm run dev
 
 # Or build for production
 npm run build
+
+# Production server (self-hosted)
+npm run start
 Basic Usage
 javascript
 // Using as a module
@@ -288,4 +291,48 @@ npm start
 
 # Then open http://localhost:3000 in your browser
 Or visit the live demo: https://taskmind.ai
+
+## Developer notes
+
+- **Stack**: Next.js 16.3.1 (App Router) + React 19, TypeScript, Tailwind v4,
+  Turso libSQL (`@libsql/client`), scrypt auth, Mailgun, Stripe.
+- **Build flag**: `next dev` / `next build` run with `--webpack` (Next 16
+  defaults to Turbopack, which ignores the `webpack()` config that
+  externalizes runtime-loaded native modules — `onnxruntime-node`,
+  `pdfjs-dist`, `@xenova/transformers`). Trade-off: no Turbopack build speed,
+  but a stable self-hosted production build.
+- **Runtime-loaded assets**: `prebuild`/`predev` run
+  `scripts/self-host-assets.mjs` to copy the pdf.js worker and tesseract
+  worker/core into `public/`.
+- **CSRF protection**: `src/proxy.ts` (Next 16 Proxy, formerly Middleware)
+  rejects cross-origin mutation requests with a JSON 403; same-origin and
+  header-less (webhook/cron) traffic passes through.
+- **Auth**: sessions are HMAC-signed cookies stamped with the user's
+  `auth_version`; password changes revoke outstanding sessions and email
+  tokens. Verification/reset links are stateless signed URLs — nothing is
+  stored server-side.
+- **Security & privacy model**: see `docs/security.md` (endpoint inventory,
+  hardening status, known risks, dependency status).
+
+## Verification
+
+```bash
+npm run typecheck   # tsc --noEmit
+npm run lint        # eslint
+npm test            # vitest (247 tests)
+npm run build       # next build --webpack
+npm run security:audit  # npm audit --omit=dev (0 vulnerabilities)
+```
+
+## Migration history (2026-08)
+
+- **Next 14.2.35 → 16.3.1, React 18 → 19**: async `cookies()`/`params`/
+  `searchParams`, `middleware.ts` → `proxy.ts`, `serverComponentsExternalPackages`
+  moved to the top-level `serverExternalPackages` key.
+- **Security pass (SEC-09/10/12/18/22)**: `auth_version`-based session/token
+  revocation, stateless email tokens, legacy share-token decode removed, strict
+  `users/me` validation, PII-free logs.
+- **Dependency overrides**: `protobufjs ^7.6.3`, `sharp ^0.35.0`,
+  `underscore ^1.13.6` clear the `npm audit` chain without downgrading
+  `@xenova/transformers`.
 

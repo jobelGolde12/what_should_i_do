@@ -29,7 +29,7 @@ function originHost(origin: string): string | null {
   }
 }
 
-export function middleware(request: NextRequest) {
+export function proxy(request: NextRequest) {
   const method = request.method.toUpperCase();
   if (!MUTATION_METHODS.has(method)) return NextResponse.next();
 

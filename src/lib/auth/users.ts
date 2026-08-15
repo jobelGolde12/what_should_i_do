@@ -21,6 +21,7 @@ export type StoredUser = {
   verified: boolean;
   emailVerifiedAt: number | null;
   createdAt: number;
+  authVersion: number;
   data: {
     history: unknown[];
     templates: unknown[];
@@ -43,6 +44,7 @@ function rowToBase(row: Record<string, unknown>): {
   verified: boolean;
   emailVerifiedAt: number | null;
   createdAt: number;
+  authVersion: number;
 } {
   return {
     id: row.id as string,
@@ -52,6 +54,7 @@ function rowToBase(row: Record<string, unknown>): {
     emailVerifiedAt:
       row.email_verified_at == null ? null : Number(row.email_verified_at),
     createdAt: Number(row.created_at),
+    authVersion: Number(row.auth_version ?? 0),
   };
 }
 
@@ -134,18 +137,20 @@ export async function createUser(
     verified: false,
     emailVerifiedAt: null,
     createdAt: now,
+    authVersion: 0,
     data: { history: [], templates: [], board: [] },
   };
 }
 
-/** Lightweight auth lookup (id, email, verified) without synced data. Used by
- * `getCurrentUserId` so sessions are always checked against the DB. */
-export type UserAuth = { id: string; email: string; verified: boolean };
+/** Lightweight auth lookup (id, email, verified, auth_version) without synced
+ * data. Used by `getCurrentUserId` so sessions are always checked against the
+ * DB and version-bumped (revoked) sessions are rejected. */
+export type UserAuth = { id: string; email: string; verified: boolean; authVersion: number };
 
 export async function findUserAuthById(id: string): Promise<UserAuth | null> {
   const database = await db();
   const res = await database.execute(
-    "SELECT id, email, verified FROM users WHERE id = ?",
+    "SELECT id, email, verified, auth_version FROM users WHERE id = ?",
     [id]
   );
   if (!res.rows?.length) return null;
@@ -154,13 +159,14 @@ export async function findUserAuthById(id: string): Promise<UserAuth | null> {
     id: row.id as string,
     email: row.email as string,
     verified: Number(row.verified) === 1,
+    authVersion: Number(row.auth_version ?? 0),
   };
 }
 
 export async function findUserByEmail(email: string): Promise<StoredUser | null> {
   const database = await db();
   const res = await database.execute(
-    "SELECT id, email, password_hash, verified, email_verified_at, created_at FROM users WHERE email = ?",
+    "SELECT id, email, password_hash, verified, email_verified_at, created_at, auth_version FROM users WHERE email = ?",
     [email.toLowerCase()]
   );
   if (!res.rows?.length) return null;
@@ -172,7 +178,7 @@ export async function findUserByEmail(email: string): Promise<StoredUser | null>
 export async function findUserById(id: string): Promise<StoredUser | null> {
   const database = await db();
   const res = await database.execute(
-    "SELECT id, email, password_hash, verified, email_verified_at, created_at FROM users WHERE id = ?",
+    "SELECT id, email, password_hash, verified, email_verified_at, created_at, auth_version FROM users WHERE id = ?",
     [id]
   );
   if (!res.rows?.length) return null;
@@ -245,114 +251,58 @@ export async function deleteUser(id: string): Promise<boolean> {
   return Number(res[res.length - 1].rowsAffected) > 0;
 }
 /* =========================================================
-   Email verification tokens (single-use, stored as hash)
-   ========================================================= */
+   Auth-version counter (session + token revocation)
+   =========================================================
 
-export async function storeVerificationToken(
-  userId: string,
-  tokenHash: string,
-  expiresAt: number
-): Promise<void> {
+   Every security-relevant event bumps `users.auth_version`:
+   - a verification / reset link is issued (invalidates older links and all
+     sessions signed with a previous version),
+   - a password is set/changed (invalidates every existing session),
+   - a token is consumed (verification) so it can never be replayed.
+
+   Sessions and email links embed the version they were issued under; anything
+   carrying a stale version is rejected by `getCurrentUser` / `verifyEmailToken`
+   / `verifyResetToken`.
+ */
+
+export async function bumpAuthVersion(userId: string): Promise<number> {
   const database = await db();
-  const now = Date.now();
-  await database.execute("DELETE FROM email_verifications WHERE user_id = ?", [
-    userId,
-  ]);
   await database.execute(
-    "INSERT INTO email_verifications(token_hash, user_id, expires_at, created_at) VALUES (?, ?, ?, ?)",
-    [tokenHash, userId, expiresAt, now]
+    "UPDATE users SET auth_version = auth_version + 1 WHERE id = ?",
+    [userId]
   );
-}
-
-export async function hasVerificationToken(
-  tokenHash: string
-): Promise<boolean> {
-  const database = await db();
   const res = await database.execute(
-    "SELECT 1 FROM email_verifications WHERE token_hash = ?",
-    [tokenHash]
+    "SELECT auth_version FROM users WHERE id = ?",
+    [userId]
   );
-  return res.rows.length > 0;
+  return res.rows?.length ? Number(res.rows[0].auth_version ?? 0) : 0;
 }
 
-export async function consumeVerificationToken(
-  tokenHash: string
-): Promise<boolean> {
-  const database = await db();
-  const res = await database.execute(
-    "DELETE FROM email_verifications WHERE token_hash = ?",
-    [tokenHash]
-  );
-  return Number(res.rowsAffected) > 0;
-}
-
+/** Marks the account verified, bumps the auth version (so the consumed token
+ * can never be replayed), and returns the NEW version for session signing. */
 export async function setUserVerified(
   userId: string,
   emailVerifiedAt: number
-): Promise<void> {
+): Promise<number> {
   const database = await db();
   await database.execute(
     "UPDATE users SET verified = 1, email_verified_at = ? WHERE id = ?",
     [emailVerifiedAt, userId]
   );
+  return bumpAuthVersion(userId);
 }
 
+/** Marks the account unverified AND invalidates existing sessions/tokens. */
 export async function markUserUnverified(userId: string): Promise<void> {
   const database = await db();
   await database.execute(
     "UPDATE users SET verified = 0, email_verified_at = NULL WHERE id = ?",
     [userId]
   );
+  await bumpAuthVersion(userId);
 }
 
-/* =========================================================
-   Password-reset tokens (single-use, stored as hash)
-   ========================================================= */
-
-export async function storePasswordReset(
-  userId: string,
-  tokenHash: string,
-  expiresAt: number
-): Promise<void> {
-  const database = await db();
-  const now = Date.now();
-  await database.execute("DELETE FROM password_resets WHERE user_id = ?", [
-    userId,
-  ]);
-  await database.execute(
-    "INSERT INTO password_resets(token_hash, user_id, expires_at, created_at) VALUES (?, ?, ?, ?)",
-    [tokenHash, userId, expiresAt, now]
-  );
-}
-
-export type PasswordResetRow = { userId: string; expiresAt: number };
-
-export async function findPasswordReset(
-  tokenHash: string
-): Promise<PasswordResetRow | null> {
-  const database = await db();
-  const res = await database.execute(
-    "SELECT user_id, expires_at FROM password_resets WHERE token_hash = ?",
-    [tokenHash]
-  );
-  if (!res.rows?.length) return null;
-  return {
-    userId: res.rows[0].user_id as string,
-    expiresAt: Number(res.rows[0].expires_at),
-  };
-}
-
-export async function consumePasswordReset(
-  tokenHash: string
-): Promise<boolean> {
-  const database = await db();
-  const res = await database.execute(
-    "DELETE FROM password_resets WHERE token_hash = ?",
-    [tokenHash]
-  );
-  return Number(res.rowsAffected) > 0;
-}
-
+/** Sets a new password and revokes every session signed under the old one. */
 export async function setNewPassword(
   userId: string,
   passwordHash: string
@@ -362,6 +312,7 @@ export async function setNewPassword(
     "UPDATE users SET password_hash = ? WHERE id = ?",
     [passwordHash, userId]
   );
+  await bumpAuthVersion(userId);
 }
 /* =========================================================
    Per-record incremental sync (Phase 2)

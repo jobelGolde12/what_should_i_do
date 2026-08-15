@@ -81,21 +81,29 @@ export default function SavedView() {
       {showForm && (
         <div className="mb-8 border border-line bg-surface p-4">
           <div className="grid gap-3">
-            <input
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              placeholder="Template name (optional)"
-              aria-label="Template name"
-              className="h-10 w-full rounded-tm border border-line bg-background px-3 text-sm text-ink outline-none placeholder:text-muted focus:border-ink"
-            />
-            <textarea
-              value={content}
-              onChange={(e) => setContent(e.target.value)}
-              placeholder="Paste the template content here…"
-              aria-label="Template content"
-              rows={5}
-              className="w-full resize-none rounded-tm border border-line bg-background p-3 text-sm leading-relaxed text-ink outline-none placeholder:text-muted focus:border-ink"
-            />
+            <label className="block">
+              <span className="mb-1.5 block font-mono text-2xs uppercase tracking-label text-muted">
+                Template name
+              </span>
+              <input
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                placeholder="(optional)"
+                className="h-10 w-full rounded-tm border border-line bg-background px-3 text-sm text-ink outline-none placeholder:text-muted focus:border-ink"
+              />
+            </label>
+            <label className="block">
+              <span className="mb-1.5 block font-mono text-2xs uppercase tracking-label text-muted">
+                Template content
+              </span>
+              <textarea
+                value={content}
+                onChange={(e) => setContent(e.target.value)}
+                placeholder="Paste the template content here…"
+                rows={5}
+                className="w-full resize-none rounded-tm border border-line bg-background p-3 text-sm leading-relaxed text-ink outline-none placeholder:text-muted focus:border-ink"
+              />
+            </label>
             <div className="flex justify-end gap-2">
               <Button variant="ghost" size="sm" onClick={() => setShowForm(false)}>
                 Cancel
@@ -123,20 +131,27 @@ export default function SavedView() {
               <li key={template.id} className="flex items-start gap-4 py-4">
                 {editing ? (
                   <div className="min-w-0 flex-1 grid gap-3">
-                    <input
-                      value={editName}
-                      onChange={(e) => setEditName(e.target.value)}
-                      placeholder="Template name"
-                      aria-label="Template name"
-                      className="h-10 w-full rounded-tm border border-line bg-background px-3 text-sm text-ink outline-none placeholder:text-muted focus:border-ink"
-                    />
-                    <textarea
-                      value={editContent}
-                      onChange={(e) => setEditContent(e.target.value)}
-                      rows={5}
-                      aria-label="Template content"
-                      className="w-full resize-none rounded-tm border border-line bg-background p-3 text-sm leading-relaxed text-ink outline-none focus:border-ink"
-                    />
+                    <label className="block">
+                      <span className="mb-1.5 block font-mono text-2xs uppercase tracking-label text-muted">
+                        Template name
+                      </span>
+                      <input
+                        value={editName}
+                        onChange={(e) => setEditName(e.target.value)}
+                        className="h-10 w-full rounded-tm border border-line bg-background px-3 text-sm text-ink outline-none placeholder:text-muted focus:border-ink"
+                      />
+                    </label>
+                    <label className="block">
+                      <span className="mb-1.5 block font-mono text-2xs uppercase tracking-label text-muted">
+                        Template content
+                      </span>
+                      <textarea
+                        value={editContent}
+                        onChange={(e) => setEditContent(e.target.value)}
+                        rows={5}
+                        className="w-full resize-none rounded-tm border border-line bg-background p-3 text-sm leading-relaxed text-ink outline-none focus:border-ink"
+                      />
+                    </label>
                     <div className="flex justify-end gap-2">
                       <Button
                         variant="ghost"

@@ -1,6 +1,8 @@
 // Minimal structured logger. Never logs the analyzed text itself — only
 // metadata (request id, endpoint, byte counts, latency). Keep it dependency-free.
-// Auth & sync events are logged here too (no raw text/PII).
+// Auth & sync events are logged here too (no raw text/PII). Emails are never
+// logged verbatim — correlate via `emailHash` (truncated SHA-256) instead.
+import { createHash } from "node:crypto";
 
 type LogLevel = "info" | "warn" | "error";
 type LogMeta = Record<string, string | number | boolean | null | undefined>;
@@ -59,6 +61,18 @@ type SyncEvent = "sync_push" | "sync_pull" | "sync_patch" | "sync_error";
 /** Sync-domain audit event. Never include the raw analyzed text. */
 export function logSyncEvent(event: SyncEvent, meta: LogMeta = {}) {
   emit("info", "sync", { event, ...meta });
+}
+
+/**
+ * Returns a stable, non-reversible fingerprint of an email address for log
+ * correlation (rate-limit hits, delivery outcomes). Deterministic per account
+ * so support can join on it, but the address itself is never stored or logged.
+ */
+export function maskEmail(email: string): string {
+  return createHash("sha256")
+    .update(email.trim().toLowerCase())
+    .digest("hex")
+    .slice(0, 24);
 }
 
 

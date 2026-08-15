@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { verifyEmailToken } from "@/lib/auth/verify";
 import { setSessionCookie } from "@/lib/auth/cookies";
-import { logAuthEvent } from "@/lib/log";
+import { logAuthEvent, maskEmail } from "@/lib/log";
 import { getClientIp } from "@/lib/rateLimit";
 import { rateLimitDb, rlKey } from "@/lib/rateLimitDb";
 
@@ -50,8 +50,16 @@ export async function GET(request: Request) {
       );
     }
 
-    setSessionCookie({ id: payload.userId, email: payload.email });
-    logAuthEvent("verify", { ip, userId: payload.userId, email: payload.email });
+    await setSessionCookie({
+      id: payload.userId,
+      email: payload.email,
+      v: payload.authVersion,
+    });
+    logAuthEvent("verify", {
+      ip,
+      userId: payload.userId,
+      emailHash: maskEmail(payload.email),
+    });
 
     const accept = request.headers.get("accept") || "";
     if (accept.includes("text/html")) {

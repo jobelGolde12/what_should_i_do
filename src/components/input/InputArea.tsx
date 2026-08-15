@@ -276,7 +276,10 @@ export default function InputArea({
       >
         <div className="flex items-center justify-between border-b border-line px-4 py-3 sm:px-5">
           <div className="flex items-center gap-2">
-            <span className="font-mono text-2xs uppercase tracking-label text-muted">
+            <span
+              id="analysis-input-label"
+              className="font-mono text-2xs uppercase tracking-label text-muted"
+            >
               Input
             </span>
             <span className="hidden text-xs text-muted sm:inline">
@@ -350,7 +353,7 @@ export default function InputArea({
               onKeyDown={handleKeyDown}
               placeholder="Paste a message, email, announcement, memo, or notice…"
               className="block h-56 w-full resize-none bg-transparent p-4 text-sm leading-relaxed text-ink outline-none placeholder:text-muted"
-              aria-label="Text to analyze"
+              aria-labelledby="analysis-input-label"
             />
             {dragOver && (
               <div className="pointer-events-none absolute inset-0 flex items-center justify-center bg-accent-soft/80">
@@ -451,6 +454,15 @@ export default function InputArea({
                 }
               }}
               disabled={batchMode ? !canBatch : !canAnalyze}
+              aria-label={
+                batchLoading
+                  ? "Analyzing batch"
+                  : batchMode
+                    ? `Analyze batch (${batchMessages.length})`
+                    : loading
+                      ? "Analyzing…"
+                      : "Analyze (Ctrl+Enter)"
+              }
               className="self-stretch sm:self-auto"
             >
               {batchLoading ? (

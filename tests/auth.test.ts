@@ -2,20 +2,16 @@ import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import {
   generateSignedToken,
   validateSignedToken,
+  verifyEmailToken,
+  verifyResetToken,
   verificationLink,
   resetLink,
 } from "@/lib/auth/verify";
 import {
   createUser,
   findUserByEmail,
-  setUserVerified,
-  storeVerificationToken,
-  hasVerificationToken,
-  consumeVerificationToken,
-  storePasswordReset,
-  findPasswordReset,
-  consumePasswordReset,
   setNewPassword,
+  findUserAuthById,
 } from "@/lib/auth/users";
 import { hashPassword, verifyPassword, signSession, verifySession } from "@/lib/auth/session";
 import { rateLimitDb, rlKey } from "@/lib/rateLimitDb";
@@ -46,7 +42,6 @@ describe("Auth & Email Verification Tokens", () => {
   it("generates and validates signed tokens before expiry", () => {
     const tokenObj = generateSignedToken("usr_123", "test@example.com", 60000);
     expect(tokenObj.token).toContain(".");
-    expect(tokenObj.tokenHash).toHaveLength(64); // SHA-256 hex
 
     const payload = validateSignedToken(tokenObj.token);
     expect(payload).not.toBeNull();
@@ -74,43 +69,61 @@ describe("Auth & Email Verification Tokens", () => {
     expect(rLink).toContain("/auth/reset-password?token=");
   });
 
-  it("persists, verifies, and consumes single-use email verification tokens", async () => {
+  it("verifies a stateless signed email token and makes it unusable (single-use)", async () => {
     const user = await createUser("unverified@example.com", hashPassword("secret123"));
     expect(user.verified).toBe(false);
 
-    const tokenObj = generateSignedToken(user.id, user.email, 3600000);
-    await storeVerificationToken(user.id, tokenObj.tokenHash, tokenObj.expiresAt);
+    const tokenObj = generateSignedToken(user.id, user.email, 3600000, 0);
+    const result = await verifyEmailToken(tokenObj.token);
+    expect(result).not.toBeNull();
+    expect(result?.userId).toBe(user.id);
+    expect(result?.authVersion).toBe(1);
 
-    expect(await hasVerificationToken(tokenObj.tokenHash)).toBe(true);
-
-    const consumed = await consumeVerificationToken(tokenObj.tokenHash);
-    expect(consumed).toBe(true);
-    expect(await hasVerificationToken(tokenObj.tokenHash)).toBe(false);
-
-    await setUserVerified(user.id, Date.now());
     const updated = await findUserByEmail("unverified@example.com");
     expect(updated?.verified).toBe(true);
     expect(updated?.emailVerifiedAt).toBeGreaterThan(0);
+    expect(updated?.authVersion).toBe(1);
+
+    // Replaying the same token must fail (already verified + version bumped).
+    expect(await verifyEmailToken(tokenObj.token)).toBeNull();
   });
 
-  it("stores, retrieves, and consumes single-use password reset tokens", async () => {
+  it("rejects stale verification tokens (newer link issued)", async () => {
+    const user = await createUser("stale@example.com", hashPassword("secret123"));
+    // Link issued at version 0…
+    const oldToken = generateSignedToken(user.id, user.email, 3600000, 0);
+    // …then a newer link is issued, bumping the auth version to 1.
+    const db = getDb();
+    await db.execute("UPDATE users SET auth_version = 1 WHERE id = ?", [user.id]);
+    expect(await verifyEmailToken(oldToken.token)).toBeNull();
+  });
+
+  it("revokes sessions and tokens after a password change (auth_version)", async () => {
     const user = await createUser("reset@example.com", hashPassword("oldpass123"));
-    const tokenObj = generateSignedToken(user.id, user.email, 3600000);
+    expect(user.authVersion).toBe(0);
 
-    await storePasswordReset(user.id, tokenObj.tokenHash, tokenObj.expiresAt);
+    const sessionBefore = signSession({ sub: user.id, email: user.email, v: 0 });
+    expect(verifySession(sessionBefore)).not.toBeNull();
 
-    const found = await findPasswordReset(tokenObj.tokenHash);
-    expect(found).not.toBeNull();
-    expect(found?.userId).toBe(user.id);
-
-    const consumed = await consumePasswordReset(tokenObj.tokenHash);
-    expect(consumed).toBe(true);
-    expect(await findPasswordReset(tokenObj.tokenHash)).toBeNull();
+    const resetToken = generateSignedToken(user.id, user.email, 3600000, 0);
+    const payload = await verifyResetToken(resetToken.token);
+    expect(payload).not.toBeNull();
 
     await setNewPassword(user.id, hashPassword("newpass123"));
     const reloaded = await findUserByEmail("reset@example.com");
     expect(verifyPassword("newpass123", reloaded!.passwordHash)).toBe(true);
     expect(verifyPassword("oldpass123", reloaded!.passwordHash)).toBe(false);
+    expect(reloaded?.authVersion).toBe(1);
+
+    // The reset token cannot be replayed after the password changed.
+    expect(await verifyResetToken(resetToken.token)).toBeNull();
+    // A session signed under the old version is still a valid signature, but
+    // the caller must reject it — mirrored in getCurrentUser/getCurrentUserId.
+    const auth = await findUserAuthById(user.id);
+    expect(auth?.authVersion).toBe(1);
+    const stalePayload = verifySession(sessionBefore);
+    expect(stalePayload).not.toBeNull();
+    expect(stalePayload?.v ?? 0).not.toBe(auth?.authVersion);
   });
 
   it("enforces rate limits using rateLimitDb", async () => {

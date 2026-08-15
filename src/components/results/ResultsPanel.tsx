@@ -214,11 +214,7 @@ export default function ResultsPanel({
         )}
       </header>
 
-      <div
-        className="space-y-8 px-5 py-6 sm:px-6"
-        aria-live="polite"
-        aria-atomic="false"
-      >
+      <div className="space-y-8 px-5 py-6 sm:px-6">
         {/* Summary moved to the top for the "Inverted Pyramid" UX principle */}
         <section className={resolved.summary ? "settle-section revealed" : "settle-section"}>
           <SectionHeading>Summary</SectionHeading>

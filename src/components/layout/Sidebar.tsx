@@ -13,12 +13,15 @@ import {
 import Logo from "./Logo";
 import SmartLink from "@/components/navigation/SmartLink";
 import { useAuth } from "@/context/AuthContext";
+import { usePlan } from "@/lib/pro/usePlan";
+import { PRO_TIER_DISPLAY } from "@/lib/pro/plans";
 import { NAV_ITEMS, isNavItemActive } from "@/lib/nav";
 
 export default function Sidebar() {
   const pathname = usePathname();
   const [collapsed, setCollapsed] = useState(false);
   const { user, status, logout } = useAuth();
+  const { tier } = usePlan();
   const loading = status === "loading";
 
   return (
@@ -89,7 +92,9 @@ export default function Sidebar() {
             <p className="text-2xs uppercase tracking-wide text-muted">
               Workspace
             </p>
-            <p className="mt-1 text-sm font-medium text-ink">Free plan</p>
+            <p className="mt-1 text-sm font-medium text-ink">
+              {PRO_TIER_DISPLAY[tier]} plan
+            </p>
           </div>
         )}
 

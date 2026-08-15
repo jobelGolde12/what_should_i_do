@@ -9,7 +9,7 @@
  * Signature = HMAC-SHA256(key, `<timestamp><token>`) hex, and the timestamp is
  * checked against a freshness window to block replays.
  */
-import { createHmac, createHash } from "crypto";
+import { createHmac, createHash, timingSafeEqual } from "crypto";
 import { getDb, ensureSchema } from "@/lib/db";
 import { rateLimit } from "@/lib/rateLimit";
 import { analyzeText, type AnalysisResult } from "@/app/actions/analyzeText";
@@ -91,7 +91,15 @@ export function verifyMailgunSignature(
   const expected = createHmac("sha256", key)
     .update(`${timestamp}${token}`)
     .digest("hex");
-  return signature === expected;
+  return constantTimeEqual(signature, expected);
+}
+
+/** Constant-time string comparison (hex digests) to avoid timing side channels. */
+function constantTimeEqual(a: string, b: string): boolean {
+  const bufA = Buffer.from(a);
+  const bufB = Buffer.from(b);
+  if (bufA.length !== bufB.length) return false;
+  return timingSafeEqual(bufA, bufB);
 }
 
 /* =========================================================

@@ -112,9 +112,9 @@ export default function BillingPage() {
   /* ------------------------------- LOADING ------------------------------- */
   if (authStatus === 'loading') {
     return (
-      <div className="flex h-48 w-full items-center justify-center rounded-2xl border border-border/60 bg-card/60">
+      <div className="flex h-48 w-full items-center justify-center rounded-2xl border border-line/60 bg-surface/60">
         <div className="flex items-center gap-2 text-sm text-muted">
-          <Loader2 className="h-4 w-4 animate-spin text-primary" />
+          <Loader2 className="h-4 w-4 animate-spin text-accent" />
           <span>Loading subscription details...</span>
         </div>
       </div>
@@ -130,9 +130,9 @@ export default function BillingPage() {
           <p className="text-sm text-muted">Manage your plan, payment methods, and billing details.</p>
         </div>
 
-        <div className="overflow-hidden rounded-2xl border border-border bg-card shadow-sm">
+        <div className="overflow-hidden rounded-2xl border border-line bg-surface shadow-sm">
           <div className="flex flex-col items-center px-6 py-12 text-center">
-            <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-primary/10 text-primary">
+            <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-accent/10 text-accent">
               <Sparkles className="h-6 w-6" />
             </div>
             <h3 className="mt-4 text-lg font-bold tracking-tight text-ink">Upgrade to TaskMind Pro</h3>
@@ -163,10 +163,10 @@ export default function BillingPage() {
 
       {isPro ? (
         /* --------------------------- PRO ACTIVE --------------------------- */
-        <div className="overflow-hidden rounded-2xl border border-primary/25 bg-card shadow-sm">
+        <div className="overflow-hidden rounded-2xl border border-accent/25 bg-surface shadow-sm">
           <div className="flex flex-col gap-4 px-6 py-5 sm:flex-row sm:items-center sm:justify-between">
             <div className="flex items-start gap-3">
-              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-accent/10 text-accent">
                 <Crown className="h-5 w-5" />
               </div>
               <div className="space-y-1">
@@ -204,7 +204,7 @@ export default function BillingPage() {
             </Button>
           </div>
 
-          <div className="flex items-center gap-2 border-t border-border/60 bg-primary/5 px-6 py-3 text-xs text-muted">
+          <div className="flex items-center gap-2 border-t border-line/60 bg-accent/5 px-6 py-3 text-xs text-muted">
             <ShieldCheck className="h-3.5 w-3.5 shrink-0" />
             Update your card, download receipts, or cancel auto-renewal in the secure Stripe billing
             portal.
@@ -212,10 +212,10 @@ export default function BillingPage() {
         </div>
       ) : (
         /* ------------------------- UPGRADE / CHECKOUT ---------------------- */
-        <div className="overflow-hidden rounded-2xl border border-border bg-card shadow-sm">
+        <div className="overflow-hidden rounded-2xl border border-line bg-surface shadow-sm">
           {/* Card header */}
-          <div className="flex items-start gap-3 border-b border-border/70 px-6 py-5">
-            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
+          <div className="flex items-start gap-3 border-b border-line/70 px-6 py-5">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-accent/10 text-accent">
               <Sparkles className="h-5 w-5" />
             </div>
             <div>
@@ -231,8 +231,8 @@ export default function BillingPage() {
             <div className="space-y-6">
               <section>
                 <p className="text-xs font-medium text-muted">Billed to</p>
-                <div className="mt-2 flex items-center gap-3 rounded-lg border border-border bg-muted/10 px-3 py-2.5">
-                  <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary/10 text-sm font-semibold text-primary">
+                <div className="mt-2 flex items-center gap-3 rounded-lg border border-line bg-muted/10 px-3 py-2.5">
+                  <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-accent/10 text-sm font-semibold text-accent">
                     {accountInitial}
                   </div>
                   <div className="min-w-0">
@@ -244,12 +244,12 @@ export default function BillingPage() {
 
               <section>
                 <p className="text-xs font-medium text-muted">Payment details</p>
-                <div className="mt-2 rounded-lg border border-border bg-muted/10 px-3 py-2.5">
+                <div className="mt-2 rounded-lg border border-line bg-muted/10 px-3 py-2.5">
                   <div className="flex items-center gap-2">
-                    <span className="inline-flex items-center gap-1.5 rounded-md border border-border bg-card px-2 py-1 text-xs font-medium text-ink">
+                    <span className="inline-flex items-center gap-1.5 rounded-md border border-line bg-surface px-2 py-1 text-xs font-medium text-ink">
                       <CreditCard className="h-3.5 w-3.5 text-muted" /> Card
                     </span>
-                    <span className="inline-flex items-center gap-1.5 rounded-md border border-border bg-card px-2 py-1 text-xs font-medium text-ink">
+                    <span className="inline-flex items-center gap-1.5 rounded-md border border-line bg-surface px-2 py-1 text-xs font-medium text-ink">
                       <Landmark className="h-3.5 w-3.5 text-muted" /> Bank
                     </span>
                   </div>
@@ -276,7 +276,7 @@ export default function BillingPage() {
             </div>
 
             {/* RIGHT — billing options / total / CTA */}
-            <div className="flex flex-col gap-4 md:border-l md:border-border/70 md:pl-8">
+            <div className="flex flex-col gap-4 md:border-l md:border-line/70 md:pl-8">
               <section>
                 <p className="text-xs font-medium text-muted">Billing options</p>
                 <div className="mt-2 space-y-2" role="radiogroup" aria-label="Billing period">
@@ -290,18 +290,18 @@ export default function BillingPage() {
                         role="radio"
                         aria-checked={selected}
                         onClick={() => setPeriod(key)}
-                        className={`flex w-full items-center gap-3 rounded-lg border px-4 py-3 text-left transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 ${
+                        className={`flex w-full items-center gap-3 rounded-lg border px-4 py-3 text-left transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/50 ${
                           selected
-                            ? 'border-primary bg-primary/5 ring-1 ring-primary'
-                            : 'border-border bg-card hover:border-primary/40'
+                            ? 'border-accent bg-accent/5 ring-1 ring-accent'
+                            : 'border-line bg-surface hover:border-accent/40'
                         }`}
                       >
                         <span
                           className={`flex h-4 w-4 shrink-0 items-center justify-center rounded-full border ${
-                            selected ? 'border-primary' : 'border-border'
+                            selected ? 'border-accent' : 'border-line'
                           }`}
                         >
-                          {selected && <span className="h-2 w-2 rounded-full bg-primary" />}
+                          {selected && <span className="h-2 w-2 rounded-full bg-accent" />}
                         </span>
                         <span className="flex-1">
                           <span className="block text-sm font-medium text-ink">{plan.label}</span>
@@ -319,7 +319,7 @@ export default function BillingPage() {
               </section>
 
               {/* Total */}
-              <div className="rounded-lg border border-border bg-muted/10 px-4 py-3">
+              <div className="rounded-lg border border-line bg-muted/10 px-4 py-3">
                 <div className="flex items-baseline justify-between">
                   <span className="text-sm text-muted">Total</span>
                   <span className="text-lg font-bold text-ink">

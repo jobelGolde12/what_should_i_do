@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { verifyPassword } from "@/lib/auth/session";
+import { verifyPassword, MAX_PASSWORD_LENGTH } from "@/lib/auth/session";
 import { findUserByEmail } from "@/lib/auth/users";
 import { setSessionCookie } from "@/lib/auth/cookies";
 import { getClientIp } from "@/lib/rateLimit";
@@ -30,6 +30,23 @@ export async function POST(request: Request) {
       return NextResponse.json(
         { error: "Enter a valid email and password." },
         { status: 400 }
+      );
+    }
+    if (password.length > MAX_PASSWORD_LENGTH) {
+      return NextResponse.json(
+        { error: "Enter a valid email and password." },
+        { status: 400 }
+      );
+    }
+
+    // Per-account throttle (on top of the per-IP bucket) so password guessing
+    // can't be spread across many IPs against a single account.
+    const rlAccount = await rateLimitDb(rlKey("login-account", email), 10);
+    if (!rlAccount.allowed) {
+      logAuthEvent("login_blocked", { ip, email, reason: "account_rate_limited" });
+      return NextResponse.json(
+        { error: "Too many attempts. Try again in a minute." },
+        { status: 429 }
       );
     }
 

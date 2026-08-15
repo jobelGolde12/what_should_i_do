@@ -138,6 +138,25 @@ export async function createUser(
   };
 }
 
+/** Lightweight auth lookup (id, email, verified) without synced data. Used by
+ * `getCurrentUserId` so sessions are always checked against the DB. */
+export type UserAuth = { id: string; email: string; verified: boolean };
+
+export async function findUserAuthById(id: string): Promise<UserAuth | null> {
+  const database = await db();
+  const res = await database.execute(
+    "SELECT id, email, verified FROM users WHERE id = ?",
+    [id]
+  );
+  if (!res.rows?.length) return null;
+  const row = res.rows[0] as Record<string, unknown>;
+  return {
+    id: row.id as string,
+    email: row.email as string,
+    verified: Number(row.verified) === 1,
+  };
+}
+
 export async function findUserByEmail(email: string): Promise<StoredUser | null> {
   const database = await db();
   const res = await database.execute(

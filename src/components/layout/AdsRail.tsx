@@ -106,7 +106,10 @@ function AdUnit({ className = "", id = "ad-unit" }: AdUnitProps) {
           </div>
         </>
       ) : visible ? (
-        <div className="flex min-h-[250px] w-full flex-col items-center justify-center gap-2 border border-dashed border-line bg-surface">
+        <div
+          aria-hidden="true"
+          className="flex min-h-[250px] w-full flex-col items-center justify-center gap-2 border border-dashed border-line bg-surface"
+        >
           <p className="text-xs text-muted">Advertisement</p>
           <p className="font-mono text-xxs uppercase tracking-label text-muted">
             Slot available

@@ -41,7 +41,7 @@ export default function UnverifiedBanner() {
 
       <div className="flex items-center gap-3 shrink-0">
         {message && (
-          <span className="font-medium text-accent flex items-center gap-1">
+          <span role="status" className="font-medium text-accent flex items-center gap-1">
             <CheckCircle2 className="h-3.5 w-3.5" />
             {message}
           </span>

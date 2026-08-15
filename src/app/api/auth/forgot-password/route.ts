@@ -31,6 +31,16 @@ export async function POST(request: Request) {
       );
     }
 
+    // Per-account throttle so reset spam can't be spread across many IPs.
+    const rlAccount = await rateLimitDb(rlKey("forgot-account", email), 5);
+    if (!rlAccount.allowed) {
+      logAuthEvent("forgot_password", { ip, email, outcome: "rate_limited" });
+      return NextResponse.json(
+        { error: "Too many attempts. Try again in a minute." },
+        { status: 429 }
+      );
+    }
+
     const user = await findUserByEmail(email);
     // Generic response to protect user privacy / avoid enumeration
     if (!user) {

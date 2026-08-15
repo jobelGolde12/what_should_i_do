@@ -249,18 +249,18 @@ export default function AuthForm({ mode }: AuthFormProps) {
                 <input
                   type={showPassword ? "text" : "password"}
                   required
-                  minLength={8}
+                  minLength={isLogin ? undefined : 8}
                   autoComplete={isLogin ? "current-password" : "new-password"}
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   onFocus={() => setTouchedPassword(true)}
-                  placeholder="At least 8 characters"
+                  placeholder={isLogin ? "Your password" : "At least 8 characters"}
                   className="h-11 w-full rounded-tm border border-line bg-surface px-3 pr-10 text-sm text-ink outline-none placeholder:text-muted focus:border-ink"
                 />
                 <button
                   type="button"
                   onClick={() => setShowPassword((v) => !v)}
-                  className="absolute right-0 top-0 flex h-11 w-10 items-center justify-center text-muted transition-colors hover:text-ink focus:text-ink focus:outline-none"
+                  className="absolute right-0 top-0 flex h-11 w-10 items-center justify-center text-muted transition-colors hover:text-ink focus:text-ink"
                   aria-label={showPassword ? "Hide password" : "Show password"}
                 >
                   {showPassword ? (

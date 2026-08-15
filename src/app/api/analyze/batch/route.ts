@@ -50,7 +50,7 @@ export async function POST(request: Request) {
     );
   }
 
-  const rl = rateLimit(getClientIp(request), user.id ? 30 : 5);
+  const rl = rateLimit(user.id ? `user:${user.id}` : getClientIp(request), user.id ? 30 : 5);
   if (!rl.allowed) {
     return NextResponse.json(
       { error: "Too many batch requests. Try again in a minute." },

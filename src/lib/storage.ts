@@ -42,6 +42,12 @@ export function storageKeys() {
   };
 }
 
+/** Returns a unique id. Uses `crypto.randomUUID` when available (Node 19+ /
+ * modern browsers) so ids aren't predictable from a timestamp + Math.random. */
 export function uid(): string {
+  const c = (globalThis as { crypto?: { randomUUID?: () => string } }).crypto;
+  if (c && typeof c.randomUUID === "function") {
+    return `${Date.now().toString(36)}-${c.randomUUID()}`;
+  }
   return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 9)}`;
 }

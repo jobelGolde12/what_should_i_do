@@ -35,6 +35,12 @@ export default function DashboardLayout({
         <TaskProvider>
           <SyncEngine />
           <div className="flex min-h-screen bg-background text-ink">
+            <a
+              href="#main-content"
+              className="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-50 focus:rounded-tm focus:border focus:border-line focus:bg-background focus:px-3 focus:py-2 focus:text-sm focus:font-medium focus:text-ink"
+            >
+              Skip to content
+            </a>
             <Sidebar />
             <div className="flex min-w-0 flex-1 flex-col">
               <UnverifiedBanner />
@@ -59,7 +65,7 @@ export default function DashboardLayout({
                 </div>
               </header>
               <div className="flex min-w-0 flex-1 gap-6 px-4 py-6 sm:px-6 lg:px-8 lg:py-8">
-                <main className="min-w-0 flex-1 pb-24 lg:pb-8">
+                <main id="main-content" className="min-w-0 flex-1 pb-24 lg:pb-8">
                   <RouteErrorBoundary>
                     <RouteTransition>{children}</RouteTransition>
                   </RouteErrorBoundary>

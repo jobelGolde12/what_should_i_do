@@ -3,6 +3,7 @@ import { createUser } from "@/lib/auth/users";
 import { hashPassword } from "@/lib/auth/session";
 import { getDb, ensureSchema } from "@/lib/db";
 import { setUserPlan } from "@/lib/pro/entitlements";
+import { saveInboxMessage } from "@/lib/inbox";
 import { GET as forwardGET } from "@/app/api/inbox/forward/route";
 import { POST as sendPOST } from "@/app/api/inbox/send/route";
 
@@ -27,6 +28,22 @@ async function makeProUser(email = "inbox-routes@example.com") {
   const user = await createUser(email, hashPassword("secret123"));
   await setUserPlan(user.id, "pro", { status: "active" });
   return user;
+}
+
+/** Inserts an inbox row owned by `userId` so send() can derive the recipient. */
+async function makeInboxMessage(userId: string, analysisId: string) {
+  await saveInboxMessage(userId, {
+    id: `inbox-${analysisId}`,
+    provider: "forward",
+    externalId: `ext-${analysisId}`,
+    sender: "alice@example.com",
+    subject: "Original subject",
+    snippet: "snippet",
+    receivedAt: Date.now(),
+    body: "Original body",
+    analysisId,
+    analyzed: true,
+  });
 }
 
 describe("inbox routes auth + gating", () => {
@@ -69,22 +86,37 @@ describe("inbox routes auth + gating", () => {
     expect(body.address).toMatch(/^[0-9a-f]{10}@in.taskmind.app$/);
   });
 
-  it("send: 400 for an invalid recipient", async () => {
+  it("send: 400 when analysisId is missing", async () => {
     const user = await makeProUser();
     vi.mocked(getCurrentUserId).mockResolvedValue(user.id);
     const res = await sendPOST(
       new Request("http://localhost/api/inbox/send", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ to: "not-an-email", subject: "Hi", body: "Hello" }),
+        body: JSON.stringify({ subject: "Hi", body: "Hello there" }),
       })
     );
     expect(res.status).toBe(400);
   });
 
+  it("send: 404 when the inbox message isn't found", async () => {
+    const user = await makeProUser();
+    vi.mocked(getCurrentUserId).mockResolvedValue(user.id);
+    const res = await sendPOST(
+      new Request("http://localhost/api/inbox/send", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ analysisId: "missing", subject: "Hi", body: "Hello there" }),
+      })
+    );
+    expect(res.status).toBe(404);
+  });
+
   it("send: 409 when Mailgun isn't configured", async () => {
     const user = await makeProUser();
     vi.mocked(getCurrentUserId).mockResolvedValue(user.id);
+    const analysisId = "analysis-no-mailgun";
+    await makeInboxMessage(user.id, analysisId);
     const prevKey = process.env.MAILGUN_API_KEY;
     const prevDomain = process.env.MAILGUN_DOMAIN;
     delete process.env.MAILGUN_API_KEY;
@@ -94,7 +126,7 @@ describe("inbox routes auth + gating", () => {
         new Request("http://localhost/api/inbox/send", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ to: "alice@example.com", subject: "Hi", body: "Hello there" }),
+          body: JSON.stringify({ analysisId, subject: "Hi", body: "Hello there" }),
         })
       );
       expect(res.status).toBe(409);
@@ -107,14 +139,45 @@ describe("inbox routes auth + gating", () => {
   it("send: returns 502 when the mail service call fails", async () => {
     const user = await makeProUser();
     vi.mocked(getCurrentUserId).mockResolvedValue(user.id);
+    const analysisId = "analysis-send-fails";
+    await makeInboxMessage(user.id, analysisId);
     vi.stubGlobal("fetch", vi.fn(async () => new Response("denied", { status: 403 })));
     const res = await sendPOST(
       new Request("http://localhost/api/inbox/send", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ to: "alice@example.com", subject: "Hi", body: "Hello there" }),
+        body: JSON.stringify({ analysisId, subject: "Hi", body: "Hello there" }),
       })
     );
     expect(res.status).toBe(502);
+  });
+
+  it("send: sends to the inbox sender, not a client-supplied address", async () => {
+    const user = await makeProUser();
+    vi.mocked(getCurrentUserId).mockResolvedValue(user.id);
+    const analysisId = "analysis-sec01";
+    await makeInboxMessage(user.id, analysisId);
+    const fetchMock = vi.fn(
+      async (_url: RequestInfo | URL, init?: RequestInit) => {
+        const form = (init as { body?: URLSearchParams } | undefined)?.body;
+        expect(form?.get("to")).toBe("alice@example.com");
+        return new Response(JSON.stringify({ id: "ok" }), { status: 200 });
+      }
+    );
+    vi.stubGlobal("fetch", fetchMock);
+    const res = await sendPOST(
+      new Request("http://localhost/api/inbox/send", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          to: "evil@example.com",
+          analysisId,
+          subject: "Hi",
+          body: "Hello there",
+        }),
+      })
+    );
+    expect(res.status).toBe(200);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 });

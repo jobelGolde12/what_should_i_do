@@ -6,6 +6,9 @@ const SCRYPT_R = 8;
 const SCRYPT_P = 1;
 const KEY_LEN = 64;
 
+export const MIN_PASSWORD_LENGTH = 8;
+export const MAX_PASSWORD_LENGTH = 128;
+
 export function hashPassword(password: string): string {
   const salt = randomBytes(16).toString("hex");
   const hash = scryptSync(password, salt, KEY_LEN, {
@@ -31,21 +34,25 @@ export function verifyPassword(password: string, stored: string): boolean {
 
 /** Returns the HMAC signing secret as a Buffer. In production this throws if
  * `AUTH_SECRET` is unset (fail-fast for forgeable sessions/tokens); in dev/test
- * it falls back to an ephemeral secret with a warning. */
+ * it falls back to a random ephemeral secret (regenerated each process start)
+ * with a warning — never a hardcoded value that could be used to forge tokens. */
+let devSecret: Buffer | null = null;
+
 export function getSessionSecret(): Buffer {
   const value = process.env.AUTH_SECRET;
-  if (!value) {
-    if (process.env.NODE_ENV === "production") {
-      throw new Error(
-        "[auth] AUTH_SECRET is required in production. Set a long random secret."
-      );
-    }
-    console.warn(
-      "[auth] AUTH_SECRET is not set — using an ephemeral dev secret. Set AUTH_SECRET in production."
+  if (value) return Buffer.from(value);
+  if (process.env.NODE_ENV === "production") {
+    throw new Error(
+      "[auth] AUTH_SECRET is required in production. Set a long random secret."
     );
-    return Buffer.from("dev-only-secret-do-not-use-in-production");
   }
-  return Buffer.from(value);
+  if (!devSecret) {
+    devSecret = randomBytes(32);
+    console.warn(
+      "[auth] AUTH_SECRET is not set — using a random ephemeral dev secret. Set AUTH_SECRET in production."
+    );
+  }
+  return devSecret;
 }
 
 /** Fail-fast guard: throws in production when `AUTH_SECRET` is missing. */

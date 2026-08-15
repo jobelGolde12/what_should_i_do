@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth/cookies";
-import { getClientIp, rateLimit } from "@/lib/rateLimit";
+import { rateLimit } from "@/lib/rateLimit";
 import { proGate, limitsForUser, planForUser } from "@/lib/pro/entitlements";
 import { tryIncrement, limitReached, monthWindow } from "@/lib/pro/usage";
 import { convertFile, type ConvertFormat } from "@/lib/convert";
@@ -23,7 +23,7 @@ export async function POST(request: Request) {
   const denied = await proGate(user.id);
   if (denied) return denied;
 
-  const rl = rateLimit(getClientIp(request), 10);
+  const rl = rateLimit(`user:${user.id}`, 10);
   if (!rl.allowed) {
     return NextResponse.json(
       { error: "Too many conversion requests. Try again in a minute." },

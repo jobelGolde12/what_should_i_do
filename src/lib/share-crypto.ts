@@ -29,6 +29,20 @@ export const SHARE_PREFIX = "enc:";
 const IV_LEN = 12;
 const TAG_LEN = 16;
 
+/** Share links expire 30 days after the client-reported creation timestamp. */
+export const SHARE_TTL_MS = 30 * 24 * 60 * 60 * 1000;
+/** Reject timestamps more than a minute in the future (client clock skew). */
+const FUTURE_SKEW_MS = 60_000;
+
+function shareExpired(payload: SharePayload): boolean {
+  if (typeof payload.timestamp !== "number" || !Number.isFinite(payload.timestamp)) {
+    return true;
+  }
+  const now = Date.now();
+  if (payload.timestamp > now + FUTURE_SKEW_MS) return true;
+  return now - payload.timestamp > SHARE_TTL_MS;
+}
+
 export function getShareSecret(): string | null {
   return process.env.SHARE_SECRET || process.env.AUTH_SECRET || null;
 }
@@ -89,9 +103,11 @@ export function decryptShareToken(
       const parsed = JSON.parse(decrypted.toString("utf8")) as SharePayload;
       if (!parsed || !parsed.output || !Array.isArray(parsed.output.actions))
         return null;
+      if (shareExpired(parsed)) return null;
       return parsed;
     } catch {
-      // Tampered ciphertext or wrong secret — fall through to legacy format.
+      // Tampered ciphertext, wrong secret, or expired — fall through to the
+      // legacy format (which is also age-checked).
     }
   }
 
@@ -111,6 +127,7 @@ function decodeLegacyPayload(token: string): SharePayload | null {
     ) as SharePayload;
     if (!parsed || !parsed.output || !Array.isArray(parsed.output.actions))
       return null;
+    if (shareExpired(parsed)) return null;
     return parsed;
   } catch {
     return null;

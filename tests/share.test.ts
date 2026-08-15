@@ -20,7 +20,7 @@ const RECORD = {
     nextStep: "Submit the report",
     analysisMethod: "ai" as const,
   },
-  timestamp: 1_752_000_000_000,
+  timestamp: Date.now(),
 };
 
 describe("share token crypto", () => {
@@ -61,6 +61,21 @@ describe("share token crypto", () => {
     it("rejects tokens encrypted with a different secret", () => {
       const token = encryptSharePayload(RECORD, SECRET);
       expect(decryptShareToken(token, OTHER_SECRET)).toBeNull();
+    });
+
+    it("rejects expired tokens (older than the share TTL)", () => {
+      const old = {
+        ...RECORD,
+        timestamp: Date.now() - 31 * 24 * 60 * 60 * 1000,
+      };
+      const token = encryptSharePayload(old, SECRET);
+      expect(decryptShareToken(token, SECRET)).toBeNull();
+    });
+
+    it("rejects tokens stamped in the future (clock skew)", () => {
+      const future = { ...RECORD, timestamp: Date.now() + 10 * 60 * 1000 };
+      const token = encryptSharePayload(future, SECRET);
+      expect(decryptShareToken(token, SECRET)).toBeNull();
     });
 
     it("decodes tokens whose prefix colon was percent-encoded (route params)", () => {

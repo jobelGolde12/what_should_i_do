@@ -2,10 +2,22 @@
 const nextConfig = {
   reactStrictMode: true,
   experimental: {
-    serverComponentsExternalPackages: ['@xenova/transformers', 'onnxruntime-node'],
+    serverComponentsExternalPackages: [
+      "@xenova/transformers",
+      "onnxruntime-node",
+      "pdfjs-dist",
+    ],
   },
   webpack: (config) => {
     config.externals.push({ 'onnxruntime-node': 'commonjs onnxruntime-node' });
+    // pdfjs-dist ships only ESM (.mjs) builds. Bundling them through webpack
+    // breaks at module-eval in `next dev` (TypeError: Object.defineProperty
+    // called on non-object). Externalizing loads the file via Node's native
+    // require() at runtime instead (works on Node >= 22 with require(esm)).
+    config.externals.push({
+      'pdfjs-dist/legacy/build/pdf.mjs':
+        'commonjs pdfjs-dist/legacy/build/pdf.mjs',
+    });
     return config;
   },
   async headers() {

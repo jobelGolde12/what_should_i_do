@@ -30,6 +30,9 @@ function validatePayload(raw: unknown): SharePayload {
   if (typeof p.timestamp !== "number" || !Number.isFinite(p.timestamp)) {
     throw new Error("Invalid share payload.");
   }
+  if (p.timestamp > Date.now() + 60_000) {
+    throw new Error("Invalid share payload.");
+  }
   if (typeof p.input !== "string" || p.input.length > MAX_INPUT_LEN) {
     throw new Error("Invalid share payload.");
   }

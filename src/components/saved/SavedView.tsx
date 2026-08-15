@@ -196,7 +196,15 @@ export default function SavedView() {
                       <Button
                         variant="ghost"
                         size="sm"
-                        onClick={() => deleteTemplate(template.id)}
+                        onClick={() => {
+                          if (
+                            window.confirm(
+                              "Delete this template? This cannot be undone."
+                            )
+                          ) {
+                            deleteTemplate(template.id);
+                          }
+                        }}
                         aria-label="Delete template"
                       >
                         <Trash2 className="h-4 w-4" />

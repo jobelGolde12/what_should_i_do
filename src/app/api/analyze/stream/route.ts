@@ -65,7 +65,9 @@ export async function POST(req: Request) {
     });
   }
 
-  const rl = rateLimit(getClientIp(req), userId ? 60 : 15);
+  // Key the rate limit by user id when authenticated (so a trusted-proxy-less
+  // deploy can't collapse every user into one shared "unknown" bucket).
+  const rl = rateLimit(userId ? `user:${userId}` : getClientIp(req), userId ? 60 : 15);
   if (!rl.allowed) {
     return new Response(
       JSON.stringify({ error: "Too many analyses. Try again in a minute." }),

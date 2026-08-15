@@ -20,7 +20,6 @@ export default function UrgencyMeter({
           <div
             key={l.key}
             aria-hidden="true"
-            title={l.help}
             className={`h-1.5 ${i <= safeIndex ? l.fill : "bg-line"}`}
           />
         ))}

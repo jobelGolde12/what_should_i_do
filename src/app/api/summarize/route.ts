@@ -1,13 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
-import { pipeline, SummarizationPipeline } from "@xenova/transformers";
 import { getClientIp, rateLimit } from "@/lib/rateLimit";
+import {
+  startModelLoad,
+  isModelReady,
+  getSummarizer,
+} from "@/lib/summarizer";
 
 export const runtime = "nodejs";
 
 const MAX_TEXT_CHARS = 20_000;
-const MODEL_ID = "Xenova/distilbart-cnn-12-6";
-
-let summarizerCache: SummarizationPipeline | null = null;
 
 // Text-hash → summary cache with a small cap so memory stays bounded.
 const cache = new Map<string, { summary: string; model: string }>();
@@ -29,7 +30,7 @@ function cacheSet(key: string, value: { summary: string; model: string }) {
   cache.set(key, value);
 }
 
-/** Extractive fallback used when the model can't load: first 2-3 sentences. */
+/** Extractive fallback used while the model is warming: first 2-3 sentences. */
 function extractiveFallback(text: string): string {
   const sentences = text
     .replace(/\s+/g, " ")
@@ -86,13 +87,20 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ ...cached, cached: true });
   }
 
+  // Cold start: kick the model load off in the background and serve the
+  // extractive fallback NOW so the first request never blows the client
+  // timeout. Once the model is ready it's used for all subsequent requests.
+  if (!isModelReady()) {
+    if (!getSummarizer()) startModelLoad();
+    const summary = extractiveFallback(text);
+    const value = { summary, model: "extractive-fallback" };
+    cacheSet(key, value);
+    return NextResponse.json({ ...value, cached: false, warming: true });
+  }
+
   try {
-    if (!summarizerCache) {
-      summarizerCache = await pipeline("summarization", MODEL_ID, {
-        quantized: true,
-      });
-    }
-    const result = (await summarizerCache(text, {
+    const summarizer = (await getSummarizer())!;
+    const result = (await summarizer(text, {
       max_length: maxLength,
       min_length: minLength,
       do_sample: false,

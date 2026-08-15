@@ -66,6 +66,17 @@ export function normalizeDigestSettings(
   };
 }
 
+/** True for a syntactically valid IANA time zone (throws otherwise). */
+export function isValidTimeZone(value: string): boolean {
+  if (typeof value !== "string" || !value || value.length > 64) return false;
+  try {
+    new Intl.DateTimeFormat("en-US", { timeZone: value }).format(new Date(0));
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 const WEEKDAY_INDEX: Record<string, number> = {
   Sun: 0,
   Mon: 1,

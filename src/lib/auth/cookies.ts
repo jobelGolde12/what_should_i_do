@@ -1,7 +1,7 @@
 import { cookies } from "next/headers";
 import { signSession, verifySession } from "./session";
 import type { StoredUser } from "./users";
-import { findUserById } from "./users";
+import { findUserAuthById, findUserById } from "./users";
 
 const COOKIE_NAME = "taskmind_session";
 const MAX_AGE = 30 * 24 * 60 * 60; // 30 days
@@ -40,13 +40,19 @@ export async function getCurrentUser(): Promise<StoredUser | null> {
   return user;
 }
 
-/** Returns the authenticated user's id (or null) without loading synced data. */
+/** Returns the authenticated user's id (or null) without loading synced data.
+ * The session token is always checked against the DB: deleted users, users
+ * whose email changed since signing in, and unverified accounts are rejected. */
 export async function getCurrentUserId(): Promise<string | null> {
   const token = cookies().get(COOKIE_NAME)?.value;
   if (!token) return null;
   const payload = verifySession(token);
   if (!payload) return null;
-  return payload.sub;
+  const auth = await findUserAuthById(payload.sub);
+  if (!auth) return null;
+  if (auth.email !== payload.email) return null;
+  if (!auth.verified) return null;
+  return auth.id;
 }
 
 export { COOKIE_NAME };

@@ -63,17 +63,26 @@ export async function incrementUsage(
   return usageCount(userId, metric, window);
 }
 
-/** Returns true and increments only when the user is under the limit. */
+/** Returns true and increments only when the user is under the limit.
+ * Atomic: the conditional upsert (`WHERE count < ?`) and the returned
+ * rows-affected count make the read-check-increment a single statement, so
+ * concurrent requests can't both slip past the cap (SEC-19). */
 export async function tryIncrement(
   userId: string,
   metric: UsageMetric,
   limit: number,
   window = dayWindow()
 ): Promise<boolean> {
-  const current = await usageCount(userId, metric, window);
-  if (current >= limit) return false;
-  await incrementUsage(userId, metric, window);
-  return true;
+  const database = await db();
+  const res = await database.execute(
+    "INSERT INTO pro_usage(user_id, metric, window_start, count) VALUES (?, ?, ?, 1) " +
+      "ON CONFLICT(user_id, metric, window_start) DO UPDATE SET count = count + 1 " +
+      "WHERE count < ?",
+    [userId, metric, window, limit]
+  );
+  // rowsAffected is 0 when the DO UPDATE branch ran but its WHERE clause
+  // filtered it out (i.e. the user is at/over the limit).
+  return Number(res.rowsAffected) > 0;
 }
 
 /** Standard "limit reached" JSON response with an upsell-friendly code. */

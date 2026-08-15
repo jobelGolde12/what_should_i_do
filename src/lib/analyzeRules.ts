@@ -290,12 +290,13 @@ export function enhanceInput(input: string): string {  let enhanced = input;
     .replace(/\s+/g, ' ')
     .replace(/\.+\s*\.+/g, '.')
     .trim();
-  
-  // Add context if the input is extremely short or unclear
-  if (enhanced.length < 30) {
-    enhanced += " (Please analyze this brief message for any actions, deadlines, or urgency)";
-  }
-  
+
+  // NOTE: we intentionally do NOT append an instruction prompt here. Earlier
+  // versions appended "…(Please analyze this brief message…)" to short inputs,
+  // and the rule engine then extracted that prompt text as an "action" /
+  // deadline (BUG-09, prompt leakage). The rule engine works fine on short
+  // inputs without it.
+
   return enhanced;
 }
 

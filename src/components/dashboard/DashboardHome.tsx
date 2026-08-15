@@ -87,6 +87,7 @@ export function DashboardHome() {
       // Auto-scroll to the results area after state updates trigger the loading UI
       setTimeout(() => {
         resultsRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+        resultsRef.current?.focus({ preventScroll: true });
       }, 250);
 
       // Primary path: streaming analysis (sections appear progressively).
@@ -148,6 +149,7 @@ export function DashboardHome() {
       // Auto-scroll to the results area after state updates trigger the loading UI
       setTimeout(() => {
         resultsRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+        resultsRef.current?.focus({ preventScroll: true });
       }, 250);
 
       try {
@@ -324,7 +326,11 @@ export function DashboardHome() {
           onDeepChange={setDeep}
         />
 
-        <div className="mt-8 scroll-mt-24" ref={resultsRef}>
+        <div
+          className="mt-8 scroll-mt-24 outline-none"
+          tabIndex={-1}
+          ref={resultsRef}
+        >
           {batchLoading && !batchItems && <LoadingState />}
           {error && (
             <ErrorState

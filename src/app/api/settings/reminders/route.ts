@@ -8,6 +8,7 @@ import {
   DIGEST_ENABLED_KEY,
   DIGEST_HOUR_KEY,
   DIGEST_TIMEZONE_KEY,
+  isValidTimeZone,
   normalizeDigestSettings,
 } from "@/lib/digest";
 
@@ -102,8 +103,15 @@ export async function POST(request: Request) {
     }
     await upsertSetting(userId, DIGEST_HOUR_KEY, digest.hour);
   }
-  if (typeof digest.timezone === "string" && digest.timezone.trim().length <= 64) {
-    await upsertSetting(userId, DIGEST_TIMEZONE_KEY, digest.timezone.trim());
+  if (typeof digest.timezone === "string" && digest.timezone.trim().length > 0) {
+    const timezone = digest.timezone.trim();
+    if (timezone.length > 64 || !isValidTimeZone(timezone)) {
+      return NextResponse.json(
+        { error: "digest.timezone must be a valid IANA time zone." },
+        { status: 400 }
+      );
+    }
+    await upsertSetting(userId, DIGEST_TIMEZONE_KEY, timezone);
   }
 
   return NextResponse.json({ ok: true });

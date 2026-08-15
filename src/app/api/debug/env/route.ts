@@ -1,6 +1,9 @@
 import { NextResponse } from 'next/server';
 import { isDebugAllowed, authorized, DEBUG_UNAVAILABLE } from '@/lib/debug/guard';
 
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
+
 export async function GET(request: Request) {
   if (!isDebugAllowed()) {
     return NextResponse.json(DEBUG_UNAVAILABLE, { status: 404 });

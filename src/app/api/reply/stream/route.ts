@@ -33,6 +33,12 @@ export async function POST(req: Request) {
     `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
 
   const userId = await getCurrentUserId();
+  if (!userId) {
+    return Response.json(
+      { error: "Not signed in.", code: "NOT_SIGNED_IN" },
+      { status: 401 }
+    );
+  }
 
   const denied = await proGate(userId);
   if (denied) return denied;
@@ -70,7 +76,7 @@ export async function POST(req: Request) {
     );
   }
 
-  const rl = rateLimit(getClientIp(req), userId ? 30 : 5);
+  const rl = rateLimit(userId ? `user:${userId}` : getClientIp(req), userId ? 30 : 5);
   if (!rl.allowed) {
     return new Response(
       JSON.stringify({ error: "Too many requests. Try again in a minute." }),

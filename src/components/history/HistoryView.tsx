@@ -266,7 +266,15 @@ export default function HistoryView() {
                   <Button
                     variant="ghost"
                     size="sm"
-                    onClick={() => deleteAnalysis(record.id)}
+                    onClick={() => {
+                      if (
+                        window.confirm(
+                          "Delete this analysis? This cannot be undone."
+                        )
+                      ) {
+                        deleteAnalysis(record.id);
+                      }
+                    }}
                     aria-label="Delete analysis"
                   >
                     <Trash2 className="h-4 w-4" />

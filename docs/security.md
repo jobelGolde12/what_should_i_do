@@ -100,10 +100,12 @@ persisted to Turso, ensuring rate limits hold across multi-instance deployments.
 ## Known risks & remediation plan
 
 1. **`next@14.2.35` has known advisories** (DoS, XSS, cache poisoning) fixed in
-   `next@15.5.21`. **Priority**: migrate to Next 15 (requires React 19 and the
-   async request APIs — a dedicated effort, out of scope for this pass). Until
-   then, keep `next` pinned to the newest 14.2.x patch; the flagged routes are
-   exercised only by authenticated/same-origin traffic in practice.
+   `next@15.5.21` / `next@16.3.1`. **Priority**: migrate to Next 15/16 (requires
+   React 19 and the async request APIs — a dedicated effort, out of scope for
+   this pass). The bundled `postcss` (`node_modules/next/node_modules/postcss`)
+   inherits PostCSS advisories that are only fixed by the same Next upgrade.
+   Until then, keep `next` pinned to the newest 14.2.x patch; the flagged routes
+   are exercised only by authenticated/same-origin traffic in practice.
 2. **`@xenova/transformers` chain** (`onnxruntime-web` → `protobufjs` critical,
    `sharp`, `@xmldom/xmldom`) — used only by the offline `/api/summarize`
    route, which degrades to an extractive fallback if the model cannot load.
@@ -114,9 +116,10 @@ persisted to Turso, ensuring rate limits hold across multi-instance deployments.
 3. **`underscore` (via `mammoth`)** — docx extraction only; parser DoS on
    untrusted `.docx`. Consider switching the docx extractor or pinning a patched
    underscore.
-4. **Share links do not expire** — documented in `/privacy`; password/expiry
-   are future work (Feature 15). Tokens are now encrypted, so a link alone
-   (without the server secret) can't be decoded.
+4. **Share links expire after 30 days** — `SHARE_TTL_MS` in
+   `src/lib/share-crypto.ts`; tokens older than 30 days (or created more than
+   60s in the future) are rejected on load and in the create route. Tokens are
+   encrypted, so a link alone (without the server secret) can't be decoded.
 
 ## Key rotation & least privilege
 

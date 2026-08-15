@@ -226,6 +226,8 @@ export default function ReplyPanel({
   return (
     <div
       ref={panelRef}
+      role="group"
+      aria-label="Reply drafting"
       tabIndex={open ? 0 : undefined}
       className="mt-6 border border-line bg-surface outline-none"
     >

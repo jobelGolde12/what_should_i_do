@@ -1,7 +1,11 @@
 import { NextResponse } from "next/server";
 import { verifyResetToken } from "@/lib/auth/verify";
 import { setNewPassword } from "@/lib/auth/users";
-import { hashPassword } from "@/lib/auth/session";
+import {
+  hashPassword,
+  MIN_PASSWORD_LENGTH,
+  MAX_PASSWORD_LENGTH,
+} from "@/lib/auth/session";
 import { rateLimitDb, rlKey } from "@/lib/rateLimitDb";
 import { getClientIp } from "@/lib/rateLimit";
 import { logAuthEvent } from "@/lib/log";
@@ -32,7 +36,11 @@ export async function POST(request: Request) {
       );
     }
 
-    if (!password || password.length < 8) {
+    if (
+      !password ||
+      password.length < MIN_PASSWORD_LENGTH ||
+      password.length > MAX_PASSWORD_LENGTH
+    ) {
       return NextResponse.json(
         { error: "Password must be at least 8 characters long." },
         { status: 400 }

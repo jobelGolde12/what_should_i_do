@@ -36,6 +36,7 @@ export default function InboxView() {
   const [query, setQuery] = useState("");
   const [copied, setCopied] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [forwardFailed, setForwardFailed] = useState(false);
 
   // Mount fetch: sets state only after the promises resolve, so no setState
   // runs synchronously inside the effect.
@@ -50,10 +51,16 @@ export default function InboxView() {
         if (fwdRes.ok) {
           const data = (await fwdRes.json()) as { address: string };
           setForwardAddress(data.address);
+          setForwardFailed(false);
+        } else {
+          setForwardFailed(true);
         }
       })
       .catch(() => {
-        if (active) setError("Couldn't load your inbox. Try again.");
+        if (active) {
+          setError("Couldn't load your inbox. Try again.");
+          setForwardFailed(true);
+        }
       });
     return () => {
       active = false;
@@ -62,6 +69,7 @@ export default function InboxView() {
 
   const load = useCallback(async () => {
     setError(null);
+    setForwardFailed(false);
     try {
       const [msgRes, fwdRes] = await Promise.all([
         fetch("/api/inbox"),
@@ -71,9 +79,13 @@ export default function InboxView() {
       if (fwdRes.ok) {
         const data = (await fwdRes.json()) as { address: string };
         setForwardAddress(data.address);
+        setForwardFailed(false);
+      } else {
+        setForwardFailed(true);
       }
     } catch {
       setError("Couldn't load your inbox. Try again.");
+      setForwardFailed(true);
     }
   }, []);
 
@@ -115,9 +127,23 @@ export default function InboxView() {
               <h2 className="text-sm font-semibold text-ink">Forward address</h2>
             </div>
             <div className="flex flex-wrap items-center gap-3 px-5 py-4">
-              {forwardAddress ? (
+              {forwardFailed ? (
+                <div className="w-full" role="status">
+                  <p className="text-sm text-muted">
+                    Couldn&apos;t load your forward address.
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => void load()}
+                    className="mt-2 inline-flex items-center gap-1 text-xs font-medium text-accent hover:underline"
+                  >
+                    <RefreshCw className="h-3 w-3" />
+                    Retry
+                  </button>
+                </div>
+              ) : forwardAddress ? (
                 <>
-                  <code className="rounded-tm border border-line bg-surface px-3 py-1.5 font-mono text-sm text-ink">
+                  <code className="min-w-0 break-all rounded-tm border border-line bg-surface px-3 py-1.5 font-mono text-sm text-ink">
                     {forwardAddress}
                   </code>
                   <Button
@@ -163,7 +189,7 @@ export default function InboxView() {
               </p>
             )}
 
-            <div className="mt-4">
+            <div className="mt-4" aria-live="polite">
               {messages === null ? (
                 <p className="border border-line bg-surface px-4 py-8 text-center text-sm text-muted">
                   Loading…

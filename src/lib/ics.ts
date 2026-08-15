@@ -1,4 +1,5 @@
 import { parseDeadline } from "@/lib/deadline";
+import { uid } from "@/lib/storage";
 
 function pad(n: number): string {
   return String(n).padStart(2, "0");
@@ -32,14 +33,14 @@ export function buildIcs(deadlines: string[], actions: string[] = []): string {
     ? `\nActions:\n${actions.map((a, i) => `${i + 1}. ${a}`).join("\n")}`
     : "";
 
-  deadlines.forEach((deadline, i) => {
+  deadlines.forEach((deadline) => {
     const start = parseDeadline(deadline).date;
     if (!start) return;
     const end = new Date(start.getTime() + 60 * 60 * 1000);
 
     lines.push(
       "BEGIN:VEVENT",
-      `UID:taskmind-${i}-${now.getTime()}`,
+      `UID:taskmind-${uid()}`,
       `DTSTAMP:${toIcalDate(now)}`,
       `DTSTART:${toIcalDate(start)}`,
       `DTEND:${toIcalDate(end)}`,

@@ -22,7 +22,7 @@ export default function BottomNav() {
               key={item.name}
               href={item.href}
               aria-current={active ? "page" : undefined}
-              className={`flex flex-col items-center gap-1 py-2 text-xxs font-medium transition-colors ${
+              className={`flex flex-col items-center gap-1 py-2 text-xs font-medium transition-colors ${
                 active ? "text-accent" : "text-muted"
               }`}
             >

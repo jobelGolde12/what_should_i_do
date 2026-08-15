@@ -43,7 +43,7 @@
   --accent: #ea5068;
   --accent-dark: #c8102e;
   --accent-btn: #d13450;
-  --accent-soft: rgba(200, 16, 46, 0.16);
+  --accent-soft: rgba(200, 16, 46, 0.1);
   --night: #0a0a0a;
   --night-soft: #171717;
 
@@ -66,7 +66,7 @@
     --accent: #ea5068;
     --accent-dark: #c8102e;
     --accent-btn: #d13450;
-    --accent-soft: rgba(200, 16, 46, 0.16);
+    --accent-soft: rgba(200, 16, 46, 0.1);
     --night: #0a0a0a;
     --night-soft: #171717;
 

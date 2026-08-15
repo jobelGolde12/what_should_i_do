@@ -5,17 +5,22 @@
 ## What it is & why it's Pro
 
 Turns TaskMind into an actual inbox assistant. Pro users get a **private
-forward-to-TaskMind address** (email arrives → auto-analyzed), and can **connect
-Gmail/Outlook** to analyze recent messages and **reply from TaskMind** using the
-draft engine from plan `01`. This is the "AI generated response when the user
-attached an email" feature taken to its natural end state.
+forward-to-TaskMind address** (email arrives → auto-analyzed) and can **reply
+from TaskMind** using the draft engine from plan `01`.
+
+> **Design note (current):** the inbox runs entirely on **Mailgun**. Email
+> arrives via the forward-to-TaskMind receive route and replies go out through
+> the app's own Mailgun domain. The earlier Gmail/Outlook OAuth connect
+> (scoped OAuth + PKCE, token encryption) has been **removed** — no third-party
+> OAuth scopes, no stored provider tokens.
 
 ## Where it fits today
 
-- Inbound/outbound mail: only Mailgun for transactional emails
-  (`src/lib/mailgun.ts`, `src/app/api/auth/*`). No per-user inbound addresses, no
-  IMAP/Gmail API, no OAuth.
-- Reply drafting: plan `01-ai-reply-drafting.md` (depends on this plan's "send").
+- Inbound/outbound mail: Mailgun for transactional emails and the inbox
+  (`src/lib/mailgun.ts`, `src/lib/inbound.ts`,
+  `src/app/api/mailgun/inbound/route.ts`, `src/app/api/auth/*`).
+- Reply drafting: plan `01-ai-reply-drafting.md` (depends on this plan's
+  "send").
 
 ## Depends on
 
@@ -27,61 +32,58 @@ attached an email" feature taken to its natural end state.
 
 ## Tasks
 
-### 1. Forward-to-TaskMind address
+### 1. Forward-to-TaskMind address (Mailgun)
 
 - [x] Add a per-user inbound route via Mailgun (receive routes): derive
-  `{slug}@in.taskmind.app` from the user id; store the mapping in
-  `user_settings` or a new `inbound_addresses` table.
+  `{slug}@in.taskmind.app` from the user id; store the mapping in the
+  `inbound_routes` table.
 - [x] Add `src/app/api/mailgun/inbound/route.ts` (webhook, signature-verified):
   parse sender/subject/body/attachments, create an `AnalysisRecord`, run the
-  analysis (batch or single), and save to the user's history (schema tables).
+  analysis, and save to the user's history + inbox (schema tables).
 - [x] Handle verification loop protection and spam/unsubscribe headers; respect
   the user's notification prefs (don't email back unless asked).
 
-### 2. Connect Gmail / Outlook
+### 2. Reply & send (via Mailgun)
 
-- [x] Add OAuth routes `/api/integrations/gmail/connect` (+ Outlook) with
-  minimal scopes (read messages, send mail), a state nonce, and PKCE.
-- [x] Encrypt and store refresh tokens (Turso `integrations` table, value
-  encrypted with an env secret — never plaintext).
-- [x] Add "Analyze from inbox": list the N most recent messages (subject,
-  snippet, sender, date), select one (or several → batch), and run analysis.
-- [x] Consent/revoke UI in `SettingsView.tsx` ("Connected accounts" card) with
-  a disconnect action that deletes tokens.
-
-### 3. Reply & send
-
-- [x] Extend the reply panel (plan `01`) with **Send** when a connected account
-  exists: compose subject (re: original), send via the provider API (Gmail
-  `gmail.users.messages.send` / Outlook SendMail), and record the send in
-  history with a "replied" marker.
+- [x] Extend the reply panel (plan `01`) with **Send**: compose subject
+  (re: original), send through Mailgun (`src/lib/mailgun.ts`), and record the
+  send in history with a "replied" marker.
 - [x] Never auto-send; always a two-step confirm with an editable draft.
 
-### 4. Inbox UI
+### 3. Inbox UI
 
 - [x] Add an "Inbox" entry in `Sidebar`/nav (see `src/lib/nav.ts`) and a
-  `src/components/inbox/*` surface listing analyzed forwarded emails and
-  connected-account messages with status (analyzed / not).
+  `src/components/inbox/*` surface listing analyzed forwarded emails with
+  status (analyzed / replied).
 - [x] Search/filter the inbox reusing QuickSearch primitives.
+
+### 4. Removed: Gmail / Outlook connect
+
+- [x] ~~OAuth routes `/api/integrations/gmail/connect` (+ Outlook), state
+  nonce, PKCE, encrypted refresh tokens~~ — **removed** (Mailgun-only).
+- [x] ~~"Analyze from inbox" / live provider sync~~ — **removed**.
+- [x] ~~Consent/revoke UI in Settings~~ — replaced by the forward-address card.
 
 ### 5. Security review
 
-- [x] Token encryption at rest, scoped OAuth, per-user isolation on all routes,
-  rate limiting on inbound parsing (protect against abuse of forward address).
-- [x] Update `docs/security.md` endpoint inventory.
+- [x] Inbound webhook HMAC verification (15-min window), rate limiting per
+  slug (protect against abuse of forward address), loop/auto-reply protection,
+  per-user isolation on all routes.
+- [x] Update `docs/security.md` endpoint inventory (no OAuth endpoints).
 
 ### 6. Tests
 
 - [x] Unit: `tests/inbound.test.ts` — slug derivation, webhook signature check,
   message → record mapping, attachment extraction reuse.
-- [x] Unit: `tests/integrations.test.ts` — token encrypt/decrypt, revoke.
-- [x] Route tests: OAuth handshake (mocked provider), 401/403, rate limits.
+- [x] Route tests: forward address gating (401/403), Mailgun send failures
+  (409 when unconfigured, 502 on service error).
 
 ## Definition of done
 
 - [x] Email sent to a Pro user's forward address appears analyzed in their
   history/inbox.
-- [x] Gmail/Outlook connect lists messages, analyzes them, and can send a reply
-  draft with explicit user confirmation.
+- [x] Replies can be drafted and sent via Mailgun with explicit user
+  confirmation (no auto-send).
+- [x] No Gmail/Outlook OAuth code, env vars, or stored tokens remain.
 - [x] `npm test`, `npm run typecheck`, `npm run lint` (0 errors), and
   `npm run build` all pass.

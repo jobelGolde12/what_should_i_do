@@ -1,12 +1,11 @@
 /**
- * Inbox message store (Pro). Tracks messages that arrived via the forward
- * address or were pulled from a connected Gmail/Outlook account, together with
- * whether each has been analyzed (and its analysis id).
+ * Inbox message store (Pro). Tracks messages that arrived via the Mailgun
+ * forward address, together with whether each has been analyzed (and its
+ * analysis id).
  */
 import { getDb, ensureSchema } from "@/lib/db";
-import type { IntegrationProvider } from "@/lib/integrations";
 
-export type InboxProvider = "forward" | IntegrationProvider;
+export type InboxProvider = "forward";
 
 export type InboxMessage = {
   id: string;

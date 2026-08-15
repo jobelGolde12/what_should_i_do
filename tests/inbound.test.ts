@@ -178,7 +178,7 @@ describe("inbound message parsing", () => {
   });
 });
 
-describe("analyzeEmail (forwarded + provider messages)", () => {
+describe("analyzeEmail (forwarded messages)", () => {
   beforeEach(clearTables);
   afterEach(clearTables);
 
@@ -200,17 +200,17 @@ describe("analyzeEmail (forwarded + provider messages)", () => {
     expect(await getInboxByAnalysisId(user.id, record!.id)).not.toBeNull();
   });
 
-  it("saves provider messages under the right provider + external id", async () => {
+  it("saves forwarded messages with the external id (dedupe key)", async () => {
     const user = await makeUser();
     const record = await analyzeEmail(
       user.id,
-      { sender: "bob@example.com", subject: "Hello", body: "Some message content that is long enough.", externalId: "gmail_1" },
-      { provider: "gmail", analyzer: async () => fakeResult }
+      { sender: "bob@example.com", subject: "Hello", body: "Some message content that is long enough.", externalId: "ext_1" },
+      { provider: "forward", analyzer: async () => fakeResult }
     );
     expect(record).not.toBeNull();
     const inbox = await getInboxMessages(user.id);
-    expect(inbox[0].provider).toBe("gmail");
-    expect(inbox[0].externalId).toBe("gmail_1");
+    expect(inbox[0].provider).toBe("forward");
+    expect(inbox[0].externalId).toBe("ext_1");
   });
 
   it("returns null for too-short messages without calling the analyzer", async () => {

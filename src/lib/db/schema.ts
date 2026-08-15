@@ -37,7 +37,7 @@ export const SCHEMA_MIGRATIONS: Record<number, string[]> = {
     "CREATE INDEX IF NOT EXISTS idx_reminders_due ON reminders(user_id, sent, remind_at)",
   ],
   5: [
-    // Pro inbox: message list from forwarded email + connected accounts.
+    // Pro inbox: message list from forwarded email.
     "CREATE TABLE IF NOT EXISTS inbox_messages (" +
       "id TEXT NOT NULL, user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE, " +
       "provider TEXT NOT NULL, external_id TEXT NOT NULL DEFAULT '', sender TEXT NOT NULL DEFAULT '', " +
@@ -167,20 +167,7 @@ export const SCHEMA_DDL: string[] = [
   )`,
   `CREATE INDEX IF NOT EXISTS idx_reminders_due ON reminders(user_id, sent, remind_at)`,
 
-  // —— Pro: email / calendar provider integrations (tokens encrypted) ——
-  `CREATE TABLE IF NOT EXISTS integrations (
-    user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-    provider TEXT NOT NULL,
-    external_id TEXT NOT NULL DEFAULT '',
-    access_token_enc TEXT NOT NULL DEFAULT '',
-    refresh_token_enc TEXT NOT NULL DEFAULT '',
-    scopes TEXT NOT NULL DEFAULT '',
-    connected_at INTEGER NOT NULL,
-    updated_at INTEGER NOT NULL,
-    PRIMARY KEY (user_id, provider)
-  )`,
-
-  // —— Pro: inbox (forwarded emails + connected-account messages) ——
+  // —— Pro: inbox (forwarded emails via Mailgun) ——
   `CREATE TABLE IF NOT EXISTS inbox_messages (
     id TEXT NOT NULL,
     user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,

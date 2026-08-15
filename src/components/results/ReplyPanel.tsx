@@ -26,7 +26,7 @@ const TONES: ReplyTone[] = ["professional", "casual", "brief", "warm"];
 type SendContext = {
   available: boolean;
   connected: boolean;
-  provider?: "gmail" | "outlook";
+  provider?: "mailgun";
   to?: string;
   subject?: string;
 };
@@ -315,7 +315,7 @@ export default function ReplyPanel({
                 {draft && !loading && sendStep === "idle" && sendCtx?.connected && (
                   <Button size="sm" onClick={openSend}>
                     <Send className="h-3.5 w-3.5" />
-                    {sendCtx.provider === "outlook" ? "Send via Outlook" : "Send via Gmail"}
+                    Send reply
                   </Button>
                 )}
                 {templates.length > 0 && (
@@ -408,9 +408,8 @@ export default function ReplyPanel({
                     </label>
                   </div>
                   <p className="mt-2 text-xs text-muted">
-                    This sends the draft from your connected{" "}
-                    {sendCtx?.provider === "outlook" ? "Outlook" : "Gmail"}{" "}
-                    account.
+                    This sends the draft via TaskMind&apos;s email service
+                    (Mailgun).
                   </p>
                   <div className="mt-3 flex items-center gap-2">
                     <Button
@@ -446,7 +445,7 @@ export default function ReplyPanel({
               {sendStep === "sent" && (
                 <p className="mt-3 flex items-center gap-1.5 text-xs text-ink">
                   <MailCheck className="h-3.5 w-3.5 text-accent" />
-                  Reply sent via {sendCtx?.provider === "outlook" ? "Outlook" : "Gmail"}.
+                  Reply sent via Mailgun.
                 </p>
               )}
             </>

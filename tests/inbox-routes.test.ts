@@ -3,9 +3,7 @@ import { createUser } from "@/lib/auth/users";
 import { hashPassword } from "@/lib/auth/session";
 import { getDb, ensureSchema } from "@/lib/db";
 import { setUserPlan } from "@/lib/pro/entitlements";
-import { saveIntegration, encryptSecret } from "@/lib/integrations";
 import { GET as forwardGET } from "@/app/api/inbox/forward/route";
-import { POST as analyzePOST } from "@/app/api/inbox/analyze/route";
 import { POST as sendPOST } from "@/app/api/inbox/send/route";
 
 vi.mock("@/lib/auth/cookies", () => ({
@@ -17,7 +15,6 @@ import { getCurrentUserId } from "@/lib/auth/cookies";
 async function clearTables() {
   await ensureSchema();
   const db = getDb();
-  await db.execute("DELETE FROM integrations");
   await db.execute("DELETE FROM user_settings");
   await db.execute("DELETE FROM subscriptions");
   await db.execute("DELETE FROM analyses");
@@ -37,7 +34,11 @@ describe("inbox routes auth + gating", () => {
 
   beforeEach(async () => {
     await clearTables();
-    process.env = { ...original, INTEGRATION_ENCRYPTION_KEY: "inbox-routes-key" };
+    process.env = {
+      ...original,
+      MAILGUN_API_KEY: "key-test",
+      MAILGUN_DOMAIN: "mg.example.com",
+    };
     vi.mocked(getCurrentUserId).mockReset();
   });
 
@@ -68,32 +69,6 @@ describe("inbox routes auth + gating", () => {
     expect(body.address).toMatch(/^[0-9a-f]{10}@in.taskmind.app$/);
   });
 
-  it("analyze: 400 with an invalid body", async () => {
-    const user = await makeProUser();
-    vi.mocked(getCurrentUserId).mockResolvedValue(user.id);
-    const res = await analyzePOST(
-      new Request("http://localhost/api/inbox/analyze", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({}),
-      })
-    );
-    expect(res.status).toBe(400);
-  });
-
-  it("analyze: 409 when the provider isn't connected", async () => {
-    const user = await makeProUser();
-    vi.mocked(getCurrentUserId).mockResolvedValue(user.id);
-    const res = await analyzePOST(
-      new Request("http://localhost/api/inbox/analyze", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ provider: "gmail", messageId: "m1" }),
-      })
-    );
-    expect(res.status).toBe(409);
-  });
-
   it("send: 400 for an invalid recipient", async () => {
     const user = await makeProUser();
     vi.mocked(getCurrentUserId).mockResolvedValue(user.id);
@@ -107,27 +82,31 @@ describe("inbox routes auth + gating", () => {
     expect(res.status).toBe(400);
   });
 
-  it("send: 409 when no account is connected", async () => {
+  it("send: 409 when Mailgun isn't configured", async () => {
     const user = await makeProUser();
     vi.mocked(getCurrentUserId).mockResolvedValue(user.id);
-    const res = await sendPOST(
-      new Request("http://localhost/api/inbox/send", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ to: "alice@example.com", subject: "Hi", body: "Hello there" }),
-      })
-    );
-    expect(res.status).toBe(409);
+    const prevKey = process.env.MAILGUN_API_KEY;
+    const prevDomain = process.env.MAILGUN_DOMAIN;
+    delete process.env.MAILGUN_API_KEY;
+    delete process.env.MAILGUN_DOMAIN;
+    try {
+      const res = await sendPOST(
+        new Request("http://localhost/api/inbox/send", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ to: "alice@example.com", subject: "Hi", body: "Hello there" }),
+        })
+      );
+      expect(res.status).toBe(409);
+    } finally {
+      process.env.MAILGUN_API_KEY = prevKey;
+      process.env.MAILGUN_DOMAIN = prevDomain;
+    }
   });
 
-  it("send: returns 502 when the provider call fails", async () => {
+  it("send: returns 502 when the mail service call fails", async () => {
     const user = await makeProUser();
     vi.mocked(getCurrentUserId).mockResolvedValue(user.id);
-    await saveIntegration(user.id, "gmail", {
-      accessTokenEnc: encryptSecret("access"),
-      refreshTokenEnc: encryptSecret("refresh"),
-      scopes: ["gmail.send"],
-    });
     vi.stubGlobal("fetch", vi.fn(async () => new Response("denied", { status: 403 })));
     const res = await sendPOST(
       new Request("http://localhost/api/inbox/send", {

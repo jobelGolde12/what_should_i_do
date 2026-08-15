@@ -51,14 +51,8 @@ npm run security:audit   # npm audit --omit=dev
 | `POST /api/mailgun/inbound` | Mailgun HMAC (15-min window) | 60/hr per slug (in-memory) | — | forward-to-TaskMind; skips auto-replies + transactional senders |
 | `GET /api/inbox` | session + Pro | — | — | stored inbox messages (no bodies) |
 | `GET /api/inbox/forward` | session + Pro | — | — | private forward address for the user |
-| `GET /api/inbox/context` | session + Pro | — | — | reply To/Subject for an analysis |
-| `POST /api/inbox/analyze` | session + Pro | — | — | analyze a provider message; creates history + inbox row |
-| `POST /api/inbox/send` | session + Pro | — | body ≤ 100k | explicit two-step confirm (UI); marks inbox replied |
-| `GET /api/inbox/sync` | session + Pro | — | — | live list of recent provider messages (metadata) |
-| `GET /api/integrations` | session + Pro | — | — | connected providers (no tokens exposed) |
-| `GET /api/integrations/:provider/connect` | session + Pro | — | — | OAuth start: state nonce + PKCE, 10-min TTL |
-| `GET /api/integrations/:provider/callback` | session + state-bound | — | — | OAuth exchange; single-use state |
-| `DELETE /api/integrations/:provider` | session + Pro | — | — | disconnect + delete encrypted tokens |
+| `GET /api/inbox/context` | session + Pro | — | — | reply To/Subject for an analysis (Mailgun send) |
+| `POST /api/inbox/send` | session + Pro | — | body ≤ 100k | sends via Mailgun; explicit two-step confirm (UI); marks inbox replied |
 | `/api/debug/*` | `ADMIN_TOKEN` Bearer (prod) | — | 20k input | 404 unless configured in prod |
 
 Rate limiting for auth operations uses shared DB-backed fixed-window counting (`src/lib/rateLimitDb.ts`)
@@ -91,14 +85,9 @@ persisted to Turso, ensuring rate limits hold across multi-instance deployments.
 - [x] **Accuracy harness**: `npm run eval` reports precision/recall/exact-match
   over a labeled dataset; `npm test` covers success, bad JSON, 429, 5xx,
   timeout, empty, and quota paths with a mocked provider.
-- [x] **OAuth token encryption at rest**: provider access/refresh tokens are
-  AES-256-GCM encrypted (`src/lib/integrations.ts`) with
-  `INTEGRATION_ENCRYPTION_KEY` (falls back to `AUTH_SECRET` in dev, required in
-  prod) before hitting the `integrations` table — never plaintext, and list
-  endpoints never expose them.
-- [x] **Scoped OAuth + PKCE**: Gmail/Outlook connect uses a state nonce bound to
-  the signed-in user (single-use, 10-min TTL in `user_settings`) and PKCE with
-  minimal scopes (read/send only). Callbacks require a session.
+- [x] **Mailgun-only inbox**: the Pro inbox uses the forward-to-TaskMind
+  receive route — no third-party OAuth scopes, no stored provider tokens.
+  Replies are sent through the app's own Mailgun domain.
 - [x] **Share links encrypted**: tokens are AES-256-GCM encrypted server-side
   (`SHARE_SECRET`, falls back to `AUTH_SECRET`); raw input never appears in the
   URL, and `sensitive` payloads are stripped before the client sees them. Link
@@ -137,9 +126,6 @@ persisted to Turso, ensuring rate limits hold across multi-instance deployments.
 - `ADMIN_TOKEN` guards debug routes in production; rotate it like a password.
 - `AUTH_SECRET` signs sessions — set a stable, long random value in production;
   rotation invalidates all sessions.
-- `INTEGRATION_ENCRYPTION_KEY` encrypts OAuth tokens at rest — set a stable,
-  long random value in production; rotation breaks stored tokens (users must
-  reconnect), so prefer key rotation alongside a re-auth prompt.
 
 ## Data access / audit
 

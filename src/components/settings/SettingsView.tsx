@@ -32,7 +32,7 @@ import { Button } from "@/components/ui/Button";
 import PageHeader from "@/components/ui/PageHeader";
 
 // Below-the-fold Pro sections load on demand instead of inflating the initial
-// settings bundle (they pull in billing/integration client code).
+// settings bundle (they pull in billing/email-inbox client code).
 const IntegrationsSettings = dynamic(
   () =>
     import("./IntegrationsSettings").then((m) => m.IntegrationsSettings),

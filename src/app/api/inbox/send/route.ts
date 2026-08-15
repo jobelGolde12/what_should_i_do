@@ -2,12 +2,7 @@ import { NextResponse } from "next/server";
 import { getCurrentUserId } from "@/lib/auth/cookies";
 import { proGate } from "@/lib/pro/entitlements";
 import { getInboxByAnalysisId, markInboxReplied } from "@/lib/inbox";
-import {
-  getIntegration,
-  listIntegrations,
-  sendProviderMail,
-  type IntegrationProvider,
-} from "@/lib/integrations";
+import { isMailgunConfigured, sendMail } from "@/lib/mailgun";
 import { logInfo, logWarn } from "@/lib/log";
 
 export const runtime = "nodejs";
@@ -20,9 +15,9 @@ function validEmail(value: string): boolean {
 }
 
 /**
- * Sends a reply through the user's connected provider. The two-step confirm
- * lives in the UI — this endpoint never auto-sends: it requires an explicit
- * to/subject/body. Marks the originating inbox message as replied.
+ * Sends a reply via Mailgun. The two-step confirm lives in the UI — this
+ * endpoint never auto-sends: it requires an explicit to/subject/body. Marks
+ * the originating inbox message as replied.
  */
 export async function POST(request: Request) {
   const userId = await getCurrentUserId();
@@ -69,36 +64,22 @@ export async function POST(request: Request) {
     );
   }
 
+  if (!isMailgunConfigured()) {
+    return NextResponse.json(
+      { error: "Email sending isn't configured." },
+      { status: 409 }
+    );
+  }
+
   const inbox = analysisId
     ? await getInboxByAnalysisId(userId, analysisId)
     : null;
-  const connected = await listIntegrations(userId);
-  if (connected.length === 0) {
-    return NextResponse.json(
-      { error: "Connect Gmail or Outlook to send replies." },
-      { status: 409 }
-    );
-  }
 
-  const provider =
-    inbox && (inbox.provider === "gmail" || inbox.provider === "outlook")
-      ? (inbox.provider as IntegrationProvider)
-      : connected[0].provider;
-
-  const integration = await getIntegration(userId, provider);
-  if (!integration) {
-    return NextResponse.json(
-      { error: "That account isn't connected." },
-      { status: 409 }
-    );
-  }
-
-  const result = await sendProviderMail(integration, { to, subject, body: text });
+  const result = await sendMail(to, subject, text);
   if (!result.ok) {
     logWarn("inbox", {
       event: "send_failed",
       userId,
-      provider,
       error: result.error,
     });
     return NextResponse.json(
@@ -108,6 +89,6 @@ export async function POST(request: Request) {
   }
 
   if (inbox) await markInboxReplied(userId, inbox.id);
-  logInfo("inbox", { event: "sent", userId, provider, analysisId });
+  logInfo("inbox", { event: "sent", userId, analysisId });
   return NextResponse.json({ ok: true, messageId: result.messageId ?? null });
 }

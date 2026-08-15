@@ -37,7 +37,7 @@ depends on them for gating, enforcement, and upsell.
 | [`features/03-unlimited-batch-analysis.md`](./features/03-unlimited-batch-analysis.md) | Higher quotas, batch/multi-message analysis, higher-quality model tier | entitlements; billing |
 | [`features/04-cloud-sync-multi-device.md`](./features/04-cloud-sync-multi-device.md) | Structured cloud sync + backup across devices | entitlements; auth |
 | [`features/05-calendar-reminders-digest.md`](./features/05-calendar-reminders-digest.md) | One-click calendar add, deadline reminders, weekly digest email | entitlements; mailgun |
-| [`features/06-email-inbox-integration.md`](./features/06-email-inbox-integration.md) | Forward-to-TaskMind inbox + Gmail/Outlook connect, auto-analyze, reply | `01`, `04`, entitlements |
+| [`features/06-email-inbox-integration.md`](./features/06-email-inbox-integration.md) | Forward-to-TaskMind inbox (Mailgun), auto-analyze, reply via Mailgun | `01`, `04`, entitlements; mailgun |
 | [`features/07-exports-reports-analytics.md`](./features/07-exports-reports-analytics.md) | PDF/Word/CSV exports + productivity analytics & monthly report | `02`, entitlements |
 | [`features/08-custom-workflows-templates.md`](./features/08-custom-workflows-templates.md) | Template variables/fields, tags, automation rules | entitlements |
 | [`features/09-priority-support-perks.md`](./features/09-priority-support-perks.md) | Ad-free, higher rate limits, priority support, early access | entitlements; billing |

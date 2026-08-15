@@ -2,15 +2,15 @@ import { NextResponse } from "next/server";
 import { getCurrentUserId } from "@/lib/auth/cookies";
 import { proGate } from "@/lib/pro/entitlements";
 import { getInboxByAnalysisId } from "@/lib/inbox";
-import { listIntegrations } from "@/lib/integrations";
+import { isMailgunConfigured } from "@/lib/mailgun";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 /**
  * Reply context for a result page: whether a Send button can appear (an inbox
- * row exists for the analysis AND a provider account is connected) plus the
- * To address and subject line to prefill.
+ * row exists for the analysis AND Mailgun sending is configured) plus the To
+ * address and subject line to prefill.
  */
 export async function GET(request: Request) {
   const userId = await getCurrentUserId();
@@ -31,15 +31,14 @@ export async function GET(request: Request) {
     return NextResponse.json({ available: false });
   }
 
-  const connected = await listIntegrations(userId);
-  if (connected.length === 0) {
+  if (!isMailgunConfigured()) {
     return NextResponse.json({ available: false, connected: false });
   }
 
   return NextResponse.json({
     available: true,
     connected: true,
-    provider: connected[0].provider,
+    provider: "mailgun",
     to: inbox.sender,
     subject: `Re: ${inbox.subject}`,
   });

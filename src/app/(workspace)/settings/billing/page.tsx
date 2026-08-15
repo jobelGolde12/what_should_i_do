@@ -126,7 +126,7 @@ export default function BillingPage() {
     return (
       <div className="mx-auto max-w-4xl space-y-6 py-2">
         <div>
-          <h2 className="text-xl font-semibold tracking-tight text-ink">Subscription & Billing</h2>
+          <h1 className="text-xl font-semibold tracking-tight text-ink">Subscription &amp; Billing</h1>
           <p className="text-sm text-muted">Manage your plan, payment methods, and billing details.</p>
         </div>
 
@@ -157,7 +157,7 @@ export default function BillingPage() {
     <div className="mx-auto max-w-4xl space-y-6 py-2">
       {/* Page header */}
       <div>
-        <h2 className="text-xl font-semibold tracking-tight text-ink">Subscription & Billing</h2>
+        <h1 className="text-xl font-semibold tracking-tight text-ink">Subscription &amp; Billing</h1>
         <p className="text-sm text-muted">Manage your plan, payment methods, and billing details.</p>
       </div>
 

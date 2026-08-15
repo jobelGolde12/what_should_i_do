@@ -6,11 +6,24 @@
 const buckets = new Map<string, { count: number; resetAt: number }>();
 const MAX_BUCKETS = 10_000;
 
+// Client-supplied `X-Forwarded-For` / `X-Real-IP` are only trustworthy when a
+// trusted reverse proxy strips/sanitizes them (Vercel does; a bare Node server
+// does not). Set TRUST_PROXY=1 when running behind nginx/Caddy/Cloudflare etc.
+const TRUST_PROXY = process.env.TRUST_PROXY === "1";
+
+function isTrustedProxy(request: Request): boolean {
+  if (TRUST_PROXY) return true;
+  // Vercel always sets this and sanitizes the forwarded headers.
+  return request.headers.get("x-vercel-id") !== null;
+}
+
 export function getClientIp(request: Request): string {
-  const fwd = request.headers.get("x-forwarded-for");
-  if (fwd) return fwd.split(",")[0].trim();
-  const realIp = request.headers.get("x-real-ip");
-  if (realIp) return realIp;
+  if (isTrustedProxy(request)) {
+    const fwd = request.headers.get("x-forwarded-for");
+    if (fwd) return fwd.split(",")[0].trim();
+    const realIp = request.headers.get("x-real-ip");
+    if (realIp) return realIp;
+  }
   return "unknown";
 }
 

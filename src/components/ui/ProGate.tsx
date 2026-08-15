@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { Crown, Lock } from "lucide-react";
 import { Badge } from "@/components/ui/Badge";
 import { usePlan } from "@/lib/pro/usePlan";
@@ -43,12 +44,12 @@ export function ProGate({
           Pro feature.
         </span>
       </p>
-      <a
+      <Link
         href="/settings/billing"
         className="inline-flex shrink-0 items-center gap-1.5 rounded-tm bg-accent-btn px-3 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-accent-dark"
       >
         <Crown className="h-3.5 w-3.5" /> Upgrade
-      </a>
+      </Link>
     </div>
   );
 }

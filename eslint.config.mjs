@@ -12,6 +12,9 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // Vendor assets copied from node_modules by scripts/self-host-assets.mjs
+    "public/pdfjs/**",
+    "public/tesseract/**",
   ]),
 ]);
 

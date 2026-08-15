@@ -23,6 +23,10 @@
 # production
 /build
 
+# self-hosted pdf.js/tesseract workers (copied from node_modules at install/dev/build time)
+/public/pdfjs/
+/public/tesseract/
+
 # misc
 .DS_Store
 *.pem

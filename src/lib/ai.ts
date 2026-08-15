@@ -165,6 +165,7 @@ function isQuotaError(error: unknown): boolean {
 
   const zeroBalanceCodes = new Set([
     "insufficient_user_quota",
+    "insufficient_quota",
     "insufficient_credits",
     "insufficient_balance",
     "zero_balance",
@@ -172,10 +173,23 @@ function isQuotaError(error: unknown): boolean {
     "out of credits",
   ]);
 
-  return (
-    zeroBalanceCodes.has(code) ||
-    message.includes("out of credits")
-  );
+  if (zeroBalanceCodes.has(code)) return true;
+
+  // Message-based fallback for providers that report billing/credit
+  // exhaustion in prose without a machine-readable code. Match explicit
+  // credit/balance phrases only, so throttling messages ("rate limit",
+  // "try again later") are never misclassified as quota.
+  const quotaPhrases = [
+    "out of credits",
+    "insufficient credits",
+    "insufficient balance",
+    "credit limit",
+    "no credits",
+    "zero balance",
+    "billing limit",
+  ];
+
+  return quotaPhrases.some((p) => message.includes(p));
 }
 
 /**
@@ -1163,9 +1177,10 @@ export class AIClient {
    * Cascade:
    * TokenRouter model routes -> OpenRouter model routes.
    *
-   * Route-level quota errors move to the next model for the
-   * same provider. They are not immediately turned into
-   * ALL_KEYS_EXHAUSTED.
+   * Route-level quota errors stop the provider's remaining model routes
+   * (same account credits) but do not short-circuit the provider cascade;
+   * ALL_KEYS_EXHAUSTED is thrown only when every attempted provider hit
+   * quota.
    */
   async analyzeStructured(
     input: string
@@ -1322,8 +1337,8 @@ export class AIClient {
    * Important behavior:
    *
    * 1. Quota errors:
-   *    Record failure for only the current route and move to
-   *    the next available model.
+   *    Stop the current provider's model routes immediately (credits are
+   *    exhausted at the account level, so sibling models fail the same way).
    *
    * 2. 429 rate limits:
    *    Never classify as billing quota. Stay on the retry path
@@ -1468,18 +1483,17 @@ export class AIClient {
         /**
          * HARD QUOTA/BILLING FAILURE
          *
-         * Do NOT create ALL_KEYS_EXHAUSTED here.
-         *
-         * This only means the current model route cannot be
-         * used. Move to the next model route in this provider.
+         * Stop trying the remaining model routes of this provider —
+         * credits are exhausted at the account level, so sibling models
+         * fail the same way. Let the outer cascade decide between the
+         * next provider and ALL_KEYS_EXHAUSTED.
          */
         if (
           isQuotaError(
             error
           )
         ) {
-          routeIndex += 1;
-          continue;
+          break;
         }
 
         /**

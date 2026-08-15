@@ -12,18 +12,27 @@ describe("rateLimit", () => {
   });
 
   describe("getClientIp", () => {
-    it("takes the first x-forwarded-for value", () => {
+    const trusted = { "x-vercel-id": "v-0" } as Record<string, string>;
+
+    it("takes the first x-forwarded-for value behind a trusted proxy", () => {
       const req = new Request("http://localhost", {
-        headers: { "x-forwarded-for": "1.2.3.4, 10.0.0.1" },
+        headers: { ...trusted, "x-forwarded-for": "1.2.3.4, 10.0.0.1" },
       });
       expect(getClientIp(req)).toBe("1.2.3.4");
     });
 
-    it("falls back to x-real-ip", () => {
+    it("falls back to x-real-ip behind a trusted proxy", () => {
       const req = new Request("http://localhost", {
-        headers: { "x-real-ip": "5.6.7.8" },
+        headers: { ...trusted, "x-real-ip": "5.6.7.8" },
       });
       expect(getClientIp(req)).toBe("5.6.7.8");
+    });
+
+    it("ignores spoofable client headers when not behind a trusted proxy", () => {
+      const req = new Request("http://localhost", {
+        headers: { "x-forwarded-for": "1.2.3.4", "x-real-ip": "5.6.7.8" },
+      });
+      expect(getClientIp(req)).toBe("unknown");
     });
 
     it("returns unknown when no client header is present", () => {

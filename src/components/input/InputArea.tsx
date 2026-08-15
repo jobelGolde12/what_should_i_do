@@ -72,7 +72,11 @@ async function extractPdf(file: File): Promise<string> {
   type TextItem = { str: string };
   type TextMarkedContent = { type: string };
 
-  pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdn.jsdelivr.net/npm/pdfjs-dist@${pdfjsLib.version}/build/pdf.worker.min.mjs`;
+  // Worker copied to /public/pdfjs by scripts/self-host-assets.mjs so it is
+  // served from the app origin ('self'). The production CSP is
+  // `worker-src 'self' blob:`, so a cross-origin CDN worker would be blocked
+  // and PDF extraction would fail.
+  pdfjsLib.GlobalWorkerOptions.workerSrc = "/pdfjs/pdf.worker.min.mjs";
 
   const buffer = await file.arrayBuffer();
   const pdf = await pdfjsLib.getDocument({ data: buffer }).promise;
@@ -100,6 +104,12 @@ async function extractDocx(file: File): Promise<string> {
 async function extractImage(file: File, lang: string): Promise<string> {
   const Tesseract = (await import("tesseract.js")).default;
   const ocrResult = await Tesseract.recognize(file, lang, {
+    // Self-hosted worker + core (copied to /public/tesseract by
+    // scripts/self-host-assets.mjs). The production CSP
+    // (`worker-src 'self' blob:`, `script-src 'self' ...`) blocks
+    // cross-origin workers/importScripts, so the CDN defaults would fail.
+    workerPath: "/tesseract/worker.min.js",
+    corePath: "/tesseract/core",
     logger: () => {},
   });
   return ocrResult.data.text.trim();

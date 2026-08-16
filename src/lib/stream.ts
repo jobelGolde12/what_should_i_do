@@ -253,3 +253,130 @@ export async function streamReplyDraft(
     }
   }
 }
+
+type ChatStreamEvent =
+  | { type: "text"; text: string }
+  | { type: "done"; text: string; method: "ai" }
+  | { type: "error"; message: string }
+  | { type: "ping" };
+
+export type ChatHistoryTurn = {
+  role: "user" | "assistant";
+  content: string;
+};
+
+export type ChatStreamResult = {
+  text: string;
+};
+
+/**
+ * Streams a grounded analysis-chat answer over SSE from `/api/analysis/chat`,
+ * invoking `onDelta` as the answer grows. Resolves with the final text.
+ * Non-2xx responses (400/413/429) surface their JSON `error` message.
+ */
+export async function streamAnalysisChat(
+  originalMessage: string,
+  analysis: unknown,
+  question: string,
+  history: ChatHistoryTurn[],
+  onDelta: (text: string) => void,
+  options?: { signal?: AbortSignal; timeoutMs?: number }
+): Promise<ChatStreamResult> {
+  const controller = new AbortController();
+  const timeoutMs = options?.timeoutMs ?? 120_000;
+  let timedOut = false;
+
+  const timeout = setTimeout(() => {
+    timedOut = true;
+    controller.abort();
+  }, timeoutMs);
+
+  const externalSignal = options?.signal;
+  const onExternalAbort = () => controller.abort();
+  if (externalSignal) {
+    if (externalSignal.aborted) controller.abort();
+    else externalSignal.addEventListener("abort", onExternalAbort);
+  }
+
+  try {
+    const response = await fetch("/api/analysis/chat", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        message: question,
+        originalMessage,
+        analysis,
+        history,
+      }),
+      signal: controller.signal,
+    });
+
+    if (!response.ok || !response.body) {
+      try {
+        const body = (await response.json()) as { error?: string };
+        if (body.error) throw new Error(body.error);
+      } catch {
+        /* no usable error body — fall through below */
+      }
+      throw new StreamUnavailableError();
+    }
+
+    const reader = response.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = "";
+
+    for (;;) {
+      let chunk: Uint8Array | undefined;
+      let done: boolean;
+      try {
+        ({ done, value: chunk } = await reader.read());
+      } catch {
+        if (controller.signal.aborted) {
+          throw new StreamCancelledError(
+            timedOut ? "Answer timed out" : "Answer cancelled"
+          );
+        }
+        throw new Error("Streaming connection was interrupted");
+      }
+
+      buffer += decoder.decode(chunk ?? new Uint8Array(), { stream: !done });
+
+      const events = buffer.split("\n\n");
+      buffer = events.pop() ?? "";
+
+      for (const event of events) {
+        for (const line of event.split("\n")) {
+          if (!line.startsWith("data:")) continue;
+          let payload: ChatStreamEvent;
+          try {
+            payload = JSON.parse(line.slice(5).trim()) as ChatStreamEvent;
+          } catch {
+            continue;
+          }
+          if (payload.type === "ping") continue;
+          if (payload.type === "text") {
+            onDelta(payload.text);
+          } else if (payload.type === "done") {
+            return { text: payload.text };
+          } else if (payload.type === "error") {
+            throw new Error(payload.message);
+          }
+        }
+      }
+
+      if (done) break;
+    }
+
+    if (controller.signal.aborted) {
+      throw new StreamCancelledError(
+        timedOut ? "Answer timed out" : "Answer cancelled"
+      );
+    }
+    throw new Error("Stream ended without an answer");
+  } finally {
+    clearTimeout(timeout);
+    if (externalSignal) {
+      externalSignal.removeEventListener("abort", onExternalAbort);
+    }
+  }
+}

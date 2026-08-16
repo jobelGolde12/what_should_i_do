@@ -17,6 +17,7 @@ import NextStepCard from "./NextStepCard";
 import TranslationBlock from "./TranslationBlock";
 import SummaryText from "./SummaryText";
 import ReplyPanel from "./ReplyPanel";
+import AnalysisChat from "./AnalysisChat";
 
 type Stage = "streaming" | "settling" | "settled";
 type Field = Exclude<
@@ -222,6 +223,13 @@ export default function ResultsPanel({
           <div className="mt-4">
             <TranslationBlock summary={result?.summary ?? streaming?.summary ?? ""} />
           </div>
+          {record && result && (
+            <AnalysisChat
+              recordId={record.id}
+              message={record.input}
+              analysis={result as Record<string, unknown>}
+            />
+          )}
         </section>
 
         <section className={resolved.actions ? "settle-section revealed" : "settle-section"}>

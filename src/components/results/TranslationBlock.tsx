@@ -1,8 +1,22 @@
 "use client";
 
-import { useState } from "react";
-import { ChevronDown, Languages } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import {
+  ChevronDown,
+  Languages,
+  Pause,
+  Play,
+  Square,
+  Volume2,
+} from "lucide-react";
 import { sanitizeSummary } from "@/lib/analyzeRules";
+import { Button } from "@/components/ui/Button";
+import {
+  isSpeechSupported,
+  speak,
+  type SpeakHandle,
+  type TTSStatus,
+} from "@/lib/tts";
 
 const LANGUAGES = [
   { code: "en", label: "English" },
@@ -24,6 +38,59 @@ export default function TranslationBlock({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [open, setOpen] = useState(false);
+  const [speaking, setSpeaking] = useState<TTSStatus>("idle");
+  const [ttsError, setTtsError] = useState<string | null>(null);
+  const ttsHandle = useRef<SpeakHandle | null>(null);
+
+  // Stop any speech when the component unmounts.
+  useEffect(() => {
+    return () => {
+      if (isSpeechSupported()) window.speechSynthesis.cancel();
+    };
+  }, []);
+
+  function cancelSpeech() {
+    ttsHandle.current?.cancel();
+    ttsHandle.current = null;
+    setSpeaking("idle");
+    setTtsError(null);
+  }
+
+  function listen() {
+    if (!translated) return;
+    if (!isSpeechSupported()) {
+      setTtsError("Voice reading isn't supported on this device.");
+      return;
+    }
+    setTtsError(null);
+    ttsHandle.current = speak({
+      text: translated,
+      lang: language,
+      onStart: () => setSpeaking("speaking"),
+      onEnd: () => {
+        ttsHandle.current = null;
+        setSpeaking("idle");
+      },
+      onError: () => {
+        ttsHandle.current = null;
+        setSpeaking("idle");
+        setTtsError(
+          "Voice reading stopped. Try again — your device may not have a voice for this language."
+        );
+      },
+    });
+    setSpeaking("speaking");
+  }
+
+  function pauseSpeech() {
+    ttsHandle.current?.pause();
+    setSpeaking("paused");
+  }
+
+  function resumeSpeech() {
+    ttsHandle.current?.resume();
+    setSpeaking("speaking");
+  }
 
   async function translate(target: string) {
     setLoading(true);
@@ -58,6 +125,7 @@ export default function TranslationBlock({
       setLanguage("en");
       setTranslated(null);
       setError(null);
+      cancelSpeech();
     }
     setOpen(!closing);
   }
@@ -91,6 +159,7 @@ export default function TranslationBlock({
                 aria-pressed={language === l.code}
                 onClick={() => {
                   if (language === l.code && !loading) return;
+                  cancelSpeech();
                   setLanguage(l.code);
                   if (l.code === "en") {
                     setTranslated(null);
@@ -132,6 +201,43 @@ export default function TranslationBlock({
               </p>
             )}
           </div>
+
+          {!loading && !error && translated && (
+            <div className="mt-3 flex flex-wrap items-center gap-2">
+              <span className="sr-only" aria-live="polite">
+                {speaking === "speaking"
+                  ? "Reading the translation"
+                  : speaking === "paused"
+                    ? "Paused"
+                    : ""}
+              </span>
+              {speaking === "idle" ? (
+                <Button size="sm" variant="outline" onClick={listen}>
+                  <Volume2 className="h-3.5 w-3.5" /> Listen
+                </Button>
+              ) : (
+                <>
+                  {speaking === "speaking" ? (
+                    <Button size="sm" variant="outline" onClick={pauseSpeech}>
+                      <Pause className="h-3.5 w-3.5" /> Pause
+                    </Button>
+                  ) : (
+                    <Button size="sm" variant="outline" onClick={resumeSpeech}>
+                      <Play className="h-3.5 w-3.5" /> Resume
+                    </Button>
+                  )}
+                  <Button size="sm" variant="ghost" onClick={cancelSpeech}>
+                    <Square className="h-3.5 w-3.5" /> Stop
+                  </Button>
+                </>
+              )}
+              {ttsError && (
+                <p role="alert" className="w-full text-xs text-high">
+                  {ttsError}
+                </p>
+              )}
+            </div>
+          )}
         </div>
       )}
     </div>

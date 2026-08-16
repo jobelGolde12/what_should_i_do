@@ -41,6 +41,12 @@ Provides a clear "If you do only one thing, do this" recommendation.
 🌐 Multi-language Support
 One-click translation of analyzed results into multiple languages (starting with Tagalog/Filipino).
 
+🔊 Voice Reading
+Listen to translated summaries in the browser — per-language voices, no server round-trip, works offline. (See `docs/roadmap/01-voice-reading-translate-summary.md`.)
+
+💬 Analysis Chat
+Ask the AI to explain an analysis in plain words. Answers are grounded only in the message + analysis (out-of-scope questions are declined), powered by the provider cascade incl. OpenCode Zen's free `big-pickle`. (See `docs/roadmap/02-grounded-analysis-chatbot.md`.)
+
 🔒 Privacy-First Architecture
 Local-first storage: history, templates, and your action board live in your browser
 

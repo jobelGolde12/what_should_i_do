@@ -11,7 +11,8 @@ export type UsageMetric =
   | "translations"
   | "conversions"
   | "exports"
-  | "reply_drafts";
+  | "reply_drafts"
+  | "chat_messages";
 
 export function dayWindow(now = Date.now()): number {
   const d = new Date(now);

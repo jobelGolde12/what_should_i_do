@@ -48,6 +48,8 @@ All feature files live in this `enhancement-plan/` folder and can be tracked, as
 | 22 | Standalone Summarize API | [`features/22-summarize-api.md`](./features/22-summarize-api.md) | Working (offline model) |
 | 23 | Design System & Responsive UI | [`features/23-design-system-responsive-ui.md`](./features/23-design-system-responsive-ui.md) | Working (needs auditing) |
 | 24 | Privacy & Security Model | [`features/24-privacy-security.md`](./features/24-privacy-security.md) | Working (hardened) |
+| 25 | Grounded Analysis Chat | [`../docs/roadmap/02-grounded-analysis-chatbot.md`](../docs/roadmap/02-grounded-analysis-chatbot.md) | **Planned (docs ready)** — OpenCode Zen `big-pickle`, SSE `/api/analysis/chat` |
+| 26 | Voice Reading (TTS) | [`../docs/roadmap/01-voice-reading-translate-summary.md`](../docs/roadmap/01-voice-reading-translate-summary.md) | **Planned (docs ready)** — Web Speech API in the translate block |
 
 ---
 

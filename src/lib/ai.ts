@@ -3,7 +3,8 @@
  *
  * Stage 1 — TokenRouter (primary, OpenAI-compatible gateway)
  * Stage 2 — OpenRouter (secondary fallback)
- * Stage 3 — rule-based fallback (handled by callers: analyzeText / stream route)
+ * Stage 3 — OpenCode Zen (tertiary, free models such as big-pickle)
+ * Stage 4 — rule-based fallback (handled by callers: analyzeText / stream route)
  *
  * Design notes:
  * - Each provider is an `AIProviderBase` with its own config, transport,
@@ -25,15 +26,19 @@ import { buildAnalysisMessages, PROMPT_VERSION } from "@/lib/prompts";
 import { analyzeRawResponse } from "@/lib/validateAnalysis";
 import { createError, getErrorMessage, AnalysisError } from "@/lib/errors";
 
-export type ProviderName = "tokenrouter" | "openrouter";
+export type ProviderName = "tokenrouter" | "openrouter" | "opencodezen";
 
 const DEFAULT_BASE_URL = "https://api.tokenrouter.com/v1";
 const OPENROUTER_BASE_URL = "https://openrouter.ai/api/v1";
+const OPENCODEZEN_BASE_URL = "https://opencode.ai/zen/v1";
 
 const OPENROUTER_DEFAULT_MODELS = [
   "openai/gpt-4o-mini",
   "google/gemini-flash-1.5",
 ];
+
+/** OpenCode Zen free models (limited-time beta). `big-pickle` is free. */
+const OPENCODEZEN_DEFAULT_MODELS = ["big-pickle"];
 
 const MAX_INPUT_CHARS = Number(
   process.env.TOKENROUTER_MAX_INPUT_CHARS ?? 20_000
@@ -888,6 +893,62 @@ class OpenRouterProvider
 }
 
 /* =========================================================
+   OpenCode Zen — tertiary provider (free models, e.g. big-pickle)
+   ========================================================= */
+
+class OpenCodeZenProvider
+  extends AIProviderBase
+{
+  constructor() {
+    const configured = [
+      process.env.ZEN_MODEL?.trim(),
+      ...(process.env.ZEN_MODEL_FALLBACKS ?? "")
+        .split(",")
+        .map((m) => m.trim())
+        .filter(Boolean),
+    ].filter((m): m is string => Boolean(m));
+
+    /**
+     * Zen requires an explicit model id. Default to the free `big-pickle`
+     * stealth model so the provider works out of the box with just a key.
+     */
+    const models =
+      configured.length > 0
+        ? configured
+        : [...OPENCODEZEN_DEFAULT_MODELS];
+
+    super({
+      name: "opencodezen",
+
+      apiKey: (process.env.ZEN_API_KEY ?? "").trim(),
+
+      baseUrl: (
+        process.env.ZEN_BASE_URL?.trim() || OPENCODEZEN_BASE_URL
+      ).replace(/\/+$/, ""),
+
+      models,
+      deepModels: models,
+
+      temperature: Number(
+        process.env.ZEN_TEMPERATURE ?? 0.3
+      ),
+
+      maxTokens: Number(
+        process.env.ZEN_MAX_TOKENS ?? 800
+      ),
+
+      timeoutMs: Number(
+        process.env.ZEN_TIMEOUT_MS ?? 45_000
+      ),
+
+      maxAttempts: Number(
+        process.env.ZEN_MAX_ATTEMPTS ?? 2
+      ),
+    });
+  }
+}
+
+/* =========================================================
    Provider telemetry (zero PII — no input text)
    ========================================================= */
 
@@ -908,6 +969,9 @@ export class AIClient {
 
   private readonly secondary:
     OpenRouterProvider;
+
+  private readonly tertiary:
+    OpenCodeZenProvider;
 
   /**
    * Per-model route breaker.
@@ -945,6 +1009,9 @@ export class AIClient {
     openrouter: {
       count: 0,
     },
+    opencodezen: {
+      count: 0,
+    },
   };
 
   constructor() {
@@ -953,12 +1020,16 @@ export class AIClient {
 
     this.secondary =
       new OpenRouterProvider();
+
+    this.tertiary =
+      new OpenCodeZenProvider();
   }
 
   get configured(): boolean {
     return (
       this.primary.configured ||
-      this.secondary.configured
+      this.secondary.configured ||
+      this.tertiary.configured
     );
   }
 
@@ -967,6 +1038,7 @@ export class AIClient {
     return [
       this.primary,
       this.secondary,
+      this.tertiary,
     ].filter(
       (p) => p.configured
     );
@@ -1061,6 +1133,30 @@ export class AIClient {
           timeoutMs:
             this.secondary.timeoutMs,
         },
+
+        opencodezen: {
+          name: "opencodezen",
+
+          configured:
+            this.tertiary.configured,
+
+          baseUrl:
+            this.tertiary.baseUrl,
+
+          model:
+            this.tertiary.models[0] ??
+            null,
+
+          fallbackModels:
+            this.tertiary.models
+              .slice(1),
+
+          maxAttempts:
+            this.tertiary.maxAttempts,
+
+          timeoutMs:
+            this.tertiary.timeoutMs,
+        },
       },
 
       providerCircuitBreaker:
@@ -1145,7 +1241,7 @@ export class AIClient {
   ): ChatMessage[] {
     if (!this.configured) {
       throw createError(
-        "No AI provider configured (set TOKENROUTER_API_KEY or OPENROUTER_API_KEY)",
+        "No AI provider configured (set TOKENROUTER_API_KEY, OPENROUTER_API_KEY, or ZEN_API_KEY)",
         "API_KEY_EXHAUSTED",
         true
       );

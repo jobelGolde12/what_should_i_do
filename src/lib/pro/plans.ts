@@ -28,6 +28,7 @@ export type PlanLimits = {
   conversionsPerMonth: number;
   exportsPerDay: number;
   replyDraftsPerDay: number;
+  chatMessagesPerDay: number;
   syncEnabled: boolean;
   adFree: boolean;
   replyDrafting: boolean;
@@ -45,6 +46,7 @@ export const PLAN_LIMITS: Record<PlanTier, PlanLimits> = {
     conversionsPerMonth: 0,
     exportsPerDay: 0,
     replyDraftsPerDay: 0,
+    chatMessagesPerDay: 30,
     syncEnabled: false,
     adFree: false,
     replyDrafting: false,
@@ -60,6 +62,7 @@ export const PLAN_LIMITS: Record<PlanTier, PlanLimits> = {
     conversionsPerMonth: 100,
     exportsPerDay: 200,
     replyDraftsPerDay: 500,
+    chatMessagesPerDay: 1_000,
     syncEnabled: true,
     adFree: true,
     replyDrafting: true,

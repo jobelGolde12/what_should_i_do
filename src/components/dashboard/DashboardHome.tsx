@@ -313,7 +313,7 @@ export function DashboardHome() {
         </div>
       </header>
 
-      <div className="px-0 py-8 sm:py-10">
+      <div className="flex flex-col gap-6 mx-auto max-w-5xl lg:gap-y-8">
         <InputArea
           text={text}
           onTextChange={setText}
@@ -326,11 +326,11 @@ export function DashboardHome() {
           onDeepChange={setDeep}
         />
 
-        <div
-          className="mt-8 scroll-mt-24 outline-none"
-          tabIndex={-1}
-          ref={resultsRef}
-        >
+<div
+           className="mt-12 scroll-mt-24 outline-none"
+           tabIndex={-1}
+           ref={resultsRef}
+         >
           {batchLoading && !batchItems && <LoadingState />}
           {error && (
             <ErrorState

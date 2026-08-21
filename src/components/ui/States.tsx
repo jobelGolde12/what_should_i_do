@@ -14,29 +14,14 @@ export function EmptyState({
   title = "Paste or upload something to analyze",
   hint = "Drop a message, email, announcement, or document. TaskMind will turn it into actions, deadlines, and a next step.",
   onUpload,
-  tags = ["Emails", "Slack Threads", "PDF & Docs", "Raw Notes"],
+  tags = [],
   className = "",
 }: EmptyStateProps) {
   return (
     <div
-      className={`group relative flex flex-col items-center justify-center overflow-hidden rounded-2xl border border-dashed border-line/80 bg-surface/60 p-8 text-center backdrop-blur-sm transition-all duration-300 hover:border-accent/40 hover:bg-surface hover:shadow-lg hover:shadow-accent/5 ${className}`}
+      className={`group relative flex flex-col items-center justify-center overflow-hidden p-8 text-center ${className}`}
     >
-      {/* Background ambient glow effect */}
-      <div 
-        className="pointer-events-none absolute -top-12 -z-10 h-32 w-32 rounded-full bg-accent/10 blur-2xl transition-all duration-500 group-hover:scale-150 group-hover:bg-accent/20" 
-        aria-hidden="true" 
-      />
-
-      {/* Layered Icon Frame */}
-      <div className="relative mb-5 flex h-14 w-14 items-center justify-center rounded-xl border border-line bg-background shadow-sm transition-transform duration-300 group-hover:scale-105 group-hover:border-accent/30 group-hover:shadow-md">
-        <FileText className="h-6 w-6 text-muted transition-colors duration-300 group-hover:text-accent" />
-        <span className="absolute -right-1 -top-1 flex h-4 w-4 items-center justify-center rounded-full bg-accent text-[10px] text-background">
-          <Sparkles className="h-2.5 w-2.5" />
-        </span>
-      </div>
-
-      {/* Text Content */}
-      <h2 className="font-display text-lg font-semibold tracking-tight text-ink">
+      <h2 className="font-display text-xl font-semibold tracking-tight text-ink">
         {title}
       </h2>
       <p className="mt-2 max-w-md text-sm leading-relaxed text-muted">
@@ -46,13 +31,12 @@ export function EmptyState({
       {/* Interactive Trigger (Optional) */}
       {onUpload && (
         <Button
-          variant="outline"
+          variant="ghost"
           size="sm"
           onClick={onUpload}
-          className="mt-5 gap-2 transition-transform active:scale-95"
+          className="mt-5 transition-transform active:scale-95"
         >
-          <Upload className="h-4 w-4" />
-          Choose File
+          <Upload className="h-4 w-4" /> Choose File
         </Button>
       )}
 
@@ -62,7 +46,7 @@ export function EmptyState({
           {tags.map((tag) => (
             <span
               key={tag}
-              className="rounded-md border border-line/50 bg-background/50 px-2.5 py-1 text-xs font-medium text-muted transition-colors hover:border-line hover:text-ink"
+              className="px-2.5 py-1 text-xs font-medium text-muted transition-colors hover:border-line hover:text-ink"
             >
               {tag}
             </span>
@@ -88,10 +72,9 @@ export function LoadingState({
     <div
       role="status"
       aria-live="polite"
-      className={`relative overflow-hidden rounded-2xl border border-line/80 bg-surface/80 p-8 backdrop-blur-sm ${className}`}
+      className={`relative overflow-hidden p-8 ${className}`}
     >
       <div className="mx-auto flex max-w-sm flex-col items-center text-center">
-        {/* Layered Pulsing Loader */}
         <div className="relative flex items-center justify-center">
           <div 
             className="absolute h-10 w-10 animate-ping rounded-full bg-accent/20" 
@@ -102,7 +85,6 @@ export function LoadingState({
           </div>
         </div>
 
-        {/* Dynamic Status Text */}
         <p className="mt-5 font-mono text-sm font-medium tracking-wide text-ink">
           {label}
         </p>
@@ -112,7 +94,6 @@ export function LoadingState({
           </p>
         )}
 
-        {/* Shimmer Progress Track */}
         <div 
           className="relative mt-6 h-1.5 w-full overflow-hidden rounded-full bg-line/40" 
           aria-hidden="true"
@@ -140,15 +121,13 @@ export function ErrorState({
   return (
     <div
       role="alert"
-      className={`relative overflow-hidden rounded-2xl border border-red-500/20 bg-red-500/5 p-6 backdrop-blur-sm transition-all ${className}`}
+      className={`p-6 ${className}`}
     >
       <div className="flex items-start gap-4">
-        {/* Error Badge */}
         <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-red-500/20 bg-red-500/10 text-red-600 dark:text-red-400">
           <TriangleAlert className="h-5 w-5" />
         </div>
 
-        {/* Content & Call to Action */}
         <div className="flex-1 min-w-0 pt-0.5">
           <h3 className="text-sm font-semibold text-ink">
             {title}

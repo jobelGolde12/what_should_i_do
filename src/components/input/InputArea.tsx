@@ -270,11 +270,11 @@ export default function InputArea({
         </div>
       )}
 
-      <div
-        id="analysis-input"
-        className="scroll-mt-24 border border-line bg-background"
-      >
-        <div className="flex items-center justify-between border-b border-line px-4 py-3 sm:px-5">
+<div
+          id="analysis-input"
+          className="scroll-mt-24"
+        >
+        <div className="flex items-center justify-between px-4 py-3 sm:px-5 border-b border-line">
           <div className="flex items-center gap-2">
             <span
               id="analysis-input-label"
@@ -325,20 +325,7 @@ export default function InputArea({
           </div>
         </div>
 
-        <div
-          className="p-4 sm:p-5"
-          onDragOver={(e) => {
-            e.preventDefault();
-            setDragOver(true);
-          }}
-          onDragLeave={() => setDragOver(false)}
-          onDrop={(e) => {
-            e.preventDefault();
-            setDragOver(false);
-            const file = e.dataTransfer.files?.[0];
-            if (file) void handleFile(file);
-          }}
-        >
+        <div className="px-4 py-5 sm:p-5">
           <div
             className={`relative border transition-colors ${
               dragOver
@@ -346,15 +333,15 @@ export default function InputArea({
                 : "border-line focus-within:border-ink"
             }`}
           >
-            <textarea
-              id="analysis-textarea"
-              value={text}
-              onChange={(e) => onTextChange(e.target.value)}
-              onKeyDown={handleKeyDown}
-              placeholder="Paste a message, email, announcement, memo, or notice…"
-              className="block h-56 w-full resize-none bg-transparent p-4 text-sm leading-relaxed text-ink outline-none placeholder:text-muted"
-              aria-labelledby="analysis-input-label"
-            />
+<textarea
+               id="analysis-textarea"
+               value={text}
+               onChange={(e) => onTextChange(e.target.value)}
+               onKeyDown={handleKeyDown}
+               placeholder="Paste a message, email, announcement, memo, or notice…"
+               className="block h-56 w-full resize-none bg-transparent p-4 text-sm leading-relaxed text-ink outline-none placeholder:text-muted font-display"
+               aria-labelledby="analysis-input-label"
+             />
             {dragOver && (
               <div className="pointer-events-none absolute inset-0 flex items-center justify-center bg-accent-soft/80">
                 <p className="font-mono text-xs uppercase tracking-label text-accent">

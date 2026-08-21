@@ -151,12 +151,8 @@ export default function ResultsPanel({
   const urgency = result?.urgency ?? streaming?.urgency;
 
   return (
-    <div
-      className={`settle-stage border border-line bg-background ${
-        stage === "settling" ? "is-settling" : stage === "settled" ? "settled" : ""
-      }`}
-    >
-      <header className="border-b border-line px-5 py-4 sm:px-6">
+    <div className="settle-stage">
+      <header className="px-5 py-4 sm:px-6 border-b border-line">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
             <div className="flex flex-wrap items-center gap-2">
@@ -206,13 +202,13 @@ export default function ResultsPanel({
               <Square className="h-3.5 w-3.5" /> Cancel
             </Button>
           )}
-        </div>
 
-        {isStreaming && (
-          <div className="mt-3 border-t border-line pt-3">
-            <FieldProgress resolved={resolved} />
-          </div>
-        )}
+          {isStreaming && (
+            <div className="mt-3 pt-3">
+              <FieldProgress resolved={resolved} />
+            </div>
+          )}
+        </div>
       </header>
 
       <div className="space-y-8 px-5 py-6 sm:px-6">

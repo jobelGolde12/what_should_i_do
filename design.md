@@ -1,35 +1,40 @@
 # Design System & UI Specification
-## Inspirational Reference: C.H.I.-Style Home/Business Garage Door Landing Page
 
-> **Purpose:** This document translates the supplied inspirational screenshot into a detailed, implementation-ready design specification. The goal is to capture the visual language, layout rhythm, hierarchy, imagery, and interaction patterns of the reference without requiring a pixel-for-pixel copy.
->
-> **Primary design character:** premium, editorial, architectural, clean, trustworthy, image-led, and conversion-focused.
+## Inspirational Reference: Minimal Editorial Portfolio-Style Landing Page
+
+> **Purpose:** This document translates the supplied screenshot into an implementation-ready visual design system for the existing website. The screenshot is used **only as a visual/design reference**. Its wording, subject matter, branding, and specific content must not be copied.
+
+> **Design character:** minimalist, editorial, playful-but-premium, spacious, monochrome-first, typography-led, image/3D-object-led, and highly intentional.
 
 ---
 
-# 1. Design Direction
+# 1. Core Design Direction
 
-The website should feel like a premium manufacturer/service brand rather than a generic construction website.
+The website should move away from a conventional service-business or SaaS appearance and instead use the visual language of a **small premium creative studio / modern editorial portfolio**.
 
-The reference combines:
+The reference design is defined by:
 
-- A very clean white canvas
-- A compact professional navigation bar
-- Large editorial typography
-- A short, confident headline
-- Strong red/black CTA contrast
-- A subtle dotted architectural/grid texture
-- Large lifestyle/product photography
-- An asymmetrical image collage
-- Generous whitespace
-- Small navigation labels and restrained UI
-- A premium industrial/residential aesthetic
+- A nearly pure white canvas
+- Extremely compact navigation
+- Tiny, understated navigation typography
+- A small text-based logo/brand mark
+- Large thin editorial headline typography
+- Strong left-side text composition
+- A large isolated visual object on the right
+- Generous empty space around the hero
+- Very limited use of color
+- Black/charcoal typography
+- A single unexpected visual accent or object
+- Minimal borders and almost no decorative UI
+- Small social/action icons positioned in the header
+- A clean horizontal rhythm
+- A visually simple composition that relies on scale and spacing rather than cards
 
-The overall experience should communicate:
+The design should feel:
 
-**Quality + Craftsmanship + Modern Design + Reliability + Confidence**
+**Minimal + Editorial + Creative + Premium + Confident + Modern**
 
-Avoid making the interface overly rounded, overly colorful, or heavily card-based. The reference relies on **composition and photography** rather than large numbers of UI containers.
+Do not reproduce the screenshot literally. Recreate its **layout logic, visual hierarchy, spacing, typography, and restraint** while using the website's own content, imagery, brand, and functionality.
 
 ---
 
@@ -37,203 +42,237 @@ Avoid making the interface overly rounded, overly colorful, or heavily card-base
 
 ## Keywords
 
-- Premium
 - Minimal
-- Architectural
-- Modern
 - Editorial
-- Professional
-- Industrial
-- Residential
-- Trustworthy
-- Sophisticated
+- Creative
+- Modern
+- Elegant
+- Playful
+- Confident
 - Spacious
-- High-converting
+- Lightweight
+- Premium
+- Human
+- Art-directed
+- Uncluttered
 
 ## Design Principles
 
-### 2.1 Photography First
+### 2.1 Typography Is the Primary Visual Element
 
-Photography should be one of the primary visual elements.
-
-Use:
-
-- Finished installations
-- Modern homes
-- Commercial buildings
-- Garage doors
-- Close-up product details
-- Installation/workmanship photography
-- Lifestyle images showing real usage
-
-Avoid generic stock photography where possible.
-
-### 2.2 Editorial Layout
-
-The hero should not look like a standard centered SaaS landing page.
+The hero should be recognizable even before the imagery is noticed.
 
 Use:
 
-- Left-aligned typography
-- Large negative space
-- Offset image blocks
-- Uneven image heights
-- Overlapping/adjacent photography
-- Strong horizontal and vertical rhythm
+- Large typography
+- Thin or regular font weight
+- Tight line height
+- Slightly negative letter spacing
+- Short text blocks
+- Intentional line breaks
+- Strong contrast between tiny metadata and large headline
 
-### 2.3 Controlled Asymmetry
+The headline should occupy significant visual space without appearing heavy.
 
-The reference uses a deliberately asymmetrical composition.
+### 2.2 Empty Space Is Intentional
 
-Do not center everything.
+Whitespace is a major component of the design.
 
-The visual balance should come from:
+Do not attempt to fill empty areas with:
 
-- Text on the left
-- Image collage toward the bottom/right
-- Different image widths
-- Different image heights
-- White space between image blocks
+- Cards
+- Decorative gradients
+- Extra text
+- Large background graphics
+- Multiple CTAs
+- Unnecessary statistics
 
-### 2.4 Restrained Color
+The empty space should make the hero feel calm and expensive.
 
-The majority of the page should be white or near-white.
+### 2.3 One Strong Visual Object
 
-Use a strong accent color only for:
+Instead of using a traditional full-width hero photograph, prioritize **one dominant visual element**.
 
-- Primary CTA
-- Important links
-- Small decorative details
-- Hover states
-- Selected navigation states
+Depending on the website's actual content, this can be:
+
+- A product
+- A product detail
+- A carefully cut-out photograph
+- A 3D render
+- An architectural object
+- A person/product interaction
+- A branded illustration
+
+The visual should feel intentionally placed rather than treated as a generic background image.
+
+### 2.4 Controlled Playfulness
+
+The screenshot uses an unusual object and human gesture to make a minimal page memorable.
+
+For this website, use a similar principle:
+
+- One unexpected visual
+- One expressive crop
+- One oversized object
+- One subtle rotation
+- One editorial annotation if appropriate
+
+Do not turn the entire interface into a playful illustration.
 
 ---
 
 # 3. Color System
 
-Use a restrained architectural palette.
+The palette should be dramatically simpler than the previous design.
 
 | Token | Suggested Value | Usage |
 |---|---|---|
-| `--color-background` | `#FFFFFF` | Main page background |
-| `--color-surface` | `#F7F7F5` | Secondary sections |
-| `--color-text` | `#171717` | Primary headings/body |
-| `--color-text-muted` | `#6B6B6B` | Supporting text |
-| `--color-border` | `#DCDCDC` | Navigation/dividers |
-| `--color-accent` | `#C8102E` | Primary CTA/accent |
-| `--color-accent-dark` | `#9F0D24` | Hover/active accent |
-| `--color-dark` | `#111111` | Secondary CTA/navigation |
-| `--color-white` | `#FFFFFF` | Text on dark/accent elements |
+| `--color-background` | `#FFFFFF` | Primary page background |
+| `--color-surface` | `#F8F8F6` | Optional secondary surface |
+| `--color-text` | `#171717` | Headings and primary text |
+| `--color-text-muted` | `#777777` | Supporting text |
+| `--color-text-light` | `#A0A0A0` | Eyebrows and metadata |
+| `--color-border` | `#E8E8E8` | Very subtle separators |
+| `--color-dark` | `#111111` | Strong text / dark UI |
+| `--color-white` | `#FFFFFF` | Text on dark elements |
+| `--color-accent` | `#D96C92` | Optional creative accent |
+| `--color-accent-soft` | `#F3D7E1` | Optional subtle highlight |
 
 ### Accent Usage
 
-The red accent should be used sparingly.
+The accent is optional and must remain restrained.
 
-Good:
+Use it for:
 
-- `Get a Quote`
-- Small underline
-- Decorative arrow
-- Active state
-- Important micro-label
+- One hero visual
+- Small hover details
+- Tiny active indicators
+- A subtle decorative element
+- Selected states
+- A small editorial graphic
 
-Avoid:
+Do not use the accent for:
 
-- Large red backgrounds everywhere
-- Red cards
-- Red body text
-- Red navigation bars
+- Large navigation backgrounds
+- Every button
+- Large gradients
+- Entire sections
+- Body text
+- Multiple competing visual elements
 
-The accent should feel like a **brand signature**, not the dominant page color.
+The page should still look correct if the accent is removed.
 
 ---
 
 # 4. Typography
 
-The typography should resemble a modern architectural/editorial website.
+## Primary Typeface
 
-## Recommended Font Stack
+Use a clean contemporary grotesk/sans-serif.
 
-### Primary
+Preferred options:
 
-Use a clean sans-serif:
+- Inter
+- Helvetica Neue
+- Neue Montreal-style sans-serif
+- Geist
+- Manrope
+- Arial as fallback
+
+Recommended stack:
 
 ```css
 font-family:
   Inter,
-  Helvetica Neue,
+  "Helvetica Neue",
   Helvetica,
   Arial,
   sans-serif;
 ```
 
-Alternative premium combinations:
+## Typography Philosophy
 
-- Inter + DM Sans
-- Manrope + Inter
-- Neue Haas Grotesk-style alternative
-- Helvetica Neue-style system stack
+The reference uses typography that feels light rather than bold.
 
-## Typography Scale
+Prefer:
 
-### Hero Heading
+```text
+font-weight: 400
+```
+
+or:
+
+```text
+font-weight: 450–500
+```
+
+Avoid using `font-weight: 700–900` for the primary hero unless the actual content requires emphasis.
+
+## Hero Heading
 
 Desktop:
 
 ```text
-font-size: 64px–76px
-line-height: 0.98–1.05
-font-weight: 400–500
-letter-spacing: -0.045em
+font-size: 64px–88px
+line-height: 0.94–1.02
+font-weight: 400
+letter-spacing: -0.055em
+```
+
+For very large screens:
+
+```text
+font-size: clamp(64px, 6.2vw, 104px)
 ```
 
 Tablet:
 
 ```text
-font-size: 48px–58px
+font-size: 52px–68px
 ```
 
 Mobile:
 
 ```text
-font-size: 38px–46px
-line-height: 1.02
-```
-
-The heading should feel large without being excessively bold.
-
-### Section Heading
-
-```text
 font-size: 42px–56px
-line-height: 1.05
-font-weight: 400–500
-letter-spacing: -0.035em
+line-height: 0.98–1.04
 ```
 
-### Body Text
+The heading should remain visually large even when the viewport becomes smaller.
+
+## Eyebrow / Micro Label
+
+Use very small uppercase or compact text:
 
 ```text
-font-size: 15px–18px
-line-height: 1.6
+font-size: 8px–11px
+font-weight: 500
+letter-spacing: 0.12em–0.18em
+text-transform: uppercase
+```
+
+The eyebrow should be visually quiet.
+
+## Navigation
+
+```text
+font-size: 10px–12px
+font-weight: 400–500
+letter-spacing: 0
+```
+
+Navigation should never compete with the hero.
+
+## Body Text
+
+```text
+font-size: 14px–17px
+line-height: 1.55
+font-weight: 400
 color: var(--color-text-muted)
 ```
 
-### Navigation
-
-```text
-font-size: 12px–13px
-font-weight: 400–500
-```
-
-### Button
-
-```text
-font-size: 12px–13px
-font-weight: 600
-```
-
-Use sentence case rather than excessive uppercase text.
+Keep paragraphs short.
 
 ---
 
@@ -241,883 +280,1334 @@ Use sentence case rather than excessive uppercase text.
 
 ## Maximum Width
 
-Use a large responsive container:
+Use a restrained editorial container:
 
 ```css
---container-width: 1440px;
+--container-width: 1280px;
 ```
 
-Suggested horizontal padding:
+For very large screens, allow the content to breathe:
 
 ```css
-Desktop: 40px–64px
-Tablet: 28px–40px
+max-width: 1320px;
+```
+
+## Horizontal Padding
+
+```text
+Desktop: 48px–72px
+Tablet: 32px–48px
 Mobile: 20px–24px
 ```
 
-The page should retain visible whitespace around the content.
+The page should have visible white margins.
 
 ## Grid
 
-Use a 12-column desktop grid.
+Use a 12-column grid on desktop.
 
 ```text
-| 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11 | 12 |
+1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11 | 12
 ```
 
-Suggested hero:
+Recommended hero:
 
-- Text: columns 1–6
-- Image composition: columns 6–12
-- Lower image row: spans multiple columns
+```text
+Hero content: columns 1–7
+Hero visual:  columns 7–12
+```
 
-The exact placement can vary depending on screen width.
+The visual can slightly overflow its grid area to create the same relaxed composition as the reference.
 
 ---
 
 # 6. Header / Navigation
 
-The header should be extremely clean.
+The header should be much smaller and quieter than a conventional business website.
 
 ## Structure
 
 ```text
-┌───────────────────────────────────────────────────────────────┐
-│ LOGO     Residential ▾   Commercial ▾   Dealers ▾   Shopping ▾ │
-│          About ▾                         [Request a Quote]     │
-└───────────────────────────────────────────────────────────────┘
+┌──────────────────────────────────────────────────────────────┐
+│ Brand                         nav nav nav      ○ ○ ○      │
+└──────────────────────────────────────────────────────────────┘
 ```
 
 ## Header Characteristics
 
 - White background
-- Thin bottom border
-- Compact height
-- Logo aligned left
-- Navigation centered/right
-- CTA aligned far right
-- Minimal shadows
-- No large hamburger menu on desktop
+- No heavy shadow
+- No large CTA button
+- Very small typography
+- Brand aligned left
+- Navigation near the upper center/right
+- Social or utility icons aligned at the far right
+- Large amounts of horizontal breathing room
+- Minimal vertical height
 
-### Recommended Height
+## Header Height
 
 ```text
-Desktop: 64px–76px
-Tablet: 64px
-Mobile: 64px
+Desktop: 52px–68px
+Tablet: 56px–64px
+Mobile: 56px–64px
 ```
 
-## Logo
+## Logo / Wordmark
 
-The logo should remain visually small.
+The logo should be visually small.
 
 Recommended:
 
 ```text
-Height: 24px–34px
+Height: 20px–28px
 ```
 
-Do not allow the logo to dominate the hero.
+If the brand uses a two-line wordmark, preserve the compact stacked structure.
+
+The logo should never become the dominant visual element.
 
 ## Navigation Items
 
-Example:
+Use the site's actual navigation/content labels.
 
-- Residential
-- Commercial
-- Dealers
-- Shopping Tools
-- About
+Design rules:
 
-Each item may include a small downward chevron.
+- Keep labels short
+- Use lowercase or sentence case where appropriate
+- Avoid oversized uppercase navigation
+- Avoid pill-shaped navigation
+- Avoid large dropdown triggers
 
-### Navigation Hover
+Example visual treatment:
 
-Use:
+```text
+about    work    expertise    contact
+```
 
-- Slight color shift
-- Thin underline
-- Small accent indicator
+The actual website labels should replace these examples.
 
-Avoid large animated dropdown effects.
+## Social / Utility Icons
 
-## Header CTA
+Place small icons at the far right.
 
-Text:
+Recommended:
 
-**Request a Quote**
+```text
+10px–12px
+```
 
-Style:
+Use simple line icons.
 
-- Dark background
-- White text
-- Compact height
-- Sharp or very slightly rounded corners
-- Strong hover state
+Spacing:
+
+```text
+8px–12px
+```
+
+Avoid large social buttons or circular icon containers.
+
+## Navigation Hover
+
+Use extremely subtle feedback:
+
+```text
+color shift
++
+thin underline
+```
+
+or:
+
+```text
+opacity: 0.55 → 1
+```
+
+Do not use:
+
+- Bouncy animations
+- Large dropdown panels
+- Color explosions
+- Thick underlines
+- Scale effects
 
 ---
 
 # 7. Hero Section
 
-The hero is the most important visual composition.
+The hero is the most important part of the redesign.
 
-## Recommended Structure
+The composition should closely follow the **visual structure** of the supplied screenshot:
 
 ```text
-┌──────────────────────────────────────────────────────────────┐
-│                                                              │
-│  The finishing touch to                                      │
-│  your home or business                                       │
-│                                                              │
-│  Garage doors with style and substance.                      │
-│                                                              │
-│  [Get a Quote] [Build My Door]                               │
-│                                                              │
-│                                      ┌─────────────┐          │
-│                                      │ Product     │          │
-│                                      │ image       │          │
-│                                      └─────────────┘          │
-│                                                              │
-│  ┌────────┐  ┌────────────────┐  ┌────────────┐  ┌─────────┐ │
-│  │ image  │  │ lifestyle      │  │ detail     │  │ product │ │
-│  │        │  │ installation   │  │ image      │  │ image   │ │
-│  └────────┘  └────────────────┘  └────────────┘  └─────────┘ │
-│                                                              │
-└──────────────────────────────────────────────────────────────┘
+┌───────────────────────────────────────────────────────────────┐
+│                                                               │
+│                                                               │
+│        SMALL EYEBROW                                          │
+│        Large editorial                                        │
+│        headline                         LARGE VISUAL OBJECT   │
+│        with intentional                  / IMAGE              │
+│        line breaks                                           │
+│                                                               │
+│                                                               │
+│                                                               │
+└───────────────────────────────────────────────────────────────┘
 ```
+
+## Hero Layout
+
+Use a two-part composition:
+
+### Left
+
+Contains:
+
+- Small eyebrow
+- Large headline
+- Optional short supporting statement
+- Optional minimal text link/CTA
+
+### Right
+
+Contains:
+
+- One dominant visual
+- Product image
+- Cutout image
+- 3D object
+- Architectural image
+- Branded illustration
+
+The visual should not have a conventional rectangular card treatment.
 
 ## Hero Height
 
 Desktop:
 
 ```text
-min-height: 680px–780px
+min-height: 620px–760px
 ```
 
 Large desktop:
 
 ```text
-min-height: 760px–850px
+min-height: 700px–820px
 ```
 
 Mobile:
 
 ```text
-auto
-padding-top: 56px
-padding-bottom: 48px
+min-height: auto
+padding-top: 72px
+padding-bottom: 72px
 ```
-
-Do not force an excessively tall mobile hero.
 
 ---
 
-# 8. Hero Background
+# 8. Hero Composition
 
-The reference includes a subtle dotted pattern.
+## Horizontal Relationship
 
-Create it with CSS rather than using an image.
+The hero should feel slightly off-center.
 
-Example concept:
-
-```css
-background-image: radial-gradient(
-  rgba(0, 0, 0, 0.10) 0.8px,
-  transparent 0.8px
-);
-
-background-size: 8px 8px;
-```
-
-### Important
-
-The dots should be subtle.
-
-Recommended opacity:
+Recommended:
 
 ```text
-0.05–0.12
+Text begins around 8%–12% from the left edge.
+
+Visual begins around 62%–68% of the viewport width.
 ```
 
-The pattern must remain behind the content and should never reduce readability.
+The visual may extend closer to the right edge.
 
-Possible variation:
+## Vertical Relationship
 
-- Dots only on the right half
-- Dots only behind the image collage
-- Fade dots toward the edges
-- Use a very light gray rather than black
-
----
-
-# 9. Hero Heading
-
-Reference-inspired copy structure:
-
-```text
-The finishing touch to
-your home or business
-```
-
-The heading should use intentional line breaks.
+The headline should sit around the visual center of the hero rather than at the absolute top.
 
 Example:
+
+```text
+Header
+↓
+Large whitespace
+↓
+Eyebrow
+↓
+Headline
+↓
+Optional supporting text
+```
+
+The visual may be vertically offset.
+
+Example:
+
+```css
+transform: translateY(20px);
+```
+
+or:
+
+```css
+transform: translateY(-10px);
+```
+
+Use only enough movement to create balance.
+
+---
+
+# 9. Hero Eyebrow
+
+The eyebrow is a small visual anchor above the headline.
+
+Example structure:
+
+```text
+SMALL CATEGORY / CONTEXT
+```
+
+Design:
+
+```text
+font-size: 9px–11px
+letter-spacing: 0.14em
+font-weight: 500
+color: var(--color-text-light)
+```
+
+Keep it short.
+
+Do not turn the eyebrow into a paragraph.
+
+---
+
+# 10. Hero Heading
+
+The headline should be:
+
+- Large
+- Thin
+- Left aligned
+- Short
+- Editorial
+- Highly readable
+- Broken into deliberate lines
+
+Example structure using the site's own content:
 
 ```html
 <h1>
-  The finishing touch to
+  Main value
   <br />
-  your home or business
+  proposition goes
+  <br />
+  here.
 </h1>
 ```
 
-The second line can have a slightly different visual emphasis if appropriate.
+Do not copy the screenshot's wording.
 
-## Heading Behavior
+## Line Length
 
-Desktop:
+Aim for approximately:
 
-- Large
-- Thin/medium weight
-- Tight line height
-- Left aligned
+```text
+2–4 words per line
+```
 
-Mobile:
+depending on the actual content.
 
-- Reduce font size
-- Maintain intentional line breaks where possible
-- Avoid awkward single-word lines
+The heading should occupy roughly:
+
+```text
+45%–60%
+```
+
+of the hero's visual width.
+
+## Avoid
+
+- Huge bold all-caps headings
+- Centered hero headings
+- Long paragraphs inside the heading
+- Gradient text
+- Text shadows
 
 ---
 
-# 10. Hero Supporting Text
+# 11. Hero Supporting Content
 
-Use one short sentence below the heading.
+If supporting content is necessary, keep it extremely short.
+
+Recommended:
+
+```text
+max-width: 320px–400px
+font-size: 14px–16px
+line-height: 1.5
+```
+
+The supporting text should never compete with the headline.
+
+If the page does not require supporting text, remove it completely.
+
+Minimalism is preferred.
+
+---
+
+# 12. Hero CTA Treatment
+
+The reference does not depend on large button-heavy hero UI.
+
+Therefore, use a **minimal CTA strategy**.
+
+Preferred:
+
+```text
+Explore →
+Learn More →
+View Collection →
+Get Started →
+```
+
+Style:
+
+- Plain text
+- Small arrow
+- No large pill
+- No giant filled button
+- Minimal border if a button is required
 
 Example:
 
-> Garage doors with style and substance.
-
-Style:
-
-```text
-font-size: 14px–16px
-color: #666
-max-width: 360px
+```css
+.hero-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+}
 ```
 
-Keep it concise.
+Arrow animation:
 
-Do not add a large paragraph.
+```text
+translateX(0)
+→
+translateX(4px)
+```
+
+Duration:
+
+```text
+180ms–220ms
+```
+
+If a strong conversion CTA is required by the website, use **one** compact button rather than multiple competing buttons.
 
 ---
 
-# 11. Hero CTA Buttons
+# 13. Hero Visual
 
-Use two buttons.
+This is the second defining feature after typography.
 
-### Primary
+## Visual Philosophy
 
-**Get a Quote**
+Do not automatically use a standard full-width photograph.
 
-Style:
+Prefer:
+
+1. Cut-out product imagery
+2. Transparent PNG/WebP objects
+3. Carefully cropped photography
+4. 3D renders
+5. Editorial product compositions
+6. Architectural details
+7. Large isolated objects
+
+The visual should feel like an art-directed object placed on the page.
+
+## Visual Shape
+
+Prefer:
 
 ```text
-background: var(--color-accent)
-color: white
+irregular / organic / cut-out
 ```
 
-### Secondary
-
-**Build My Door**
-
-Style:
+over:
 
 ```text
-background: var(--color-dark)
-color: white
-```
-
-Alternative:
-
-```text
-white background
-dark border
-dark text
-```
-
-## Button Dimensions
-
-Desktop:
-
-```text
-height: 44px–50px
-padding: 0 20px–24px
-```
-
-Mobile:
-
-```text
-height: 48px
-```
-
-## Button Radius
-
-Use minimal rounding:
-
-```text
-0px–3px
-```
-
-The reference is more architectural than playful.
-
----
-
-# 12. Hero Image Composition
-
-This is one of the defining features of the design.
-
-Do not use one large hero image.
-
-Instead create a **collage of multiple images**.
-
-## Suggested Image Types
-
-### Image 1 — Narrow Vertical
-
-A partial home/garage image.
-
-```text
-Width: 8–12%
-Height: 150–220px
-```
-
-### Image 2 — Large Lifestyle Image
-
-A homeowner or installer interacting with a garage door.
-
-```text
-Width: 28–34%
-Height: 230–320px
-```
-
-### Image 3 — Detail/Product Image
-
-Close-up architectural image.
-
-```text
-Width: 20–25%
-Height: 170–260px
-```
-
-### Image 4 — Main Product Image
-
-Large garage-door installation.
-
-```text
-Width: 25–30%
-Height: 250–360px
+large rounded rectangular card
 ```
 
 ## Image Treatment
 
+- Natural colors
+- Sharp details
 - No heavy filters
-- Natural photography
-- Sharp images
-- Realistic colors
-- Minimal border
-- No default rounded cards
+- No dark overlays
+- No gradients
+- No excessive border
+- No default rounded corners
 
-Optional:
+Use:
+
+```css
+object-fit: contain;
+```
+
+for isolated objects.
+
+Use:
 
 ```css
 object-fit: cover;
 ```
 
+only when using editorial photography.
+
 ---
 
-# 13. Image Collage Positioning
+# 14. Visual Scale
 
-The collage should feel deliberately assembled.
+The hero visual should be large enough to create tension with the typography.
 
-Example desktop positioning:
+Recommended desktop size:
 
 ```text
-Image A:
-left: 0
-bottom: 0
-
-Image B:
-left: 15%
-bottom: 0
-
-Image C:
-left: 48%
-bottom: 15%
-
-Image D:
-right: 0
-bottom: 5%
+width: 34%–48vw
+max-width: 620px
 ```
 
-Use CSS Grid when possible instead of excessive absolute positioning.
+The visual may intentionally exceed its grid boundary.
 
-However, selected images may use controlled transforms:
+Recommended position:
 
-```css
-transform: translateY(-20px);
+```text
+right: 2%–8%
+top: 18%–30%
 ```
 
-The composition should not look random.
+Avoid making the visual perfectly centered in its column.
 
 ---
 
-# 14. Image Annotation / Decorative Graphic
+# 15. Image / Object Cropping
 
-The reference includes a small handwritten-style annotation and arrow.
+The visual may be cropped by the viewport.
 
-This can be recreated as a subtle editorial detail.
+This is encouraged when appropriate.
 
 Example:
 
 ```text
-"Your home's
-finishing touch!"
-           ↗
+The object can partially exit the right edge.
 ```
 
-## Style
+This produces the same editorial confidence as the reference.
 
-- Handwritten font
-- Small
-- Accent red
-- Slight rotation
-- Curved arrow
+However:
 
-Use this sparingly.
-
-The annotation should point toward an important product/image.
-
-Possible implementation:
-
-```text
-SVG curved arrow
-+
-handwritten text
-```
-
-SVG is preferred over a raster image.
+- Never crop the important subject
+- Maintain accessible alt text
+- Ensure mobile content remains fully understandable
 
 ---
 
-# 15. Responsive Hero
+# 16. Editorial Decorative Element
 
-## Desktop ≥ 1200px
+The screenshot's unusual visual personality can be recreated with **one small art-directed detail**.
+
+Possible elements:
+
+- Small arrow
+- Handwritten note
+- Tiny label
+- Organic shape
+- Small accent mark
+- Subtle line
+- Floating micro-caption
+
+Use only one or two.
+
+Example:
+
+```text
+small note
+      ↗
+```
+
+## Styling
+
+```text
+font-size: 10px–14px
+color: var(--color-text-muted)
+```
+
+Optional accent:
+
+```text
+color: var(--color-accent)
+```
+
+Do not use decorative elements throughout the entire page.
+
+---
+
+# 17. Background Treatment
+
+The background should remain predominantly white.
+
+Unlike the previous design direction, **do not use a prominent dotted architectural grid**.
+
+The reference depends on a clean uninterrupted background.
 
 Use:
 
-- Two-column hero
-- Large typography
-- Full image collage
-- Horizontal CTA buttons
-- Full navigation
+```css
+background: #FFFFFF;
+```
 
-## Tablet 768–1199px
+Optional:
 
-Use:
+```css
+background: #FAFAF9;
+```
 
-- Reduced heading
-- Smaller image collage
-- Slightly smaller navigation
-- Maintain asymmetry
-- Reduce image count if necessary
+for selected sections.
 
-## Mobile < 768px
+## Avoid
 
-Change the composition.
+- Large gradients
+- Dotted backgrounds covering the hero
+- Heavy textures
+- Pattern overlays
+- Noise textures
+- Large abstract SVG backgrounds
+
+The empty white space is the texture.
+
+---
+
+# 18. Section 2 — Main Content Introduction
+
+After the hero, introduce the first major content section with the same editorial discipline.
+
+Recommended layout:
+
+```text
+┌──────────────────────────────────────────────────────────────┐
+│                                                              │
+│ SMALL LABEL                                                   │
+│                                                              │
+│ Large section heading                Short supporting copy   │
+│                                                              │
+└──────────────────────────────────────────────────────────────┘
+```
+
+Do not immediately introduce a grid of cards.
+
+Allow the typography to establish the next visual rhythm.
+
+---
+
+# 19. Editorial Content Sections
+
+Each major section should use one of three layouts.
+
+## Layout A — Text Left / Visual Right
+
+```text
+TEXT                         VISUAL
+Large heading                Large image
+Short description            or product
+Small link
+```
+
+## Layout B — Visual Left / Text Right
+
+```text
+VISUAL                       TEXT
+Large image                  Small label
+                             Large heading
+                             Description
+                             Link
+```
+
+## Layout C — Full-Width Editorial Image
+
+```text
+────────────────────────────────────────────────
+              LARGE VISUAL
+────────────────────────────────────────────────
+
+Small caption
+Short heading
+```
+
+Alternate these layouts to create visual rhythm.
+
+---
+
+# 20. Product Categories
+
+If the website contains product categories, do not display them as conventional SaaS cards.
+
+Use editorial image blocks.
 
 Recommended:
 
 ```text
-Header
-↓
-Hero heading
-↓
-Description
-↓
-CTA buttons
-↓
-Primary image
-↓
-Secondary image strip
+┌──────────────────────┐   ┌────────────────────────┐
+│                      │   │                        │
+│      LARGE IMAGE     │   │       LARGE IMAGE      │
+│                      │   │                        │
+└──────────────────────┘   └────────────────────────┘
+
+Category name →             Category name →
 ```
 
-Do not attempt to preserve the exact desktop collage on mobile.
+## Category Design
 
-The priority should be:
-
-1. Headline
-2. CTA
-3. Main product image
-4. Supporting imagery
-
----
-
-# 16. Mobile Header
-
-Use:
-
-```text
-┌─────────────────────────────────────────┐
-│ LOGO                              ☰     │
-└─────────────────────────────────────────┘
-```
-
-Menu opens a full-width navigation panel.
-
-Mobile menu items:
-
-- Residential
-- Commercial
-- Dealers
-- Shopping Tools
-- About
-- Request a Quote
-
-The mobile menu should feel premium and simple.
-
-Avoid a complex multi-level navigation unless required by the business.
-
----
-
-# 17. Section 2 — Product Categories
-
-After the hero, introduce the primary product categories.
-
-Suggested heading:
-
-**Built for the way you live and work.**
-
-Possible categories:
-
-```text
-Residential
-Commercial
-Modern
-Traditional
-Custom
-```
-
-Use large editorial image tiles rather than small cards.
-
-Example:
-
-```text
-┌──────────────────┐ ┌──────────────────┐
-│                  │ │                  │
-│  RESIDENTIAL     │ │  COMMERCIAL      │
-│                  │ │                  │
-│  Explore →       │ │  Explore →       │
-└──────────────────┘ └──────────────────┘
-```
-
----
-
-# 18. Product Category Card Style
-
-Avoid conventional SaaS cards.
-
-Instead:
-
+- Flat composition
+- No card shadow
+- No rounded container
 - Large image
-- Minimal text
-- Text overlay or beneath image
-- Small arrow
-- Strong typography
+- Small category label
+- Large but restrained title
+- Arrow/text link
 
-Hover behavior:
+## Hover
+
+Image:
 
 ```text
-Image scales from 1.00 → 1.04
+scale(1.00) → scale(1.025)
 ```
 
-Use:
+Text:
 
-```css
-transition: transform 500ms ease;
+```text
+arrow moves 3–5px
 ```
 
-Do not over-animate.
+Duration:
+
+```text
+400ms–500ms
+```
 
 ---
 
-# 19. Section 3 — Brand / Craftsmanship
+# 21. Product Showcase
 
-Introduce the company story.
+Use an editorial product presentation instead of a card carousel.
 
-Suggested structure:
+Structure:
 
 ```text
-LEFT
-Large heading
+SMALL LABEL
 
-RIGHT
-Short description
-Supporting statistic
-CTA
+Large product image
+
+Product name
+One-line description
+
+Explore →
 ```
+
+The image should dominate the section.
+
+Keep supporting text secondary.
+
+---
+
+# 22. Brand / Story Section
+
+Use a large typographic statement.
+
+Example structure:
+
+```text
+SMALL LABEL
+
+Large statement about the company,
+product, craftsmanship, or purpose.
+
+                    Short supporting paragraph
+                    and text link →
+```
+
+The section should feel closer to an editorial magazine spread than a marketing card.
+
+---
+
+# 23. Gallery
+
+If a gallery is required, use an art-directed grid.
+
+Do not make every image the same size.
+
+Recommended:
+
+```text
+┌───────────────┐ ┌─────────────────────────┐
+│               │ │                         │
+│    IMAGE      │ │          IMAGE          │
+│               │ │                         │
+└───────────────┘ └─────────────────────────┘
+
+┌────────────────────────────┐ ┌────────────┐
+│                            │ │            │
+│            IMAGE           │ │   IMAGE    │
+│                            │ │            │
+└────────────────────────────┘ └────────────┘
+```
+
+Use varying proportions.
+
+Keep gutters small but visible:
+
+```text
+8px–20px
+```
+
+The gallery should feel curated, not like a photo dump.
+
+---
+
+# 24. Image Captions
+
+Use very small captions.
 
 Example:
 
-**Designed to make an entrance.**
-
-Body copy:
-
-> Thoughtful materials, reliable engineering, and designs made to complement the architecture around them.
-
-CTA:
-
-**Explore Our Story →**
-
----
-
-# 20. Section 4 — Featured Products
-
-Use an editorial product showcase.
-
-Layout:
-
 ```text
-┌──────────────────────────────┐
-│                              │
-│      LARGE PRODUCT IMAGE     │
-│                              │
-└──────────────────────────────┘
-
-Product Name
-Short description
-
-[Explore Product →]
+PROJECT / LOCATION / CATEGORY
 ```
 
-Optional horizontal product navigation:
+Style:
 
 ```text
-01  Modern
-02  Classic
-03  Contemporary
-04  Custom
+font-size: 9px–11px
+letter-spacing: 0.08em
+color: var(--color-text-light)
+```
+
+Captions should sit close to their corresponding image.
+
+---
+
+# 25. Quote / Conversion Section
+
+The conversion section should maintain the minimalist visual language.
+
+Avoid a giant red CTA block.
+
+Preferred:
+
+```text
+────────────────────────────────────────────
+
+Small label
+
+Large question / invitation
+
+Short supporting statement
+
+Request a Quote →
+
+────────────────────────────────────────────
+```
+
+Use the brand's actual content.
+
+The CTA can use:
+
+- Dark text
+- Small arrow
+- Minimal button
+- Thin border
+
+If a filled button is necessary:
+
+```text
+background: #111111
+color: #FFFFFF
+border-radius: 0–2px
 ```
 
 ---
 
-# 21. Section 5 — Inspiration Gallery
+# 26. Footer
 
-Use a masonry-style image gallery.
-
-Recommended image mix:
-
-- Exterior architecture
-- Garage doors
-- Close-up materials
-- Installation
-- Commercial properties
-- Finished projects
-
-The gallery should feel like an architecture magazine.
-
-Avoid identical image sizes.
-
----
-
-# 22. Section 6 — Quote / Conversion Section
-
-Create a strong conversion area toward the lower part of the page.
-
-Suggested heading:
-
-**Ready to finish the look?**
-
-Supporting text:
-
-> Tell us about your project and we'll help you find the right solution.
-
-CTA:
-
-**Request a Quote**
-
-Secondary option:
-
-**Contact Us**
-
-Keep this section simple.
-
----
-
-# 23. Footer
-
-Footer should be structured but not visually heavy.
+The footer should remain lightweight.
 
 Recommended structure:
 
 ```text
-LOGO
+Brand                         Navigation
+                              Products
+                              Company
+                              Support
 
-Products
-Residential
-Commercial
-Collections
-Accessories
-
-Company
-About
-Our Story
-Resources
-Contact
-
-Support
-Find a Dealer
-FAQ
-Warranty
-Installation
-
-Social
-Instagram
-Facebook
-YouTube
+Contact / social              Legal
 ```
 
-Bottom:
+Use small typography.
+
+Avoid a massive dark footer unless the site's content genuinely requires it.
+
+## Footer Styling
 
 ```text
-© 2026 Company Name
-Privacy
-Terms
-Accessibility
+background: #FFFFFF
+border-top: 1px solid #E8E8E8
 ```
 
-Use a dark background if desired.
+Optional:
+
+```text
+background: #111111
+color: #FFFFFF
+```
+
+If using a dark footer, keep the structure simple and editorial.
 
 ---
 
-# 24. Navigation Interaction
+# 27. Mobile Layout
 
-Dropdown menus should use a premium mega-menu style.
+The mobile design must preserve the **visual hierarchy**, not the desktop geometry.
+
+## Mobile Order
+
+```text
+Header
+↓
+Whitespace
+↓
+Eyebrow
+↓
+Large heading
+↓
+Supporting text
+↓
+Minimal CTA
+↓
+Large visual
+↓
+Next section
+```
+
+## Mobile Hero
+
+Use:
+
+```text
+padding-top: 64px–88px
+padding-bottom: 64px–80px
+```
+
+The visual should appear beneath the headline.
+
+Do not place text and visual side-by-side on small screens.
+
+## Mobile Typography
+
+```text
+Hero: 42px–56px
+Section: 36px–46px
+Body: 14px–16px
+Navigation: 11px–12px
+Eyebrow: 8px–10px
+```
+
+## Mobile Visual
+
+Use:
+
+```text
+width: 80%–100%
+max-width: 420px
+margin-left: auto
+```
+
+Allow a slight horizontal offset.
+
+---
+
+# 28. Mobile Header
+
+Structure:
+
+```text
+┌──────────────────────────────────────┐
+│ Brand                         Menu   │
+└──────────────────────────────────────┘
+```
+
+The header remains minimal.
+
+Use a simple menu icon.
+
+Avoid:
+
+- Large hamburger panels with excessive decoration
+- Pill-shaped menu controls
+- Full-screen animated transitions unless necessary
+
+The mobile navigation panel should use the same typography and whitespace system.
+
+---
+
+# 29. Desktop Breakpoints
+
+## Large Desktop — ≥ 1440px
+
+Use:
+
+- Very large hero typography
+- Maximum whitespace
+- Large visual object
+- Wide editorial container
+- Compact navigation
+
+## Desktop — 1200–1439px
+
+Use:
+
+- Large heading
+- Two-column hero
+- Large visual
+- Full navigation
+
+## Tablet — 768–1199px
+
+Use:
+
+- Reduced heading
+- Slightly smaller visual
+- Reduced spacing
+- Maintain left alignment
+- Keep editorial composition
+
+## Mobile — < 768px
+
+Use:
+
+- Single-column layout
+- Headline first
+- Visual second
+- Compact header
+- Minimal CTA
+- Reduced section spacing
+
+---
+
+# 30. Spacing System
+
+Use:
+
+```text
+4px
+8px
+12px
+16px
+24px
+32px
+48px
+64px
+80px
+96px
+120px
+160px
+```
+
+## Recommended Section Spacing
+
+Desktop:
+
+```text
+112px–160px
+```
+
+Tablet:
+
+```text
+80px–120px
+```
+
+Mobile:
+
+```text
+72px–96px
+```
+
+The exact spacing should vary by section.
+
+Do not make every section identical in height.
+
+---
+
+# 31. Border & Radius System
+
+The screenshot uses an almost completely flat interface.
+
+Use:
+
+```text
+Images: 0px–2px
+Buttons: 0–3px
+Inputs: 0–3px
+Cards: 0–4px
+```
+
+Prefer square or nearly square geometry.
+
+Avoid:
+
+```text
+border-radius: 20px;
+border-radius: 9999px;
+```
+
+Do not use rounded cards as the default design language.
+
+---
+
+# 32. Shadows
+
+Use almost no shadow.
+
+Preferred:
+
+```css
+box-shadow: none;
+```
+
+Only use a subtle shadow when required for:
+
+- Mobile navigation
+- Modal dialogs
+- Dropdown menus
+- Floating controls
 
 Example:
 
-```text
-Residential
-────────────────────────────────────────────
-Collections
-  Modern
-  Traditional
-  Contemporary
-
-Shop by Style
-  Glass
-  Steel
-  Wood
-
-Featured
-  [Large image]
+```css
+box-shadow: 0 8px 24px rgba(0, 0, 0, 0.05);
 ```
-
-Keep dropdown animations subtle:
-
-```text
-opacity: 0 → 1
-transform: translateY(-4px) → translateY(0)
-duration: 180–240ms
-```
-
-Avoid bouncy animations.
 
 ---
 
-# 25. Interaction Design
+# 33. Motion & Interaction
 
-## General Motion
+The animation philosophy should be **quiet and editorial**.
 
-Motion should be subtle and intentional.
-
-Use:
+## Navigation
 
 ```text
-150–250ms
+150–200ms
 ```
 
-for interface interactions.
+## Links
 
-Use:
+```text
+180–220ms
+```
+
+## Image reveals
 
 ```text
 400–700ms
 ```
 
-for photography reveals.
+## Hero entrance
 
-### Page Load
+Recommended:
 
-Possible sequence:
+```text
+opacity: 0 → 1
+transform: translateY(12px) → translateY(0)
+```
 
-1. Header fades in
-2. Hero heading rises slightly
-3. Supporting text appears
-4. CTA buttons appear
-5. Images reveal with a small vertical motion
+Stagger:
+
+```text
+eyebrow
+↓
+headline
+↓
+supporting text
+↓
+CTA
+↓
+visual
+```
+
+Do not use large bouncing or elastic animations.
+
+---
+
+# 34. Scroll Behavior
+
+Use subtle reveal animations.
 
 Example:
 
 ```text
-opacity: 0 → 1
-transform: translateY(20px) → translateY(0)
+section enters viewport
+↓
+content fades in
+↓
+content moves 8–16px upward
 ```
 
-Do not make the website feel like an animation demo.
+The animation should feel like content naturally entering the page.
+
+Avoid:
+
+- Parallax on every element
+- Excessive horizontal scrolling
+- Scroll-jacking
+- Continuous floating animations
 
 ---
 
-# 26. Image Hover
+# 35. Image Hover
 
-For product/gallery images:
+Use restrained image movement.
+
+Default:
 
 ```text
-Default:
 scale(1)
-
-Hover:
-scale(1.03–1.05)
 ```
 
-Use an image wrapper with:
+Hover:
+
+```text
+scale(1.025)
+```
+
+Transition:
+
+```css
+transition: transform 500ms ease;
+```
+
+Use:
 
 ```css
 overflow: hidden;
 ```
 
-Optional:
-
-- Small arrow appears
-- Image label shifts upward
-- Slight dark overlay
+only when the image is contained within a crop.
 
 ---
 
-# 27. Accessibility
+# 36. Buttons & Links
 
-The design must remain accessible despite its visual focus.
+## Primary CTA
+
+Prefer a compact dark button when a real button is required.
+
+```text
+Background: #111111
+Text: #FFFFFF
+Height: 42px–48px
+Padding: 0 18px–22px
+Radius: 0–2px
+Font size: 11px–13px
+```
+
+## Secondary CTA
+
+Prefer a text link:
+
+```text
+Explore →
+```
+
+or:
+
+```text
+Learn More →
+```
+
+## Hover
+
+Use:
+
+```text
+background shift
+or
+arrow movement
+```
+
+Do not use dramatic transforms.
+
+---
+
+# 37. Forms
+
+Forms should match the editorial style.
+
+Avoid:
+
+- Large rounded inputs
+- Heavy shadows
+- Colorful fields
+- Card-contained forms
+
+Use:
+
+```text
+White background
+Thin gray border
+Square corners
+Compact labels
+Clear focus state
+```
+
+Example:
+
+```text
+First Name
+────────────────────────────
+
+Last Name
+────────────────────────────
+
+Email
+────────────────────────────
+
+Message
+────────────────────────────
+
+Send →
+```
+
+The form should feel like a simple editorial document.
+
+---
+
+# 38. Accessibility
+
+The minimalist design must still be fully accessible.
 
 Requirements:
 
 - WCAG-conscious contrast
-- Visible keyboard focus states
 - Semantic HTML
 - Proper heading hierarchy
 - Descriptive image alt text
-- Buttons must be actual `<button>` or `<a>` elements
-- Navigation must be keyboard accessible
-- Do not rely solely on color to communicate state
+- Keyboard navigation
+- Visible focus indicators
+- Actual links/buttons for interactive controls
+- Do not rely solely on color
 - Respect `prefers-reduced-motion`
 
 Example:
@@ -1137,325 +1627,25 @@ Example:
 
 ---
 
-# 28. Spacing System
+# 39. Performance
 
-Use a consistent spacing scale.
-
-```text
-4px
-8px
-12px
-16px
-24px
-32px
-48px
-64px
-80px
-96px
-120px
-160px
-```
-
-Recommended section spacing:
-
-```text
-Desktop:
-120px–160px
-
-Tablet:
-80px–120px
-
-Mobile:
-64px–88px
-```
-
-Do not make every section equally tall. Editorial rhythm should vary.
-
----
-
-# 29. Border & Radius System
-
-The reference is mostly sharp and architectural.
-
-Use:
-
-```text
-Buttons: 0–3px
-Images: 0px
-Cards: 0–4px
-Inputs: 2–4px
-```
-
-Avoid:
-
-```text
-border-radius: 20px
-border-radius: 9999px
-```
-
-unless used for a specific utility element.
-
----
-
-# 30. Shadows
-
-Use very little shadow.
-
-Preferred:
-
-```css
-box-shadow: 0 8px 30px rgba(0,0,0,0.06);
-```
-
-Only use shadows for:
-
-- Dropdown menus
-- Floating mobile menu
-- Modal dialogs
-- Important elevated UI
-
-The main page should remain flat.
-
----
-
-# 31. Buttons
-
-## Primary Button
-
-```text
-Background: Accent Red
-Text: White
-Height: 46px
-Padding: 0 22px
-Radius: 2px
-```
-
-Hover:
-
-```text
-Background: Darker accent
-```
-
-## Secondary Button
-
-```text
-Background: Dark
-Text: White
-Height: 46px
-Padding: 0 22px
-Radius: 2px
-```
-
-## Text Link
-
-Use for low-priority actions:
-
-```text
-Explore →
-Learn More →
-View Collection →
-```
-
-Add a subtle arrow movement on hover.
-
----
-
-# 32. Forms
-
-Quote forms should follow the same minimal aesthetic.
-
-Example:
-
-```text
-First Name
-[________________________]
-
-Last Name
-[________________________]
-
-Email
-[________________________]
-
-Project Type
-[ Select...              ▾ ]
-
-Tell us about your project
-[________________________]
-[________________________]
-
-[ Request a Quote ]
-```
-
-Input styling:
-
-- White or off-white background
-- Thin gray border
-- Minimal radius
-- Strong focus outline
-- Comfortable height
-
----
-
-# 33. Loading States
-
-Use minimal skeleton/loading states.
-
-Avoid animated spinners everywhere.
-
-For image-heavy sections:
-
-```text
-Light neutral placeholder
-→
-Fade into image
-```
-
----
-
-# 34. Content Tone
-
-Copy should be:
-
-- Confident
-- Short
-- Clear
-- Premium
-- Helpful
-- Human
-
-Avoid:
-
-- Excessive marketing language
-- Huge paragraphs
-- Generic buzzwords
-- Repeated "best in class"
-- Overly aggressive sales language
-
-Preferred:
-
-> Designed for your home. Built to last.
-
-Instead of:
-
-> We are the number one revolutionary industry-leading provider of premium solutions.
-
----
-
-# 35. Recommended Component Architecture
-
-If implementing with React/Next.js:
-
-```text
-components/
-├── Header/
-│   ├── Header.tsx
-│   ├── DesktopNav.tsx
-│   ├── MobileNav.tsx
-│   └── MegaMenu.tsx
-│
-├── Hero/
-│   ├── Hero.tsx
-│   ├── HeroContent.tsx
-│   ├── HeroActions.tsx
-│   ├── HeroGallery.tsx
-│   └── HeroAnnotation.tsx
-│
-├── ProductCategories/
-│   ├── ProductCategories.tsx
-│   └── CategoryCard.tsx
-│
-├── BrandStory/
-│   └── BrandStory.tsx
-│
-├── ProductShowcase/
-│   ├── ProductShowcase.tsx
-│   └── ProductCard.tsx
-│
-├── Gallery/
-│   └── InspirationGallery.tsx
-│
-├── QuoteCTA/
-│   └── QuoteCTA.tsx
-│
-└── Footer/
-    └── Footer.tsx
-```
-
----
-
-# 36. Suggested Page Structure
-
-```text
-<App>
-  <Header />
-
-  <main>
-    <Hero />
-
-    <ProductCategories />
-
-    <BrandStory />
-
-    <FeaturedProducts />
-
-    <InspirationGallery />
-
-    <QuoteCTA />
-  </main>
-
-  <Footer />
-</App>
-```
-
----
-
-# 37. Hero Component Requirements
-
-The hero component should support:
-
-```ts
-type HeroProps = {
-  eyebrow?: string;
-  title: string;
-  description: string;
-  primaryAction: {
-    label: string;
-    href: string;
-  };
-  secondaryAction?: {
-    label: string;
-    href: string;
-  };
-  images: {
-    src: string;
-    alt: string;
-    className?: string;
-  }[];
-};
-```
-
-This allows the hero to be reused for different campaigns.
-
----
-
-# 38. Image Performance
-
-Because the design is image-heavy:
+Because the design relies heavily on large visual assets:
 
 - Use WebP or AVIF
 - Use responsive image sizes
-- Lazy-load images below the fold
-- Preload the primary hero image when appropriate
-- Avoid unnecessarily huge source files
-- Use `object-fit: cover`
-- Define image dimensions to prevent layout shift
+- Lazy-load below-the-fold images
+- Prioritize the primary hero visual
+- Define image dimensions
+- Avoid unnecessarily large source files
+- Use `object-fit` appropriately
+- Avoid unnecessary animation libraries
 
 For Next.js:
 
 ```tsx
 <Image
-  src="/images/hero.jpg"
-  alt="Modern garage door installation"
+  src="/images/hero.webp"
+  alt="Descriptive image of the website's actual subject"
   fill
   priority
   sizes="(max-width: 768px) 100vw, 50vw"
@@ -1464,30 +1654,9 @@ For Next.js:
 
 ---
 
-# 39. Performance Goals
+# 40. Technology
 
-Target:
-
-```text
-LCP: < 2.5s
-CLS: < 0.1
-INP: < 200ms
-```
-
-Prioritize:
-
-1. Hero image optimization
-2. Font loading
-3. Minimal JavaScript
-4. Proper image dimensions
-5. Lazy loading
-6. Avoiding unnecessary animation libraries
-
----
-
-# 40. Recommended Technology
-
-For a modern implementation:
+Recommended implementation:
 
 ```text
 Framework:
@@ -1510,181 +1679,366 @@ Fonts:
 Google Fonts or self-hosted font files
 ```
 
-If using Tailwind, create design tokens rather than scattering arbitrary values throughout components.
+Keep the visual system in reusable tokens.
 
 ---
 
 # 41. Tailwind Design Tokens
 
-Suggested values:
+Suggested:
 
 ```js
 colors: {
   background: "#FFFFFF",
-  surface: "#F7F7F5",
+  surface: "#F8F8F6",
   foreground: "#171717",
-  muted: "#6B6B6B",
-  border: "#DCDCDC",
-  accent: "#C8102E",
-  accentDark: "#9F0D24",
-  dark: "#111111"
+  muted: "#777777",
+  light: "#A0A0A0",
+  border: "#E8E8E8",
+  dark: "#111111",
+  accent: "#D96C92",
+  accentSoft: "#F3D7E1"
 }
 ```
 
-Spacing should follow the defined spacing system.
+Typography should be controlled through reusable classes.
+
+Example:
+
+```text
+hero-title
+section-title
+eyebrow
+body-copy
+micro-label
+editorial-link
+```
+
+Avoid scattering arbitrary font sizes throughout components.
 
 ---
 
-# 42. Do / Don't
+# 42. Recommended Component Architecture
 
-## DO
+If implementing with React/Next.js:
 
-- Use large editorial typography
-- Use high-quality photography
-- Keep backgrounds clean
-- Use asymmetrical compositions
-- Use strong whitespace
-- Keep CTAs obvious
-- Use subtle motion
-- Keep the accent color restrained
-- Use sharp architectural shapes
-- Make the hero visually memorable
+```text
+components/
+├── Header/
+│   ├── Header.tsx
+│   ├── DesktopNav.tsx
+│   ├── MobileNav.tsx
+│   └── SocialLinks.tsx
+│
+├── Hero/
+│   ├── Hero.tsx
+│   ├── HeroEyebrow.tsx
+│   ├── HeroContent.tsx
+│   ├── HeroVisual.tsx
+│   └── HeroLink.tsx
+│
+├── EditorialSection/
+│   ├── EditorialSection.tsx
+│   └── EditorialMedia.tsx
+│
+├── ProductCategories/
+│   ├── ProductCategories.tsx
+│   └── CategoryItem.tsx
+│
+├── ProductShowcase/
+│   ├── ProductShowcase.tsx
+│   └── ProductVisual.tsx
+│
+├── Gallery/
+│   └── EditorialGallery.tsx
+│
+├── Conversion/
+│   └── ConversionSection.tsx
+│
+└── Footer/
+    └── Footer.tsx
+```
 
-## DON'T
-
-- Use excessive rounded cards
-- Use giant gradients
-- Use excessive shadows
-- Use dozens of colors
-- Center every section
-- Use huge blocks of text
-- Overuse animations
-- Make every image the same size
-- Use generic SaaS dashboard aesthetics
-- Turn the site into a collection of cards
+The component structure should support the design without forcing every section into a card component.
 
 ---
 
-# 43. Visual Hierarchy
+# 43. Suggested Page Structure
+
+```tsx
+<App>
+  <Header />
+
+  <main>
+    <Hero />
+
+    <EditorialIntro />
+
+    <ProductCategories />
+
+    <BrandStory />
+
+    <FeaturedProducts />
+
+    <EditorialGallery />
+
+    <ConversionSection />
+  </main>
+
+  <Footer />
+</App>
+```
+
+The content should remain based on the existing website. Only the presentation and composition are being redesigned.
+
+---
+
+# 44. Hero Component Requirements
+
+The hero should support the existing website content while allowing the new visual treatment.
+
+```ts
+type HeroProps = {
+  eyebrow?: string;
+  title: string;
+  description?: string;
+  action?: {
+    label: string;
+    href: string;
+  };
+  visual: {
+    src: string;
+    alt: string;
+  };
+  visualPosition?: "left" | "right";
+};
+```
+
+The visual should be independent from the text so that different product/content imagery can be substituted without changing the layout.
+
+---
+
+# 45. Design Rules for Images
+
+Every image should have a clear purpose.
+
+## Preferred
+
+- Product-focused
+- Architecture-focused
+- Detail-focused
+- Human interaction
+- Strong composition
+- Clean background
+- High resolution
+
+## Avoid
+
+- Generic stock-photo collages
+- Heavy filters
+- Multiple competing hero images
+- Repeated identical image proportions
+- Large image cards with excessive UI
+- Decorative images that communicate nothing
+
+The hero should generally have **one dominant visual** rather than a four-image collage.
+
+---
+
+# 46. Visual Hierarchy
 
 The viewer's eye should generally move in this order:
 
 ```text
 1. Brand / Logo
         ↓
-2. Hero headline
+2. Tiny eyebrow
         ↓
-3. Hero imagery
+3. Large hero headline
         ↓
-4. Primary CTA
+4. Dominant visual object
         ↓
-5. Secondary imagery
+5. Supporting text / CTA
         ↓
-6. Product categories
+6. Next editorial section
         ↓
-7. Brand story
+7. Product / service imagery
         ↓
-8. Product showcase
+8. Brand story
         ↓
-9. Quote CTA
+9. Conversion
         ↓
 10. Footer
 ```
 
-The hero should communicate the company's value proposition within approximately **3–5 seconds**.
+The first screen should communicate the site's primary value proposition within approximately **3–5 seconds**.
 
 ---
 
-# 44. Reference-Specific Details to Preserve
+# 47. Reference-Specific Details to Preserve
 
-The following elements are especially important because they create the visual identity seen in the supplied reference:
+The following visual characteristics are the most important parts of the supplied screenshot and should guide implementation.
 
-### 1. Compact Header
+## 1. Tiny Header
 
-Keep the navigation visually small compared with the hero.
+The navigation occupies very little visual space.
 
-### 2. Large Left-Aligned Heading
+## 2. Small Brand Mark
 
-The headline should occupy a significant amount of horizontal space.
+The logo/wordmark is compact and understated.
 
-### 3. Subtle Dot Pattern
+## 3. Huge Thin Headline
 
-Use a barely visible dotted texture to add depth without distracting from content.
+The headline is the dominant typographic object.
 
-### 4. Two CTA Buttons
+## 4. Left-Aligned Composition
 
-Use one accent-colored CTA and one dark CTA.
+The hero text is positioned toward the left rather than centered.
 
-### 5. Bottom Image Collage
+## 5. Large White Canvas
 
-Use multiple photographs with different widths and heights.
+White space surrounds the content.
 
-### 6. Editorial Annotation
+## 6. One Oversized Visual
 
-A small handwritten note and curved arrow can point toward an important image/product.
+A single object/image provides visual personality on the right.
 
-### 7. Strong White Space
+## 7. Limited Color
 
-Do not fill every empty area.
+The page is primarily black/gray on white with one optional accent.
 
-### 8. Architectural Photography
+## 8. Minimal UI
 
-Images should reinforce the relationship between the product and the building/home.
+There are few visible controls and almost no decorative containers.
+
+## 9. Small Utility Icons
+
+Tiny icons can occupy the upper-right header area.
+
+## 10. Editorial Proportion
+
+The page should look deliberately composed rather than generated from a standard website template.
 
 ---
 
-# 45. Final Design Goal
+# 48. What Must NOT Be Copied From the Screenshot
+
+The screenshot is a design reference only.
+
+Do not copy:
+
+- Its exact wording
+- Its brand name
+- Its logo
+- Its specific graphic/object
+- Its exact social links
+- Its exact content hierarchy if it conflicts with the website's actual content
+- Its exact colors when they do not fit the website brand
+- Its exact images
+- Its exact illustrations
+- Its exact dimensions
+- Any proprietary visual assets
+
+Use the screenshot to guide **style, spacing, typography, composition, and visual restraint**.
+
+---
+
+# 49. Do / Don't
+
+## DO
+
+- Use a white canvas
+- Use large editorial typography
+- Keep navigation tiny
+- Keep the logo small
+- Use one dominant hero visual
+- Use generous whitespace
+- Use left-aligned hero content
+- Use thin/regular typography
+- Use subtle micro-labels
+- Use minimal CTA treatment
+- Use restrained accent color
+- Use sharp or nearly square geometry
+- Use curated imagery
+- Use subtle motion
+- Keep the composition visually balanced
+
+## DON'T
+
+- Use large rounded cards
+- Use giant gradients
+- Use excessive shadows
+- Use multiple competing hero images
+- Center everything
+- Use huge bold typography everywhere
+- Use giant CTA buttons
+- Use colorful navigation
+- Fill every empty space
+- Use generic SaaS dashboard aesthetics
+- Use excessive decorative patterns
+- Overuse animation
+- Turn every section into a card grid
+- Copy the screenshot's content
+
+---
+
+# 50. Final Design Goal
 
 The completed website should feel like:
 
-> **A premium architectural product brand with a modern editorial website.**
+> **A minimalist, editorial, art-directed website where typography and one strong visual create the experience.**
 
 It should not feel like:
 
-> A generic home-services website.
+> **A generic service-business template, SaaS landing page, or card-heavy marketing website.**
 
-The most important design decision is the **combination of large typography + restrained UI + premium photography + asymmetric composition + subtle red accent**.
+The most important design decision is the combination of:
 
-The website should feel calm when first viewed, then reveal more detail as the user scrolls.
+**large thin typography + compact navigation + expansive white space + one dominant visual + restrained color + editorial composition.**
+
+The screenshot should be treated as a **visual language reference**, not a content reference.
 
 ---
 
-# 46. Implementation Checklist
+# 51. Implementation Checklist
 
 ## Header
 
-- [ ] Logo implemented
-- [ ] Desktop navigation
-- [ ] Dropdown indicators
-- [ ] Request Quote CTA
+- [ ] Compact header
+- [ ] Small logo/wordmark
+- [ ] Small navigation typography
+- [ ] Minimal utility/social icons
+- [ ] No oversized CTA
 - [ ] Mobile menu
-- [ ] Sticky behavior if required
+- [ ] Subtle hover states
 
 ## Hero
 
-- [ ] Large editorial headline
-- [ ] Supporting description
-- [ ] Primary CTA
-- [ ] Secondary CTA
-- [ ] Dotted background
-- [ ] Multi-image collage
-- [ ] Responsive image behavior
-- [ ] Optional handwritten annotation
+- [ ] Large thin editorial headline
+- [ ] Small eyebrow
+- [ ] Left-aligned composition
+- [ ] Large white space
+- [ ] One dominant visual
+- [ ] Minimal CTA/link
+- [ ] No copied screenshot content
+- [ ] Responsive visual positioning
 
 ## Content
 
-- [ ] Product category section
-- [ ] Brand story section
-- [ ] Featured products
-- [ ] Inspiration gallery
-- [ ] Quote CTA
+- [ ] Editorial introduction
+- [ ] Image-led product/category sections
+- [ ] Alternating text/image layouts
+- [ ] Large typography
+- [ ] Curated gallery
+- [ ] Minimal metadata
 
 ## Footer
 
-- [ ] Navigation groups
+- [ ] Compact navigation
 - [ ] Contact information
 - [ ] Social links
 - [ ] Legal links
+- [ ] Minimal visual treatment
 
 ## UX
 
@@ -1699,12 +2053,12 @@ The website should feel calm when first viewed, then reveal more detail as the u
 - [ ] WebP/AVIF images
 - [ ] Responsive images
 - [ ] Lazy loading
-- [ ] Hero image priority
+- [ ] Hero visual priority
 - [ ] Font optimization
 - [ ] Layout-shift prevention
 
 ---
 
-# 47. One-Sentence Design Brief
+# 52. One-Sentence Design Brief
 
-**Create a premium, minimalist architectural landing page that combines oversized editorial typography, a compact professional navigation bar, subtle dotted texture, restrained black/white/red branding, and an asymmetrical collage of high-quality residential and commercial photography to create a sophisticated, trustworthy, conversion-focused experience.**
+**Create a minimalist editorial website with a compact header, oversized thin typography, generous white space, a left-aligned hero composition, one large art-directed visual on the right, subtle monochrome UI, restrained accent color, and carefully controlled motion—using the supplied screenshot only as inspiration for visual style and not for its content.**

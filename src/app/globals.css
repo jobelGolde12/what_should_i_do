@@ -192,6 +192,16 @@ html.no-js .settle-section:not(.revealed) {
   }
 }
 
+/* Shimmer animation for file-extraction progress bar */
+@keyframes shimmer {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(100%);
+  }
+}
+
 .settle-stage {
   position: relative;
   overflow: hidden;

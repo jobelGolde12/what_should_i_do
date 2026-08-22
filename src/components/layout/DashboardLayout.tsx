@@ -8,7 +8,7 @@ import { DataCacheProvider } from "@/lib/data-cache";
 import { NavigationProvider } from "@/lib/navigation";
 import Sidebar from "./Sidebar";
 import BottomNav from "./BottomNav";
-import { AdsRail } from "./AdsRail";
+// import { AdsRail } from "./AdsRail";
 import QuickSearch from "./QuickSearch";
 import Logo from "./Logo";
 import SiteFooter from "./SiteFooter";
@@ -44,7 +44,7 @@ export default function DashboardLayout({
             <Sidebar />
             <div className="flex min-w-0 flex-1 flex-col">
               <UnverifiedBanner />
-              <header className="sticky top-0 z-30 flex h-14 items-center justify-between border-t-2 border-t-accent border-b border-line bg-background/90 px-4 backdrop-blur-sm lg:hidden">
+              <header className="sticky top-0 z-30 flex h-14 items-center justify-between border-b border-neutral-200 bg-white/90 px-4 backdrop-blur-sm lg:hidden">
                 <Logo />
                 <div className="flex items-center gap-3">
                   <p className="hidden font-mono text-xxs uppercase tracking-label text-muted sm:block">
@@ -70,7 +70,7 @@ export default function DashboardLayout({
                     <RouteTransition>{children}</RouteTransition>
                   </RouteErrorBoundary>
                 </main>
-                <AdsRail />
+                {/* <AdsRail /> */}
               </div>
               <div className="pb-24 lg:pb-0">
                 <SiteFooter />

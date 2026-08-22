@@ -634,6 +634,27 @@ export default function SettingsView() {
 
       <SubscriptionCard />
 
+      <section className="mt-6 border border-line">
+        <div className="flex items-center gap-2 border-b border-line px-5 py-4">
+          <ShieldCheck className="h-4 w-4 text-muted" />
+          <h2 className="text-sm font-semibold text-ink">Legal</h2>
+        </div>
+        <div className="flex items-center gap-4 px-5 py-4">
+          <Link
+            href="/privacy"
+            className="text-xs text-muted transition-colors hover:text-ink"
+          >
+            Privacy policy
+          </Link>
+          <Link
+            href="/terms"
+            className="text-xs text-muted transition-colors hover:text-ink"
+          >
+            Terms of service
+          </Link>
+        </div>
+      </section>
+
       <p className="mt-8 text-center font-mono text-2xs uppercase tracking-label text-muted">
         TaskMind · Analyses powered by AI, with rule-based fallback
       </p>

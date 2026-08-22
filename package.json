@@ -27,6 +27,7 @@
     "framer-motion": "^13.0.0",
     "lucide-react": "^0.562.0",
     "mammoth": "^1.11.0",
+    "mineru-open-sdk": "^0.2.5",
     "next": "^16.3.1",
     "pdf-lib": "^1.17.1",
     "pdfjs-dist": "^5.4.530",

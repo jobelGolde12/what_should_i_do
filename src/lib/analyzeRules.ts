@@ -32,8 +32,17 @@ export function sanitizeSummary(text: string): string {
   return text
     .replace(/<[^>]*>/g, "")
     .replace(/`{1,3}json|```|`/g, "")
+    /*
+     * Models sometimes emit escaped markdown (\*like this\*) despite the
+     * "no markdown" instruction. Unescape first so the emphasis strippers
+     * below catch the revealed markers.
+     */
+    .replace(/\\([!"#$%&'()*+,\-./:;<=>?@[\\\]^_`{|}~])/g, "$1")
     .replace(/\*\*([^*]+)\*\*/g, "$1")
     .replace(/__([^_]+)__/g, "$1")
+    .replace(/\*([^*\n]+)\*/g, "$1")
+    .replace(/\*/g, "")
+    .replace(/[ \t]{2,}/g, " ")
     .trim();
 }
 

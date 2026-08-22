@@ -7,7 +7,6 @@ import {
   useState,
   type ChangeEvent,
   type ClipboardEvent,
-  type DragEvent,
   type KeyboardEvent,
 } from "react";
 
@@ -35,13 +34,29 @@ type FileStatus = "idle" | "extracting" | "error";
 
 const MAX_FILE_SIZE = 10 * 1024 * 1024;
 
-const ACCEPTED_EXTENSIONS = [
-  "txt",
+/*
+ * MinerU converts these to structured Markdown server-side
+ * (/api/extract) before the text reaches the AI model. `.txt`
+ * and anything not listed here skips conversion entirely.
+ */
+const MINERU_EXTENSIONS = [
   "pdf",
-  "docx",
   "png",
   "jpg",
   "jpeg",
+  "gif",
+  "bmp",
+  "tiff",
+  "tif",
+  "docx",
+  "pptx",
+  "html",
+  "htm",
+];
+
+const ACCEPTED_EXTENSIONS = [
+  "txt",
+  ...MINERU_EXTENSIONS,
 ];
 
 /* -------------------------------------------------------------------------- */
@@ -56,6 +71,60 @@ function isSupportedFile(file: File): boolean {
   const extension = getFileExt(file.name);
 
   return ACCEPTED_EXTENSIONS.includes(extension);
+}
+
+function isMineruCandidate(extension: string, mimeType: string): boolean {
+  if (MINERU_EXTENSIONS.includes(extension)) {
+    return true;
+  }
+
+  if (mimeType.startsWith("image/")) {
+    return true;
+  }
+
+  if (mimeType === "text/html") {
+    return true;
+  }
+
+  return false;
+}
+
+/*
+ * Server-side MinerU conversion. Any failure here is handled by the
+ * caller falling back to the original client-side extraction.
+ */
+async function convertWithMineru(
+  file: File
+): Promise<string> {
+  const form = new FormData();
+
+  form.append("file", file);
+
+  const res = await fetch("/api/extract", {
+    method: "POST",
+    body: form,
+  });
+
+  if (!res.ok) {
+    const body = (await res
+      .json()
+      .catch(() => ({}))) as { error?: string };
+
+    throw new Error(
+      body.error ??
+        `Conversion failed (${res.status}).`
+    );
+  }
+
+  const data = (await res.json()) as {
+    markdown?: string;
+  };
+
+  if (!data.markdown) {
+    throw new Error("Conversion returned no text.");
+  }
+
+  return data.markdown;
 }
 
 function getFileIcon(name: string) {
@@ -90,9 +159,21 @@ function getFileTypeLabel(name: string): string {
   if (
     extension === "png" ||
     extension === "jpg" ||
-    extension === "jpeg"
+    extension === "jpeg" ||
+    extension === "gif" ||
+    extension === "bmp" ||
+    extension === "tiff" ||
+    extension === "tif"
   ) {
     return "IMG";
+  }
+
+  if (extension === "pptx") {
+    return "PPT";
+  }
+
+  if (extension === "html" || extension === "htm") {
+    return "HTML";
   }
 
   return "FILE";
@@ -115,21 +196,12 @@ function formatFileSize(bytes: number): string {
 /* -------------------------------------------------------------------------- */
 
 /**
- * TXT files are read directly.
- *
- * Other supported file types continue using the existing
- * extractTextFromFile helper from InputArea.
+ * Original client-side extraction (pdfjs / mammoth / tesseract).
+ * Used as the fallback when MinerU is unavailable or fails.
  */
-async function safeExtractText(file: File): Promise<string> {
-  const extension = getFileExt(file.name);
-
-  if (
-    file.type === "text/plain" ||
-    extension === "txt"
-  ) {
-    return file.text();
-  }
-
+async function extractWithLegacyPipeline(
+  file: File
+): Promise<string> {
   try {
     const { extractTextFromFile } = await import(
       "@/components/input/InputArea"
@@ -146,6 +218,38 @@ async function safeExtractText(file: File): Promise<string> {
       `Could not extract text from this file type. ${detail}`
     );
   }
+}
+
+/**
+ * Routing per spec:
+ * - `.txt` → plain text, no conversion.
+ * - Supported formats → MinerU Markdown, falling back to the
+ *   legacy client pipeline when conversion fails.
+ * - Anything else → legacy pipeline (which rejects unknown types).
+ */
+async function safeExtractFile(
+  file: File
+): Promise<string> {
+  const extension = getFileExt(file.name);
+
+  if (
+    file.type === "text/plain" ||
+    extension === "txt"
+  ) {
+    return file.text();
+  }
+
+  if (
+    isMineruCandidate(extension, file.type)
+  ) {
+    try {
+      return await convertWithMineru(file);
+    } catch {
+      // Fall through to the original extraction flow.
+    }
+  }
+
+  return extractWithLegacyPipeline(file);
 }
 
 /* -------------------------------------------------------------------------- */
@@ -168,6 +272,9 @@ export default function CleanComposer({
 
   const fileInputRef =
     useRef<HTMLInputElement>(null);
+
+  const composerRef =
+    useRef<HTMLDivElement>(null);
 
   /* ------------------------------------------------------------------------ */
   /* State                                                                    */
@@ -206,7 +313,7 @@ export default function CleanComposer({
   const hasFile = fileName !== null;
 
   const canSubmit =
-    hasText &&
+    (hasText || hasFile) &&
     !loading &&
     fileStatus !== "extracting";
 
@@ -290,7 +397,7 @@ export default function CleanComposer({
   /* ------------------------------------------------------------------------ */
 
   const submit = useCallback(() => {
-    if (!canSubmit) {
+    if (!canSubmit || !text.trim()) {
       return;
     }
 
@@ -356,7 +463,7 @@ export default function CleanComposer({
     (file: File): string | null => {
       if (!isSupportedFile(file)) {
         return (
-          "Unsupported file type. Please use TXT, PDF, DOCX, JPG, or PNG."
+          "Unsupported file type. Please use TXT, PDF, DOCX, PPTX, HTML, or an image. Excel files are not supported."
         );
       }
 
@@ -400,10 +507,15 @@ export default function CleanComposer({
 
       try {
         const extracted =
-          await safeExtractText(file);
+          await safeExtractFile(file);
+
+        if (!extracted.trim()) {
+          throw new Error(
+            "No readable text was found in this file."
+          );
+        }
 
         onTextChange(extracted);
-
         setFileStatus("idle");
 
         window.requestAnimationFrame(() => {
@@ -493,141 +605,108 @@ export default function CleanComposer({
   );
 
   /* ------------------------------------------------------------------------ */
-  /* Composer drag interaction                                               */
+  /* Drag & drop (window-level)                                               */
   /* ------------------------------------------------------------------------ */
 
-  const handleDragEnter = (
-    event: DragEvent<HTMLDivElement>
-  ) => {
-    event.preventDefault();
-    event.stopPropagation();
+  /*
+   * Latest values for the window drag listeners. Keeping them in refs lets
+   * the listeners bind exactly once, so the dragenter/dragleave counter is
+   * never reset by a re-render in the middle of an active drag.
+   */
+  const busyRef = useRef(false);
 
-    if (loading) {
-      return;
-    }
+  const handleFileRef = useRef(handleFile);
 
-    if (
-      event.dataTransfer.types.includes("Files")
-    ) {
-      setDragOver(true);
-    }
-  };
+  useEffect(() => {
+    busyRef.current =
+      loading || fileStatus === "extracting";
 
-  const handleDragOver = (
-    event: DragEvent<HTMLDivElement>
-  ) => {
-    event.preventDefault();
-    event.stopPropagation();
-
-    if (loading) {
-      return;
-    }
-
-    if (
-      event.dataTransfer.types.includes("Files")
-    ) {
-      event.dataTransfer.dropEffect = "copy";
-      setDragOver(true);
-    }
-  };
-
-  const handleDragLeave = (
-    event: DragEvent<HTMLDivElement>
-  ) => {
-    event.preventDefault();
-    event.stopPropagation();
-
-    const relatedTarget =
-      event.relatedTarget;
-
-    if (
-      relatedTarget instanceof Node &&
-      event.currentTarget.contains(
-        relatedTarget
-      )
-    ) {
-      return;
-    }
-
-    setDragOver(false);
-  };
-
-  const handleDrop = (
-    event: DragEvent<HTMLDivElement>
-  ) => {
-    event.preventDefault();
-    event.stopPropagation();
-
-    setDragOver(false);
-
-    if (loading) {
-      return;
-    }
-
-    const file =
-      event.dataTransfer.files?.[0];
-
-    if (file) {
-      void handleFile(file);
-    }
-  };
-
-  /* ------------------------------------------------------------------------ */
-  /* Whole-page drag interaction                                              */
-  /* ------------------------------------------------------------------------ */
+    handleFileRef.current = handleFile;
+  });
 
   useEffect(() => {
     let dragCounter = 0;
 
+    const hasFiles = (
+      event: globalThis.DragEvent
+    ): boolean =>
+      !!event.dataTransfer &&
+      Array.from(
+        event.dataTransfer.types
+      ).includes("Files");
+
+    const isOverComposer = (
+      event: globalThis.DragEvent
+    ): boolean =>
+      !!composerRef.current &&
+      event.target instanceof Node &&
+      composerRef.current.contains(
+        event.target
+      );
+
+    const hideOverlays = () => {
+      setPageDrag(false);
+      setDragOver(false);
+    };
+
     const handleWindowDragEnter = (
       event: globalThis.DragEvent
     ) => {
-      if (
-        loading ||
-        !event.dataTransfer?.types.includes(
-          "Files"
-        )
-      ) {
+      if (!hasFiles(event)) {
         return;
       }
 
       dragCounter += 1;
-      setPageDrag(true);
-    };
 
-    const handleWindowDragOver = (
-      event: globalThis.DragEvent
-    ) => {
-      if (
-        loading ||
-        !event.dataTransfer?.types.includes(
-          "Files"
-        )
-      ) {
+      if (busyRef.current) {
         return;
       }
 
-      event.preventDefault();
-
-      if (event.dataTransfer) {
-        event.dataTransfer.dropEffect =
-          "copy";
-      }
-
       setPageDrag(true);
+      setDragOver(isOverComposer(event));
     };
 
     const handleWindowDragLeave = (
       event: globalThis.DragEvent
     ) => {
+      // Mirror dragenter one-for-one so the counter can never desync,
+      // no matter which element the event targets.
+      if (!hasFiles(event)) {
+        return;
+      }
+
+      dragCounter = Math.max(0, dragCounter - 1);
+
+      if (dragCounter === 0) {
+        hideOverlays();
+      }
+    };
+
+    const handleWindowDragOver = (
+      event: globalThis.DragEvent
+    ) => {
+      /*
+       * Always cancel the browser default so that a drop anywhere in the
+       * app can never navigate away from the page (e.g. while a previous
+       * analysis is still loading).
+       */
       event.preventDefault();
 
-      dragCounter -= 1;
+      const droppable =
+        hasFiles(event) && !busyRef.current;
 
-      if (dragCounter <= 0) {
-        dragCounter = 0;
-        setPageDrag(false);
+      if (event.dataTransfer) {
+        event.dataTransfer.dropEffect = droppable
+          ? "copy"
+          : "none";
       }
+
+      if (!droppable) {
+        return;
+      }
+
+      setPageDrag(true);
+      setDragOver(isOverComposer(event));
     };
 
     const handleWindowDrop = (
@@ -636,9 +715,9 @@ export default function CleanComposer({
       event.preventDefault();
 
       dragCounter = 0;
-      setPageDrag(false);
+      hideOverlays();
 
-      if (loading) {
+      if (busyRef.current) {
         return;
       }
 
@@ -646,7 +725,7 @@ export default function CleanComposer({
         event.dataTransfer?.files?.[0];
 
       if (file) {
-        void handleFile(file);
+        void handleFileRef.current(file);
       }
     };
 
@@ -656,13 +735,13 @@ export default function CleanComposer({
     );
 
     window.addEventListener(
-      "dragover",
-      handleWindowDragOver
+      "dragleave",
+      handleWindowDragLeave
     );
 
     window.addEventListener(
-      "dragleave",
-      handleWindowDragLeave
+      "dragover",
+      handleWindowDragOver
     );
 
     window.addEventListener(
@@ -677,13 +756,13 @@ export default function CleanComposer({
       );
 
       window.removeEventListener(
-        "dragover",
-        handleWindowDragOver
+        "dragleave",
+        handleWindowDragLeave
       );
 
       window.removeEventListener(
-        "dragleave",
-        handleWindowDragLeave
+        "dragover",
+        handleWindowDragOver
       );
 
       window.removeEventListener(
@@ -691,7 +770,7 @@ export default function CleanComposer({
         handleWindowDrop
       );
     };
-  }, [handleFile, loading]);
+  }, []);
 
   /* ------------------------------------------------------------------------ */
   /* Focus                                                                    */
@@ -791,7 +870,7 @@ export default function CleanComposer({
                 text-neutral-500
               "
             >
-              TXT · PDF · DOCX · JPG · PNG
+              TXT · PDF · DOCX · PPTX · HTML · IMG
             </p>
 
             <p
@@ -815,7 +894,7 @@ export default function CleanComposer({
         <input
           ref={fileInputRef}
           type="file"
-          accept=".txt,.pdf,.docx,.png,.jpg,.jpeg"
+          accept=".txt,.pdf,.docx,.pptx,.html,.htm,.png,.jpg,.jpeg,.gif,.bmp,.tiff,.tif"
           className="hidden"
           onChange={onFileInputChange}
           disabled={loading}
@@ -826,10 +905,7 @@ export default function CleanComposer({
         {/* ================================================================ */}
 
         <div
-          onDragEnter={handleDragEnter}
-          onDragOver={handleDragOver}
-          onDragLeave={handleDragLeave}
-          onDrop={handleDrop}
+          ref={composerRef}
           className={`
             relative
             w-full
@@ -1077,7 +1153,13 @@ export default function CleanComposer({
                         text-neutral-400
                       "
                     >
-                      Extracting text…
+                      {fileName &&
+                      isMineruCandidate(
+                        getFileExt(fileName),
+                        ""
+                      )
+                        ? "Converting to Markdown…"
+                        : "Extracting text…"}
                     </p>
                   </div>
                 </div>
@@ -1240,7 +1322,7 @@ export default function CleanComposer({
                     ? "Analyzing"
                     : canSubmit
                       ? "Analyze"
-                      : "Enter text to analyze"
+                      : "Attach a file or enter text to analyze"
                 }
                 className={`
                   flex

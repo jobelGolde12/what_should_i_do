@@ -1,23 +1,33 @@
 "use client";
 
 import { useState } from "react";
-import { Check } from "lucide-react";
+import {
+  CalendarCheck,
+  Check,
+  ClipboardList,
+  CreditCard,
+  FileUp,
+  ListTodo,
+  Reply,
+} from "lucide-react";
+import type { LucideIcon } from "lucide-react";
 import { categorizeAction, type ActionCategory } from "@/lib/actionUtils";
 import { urgencyForAction } from "@/lib/urgency";
 import type { UrgencyLevel } from "@/lib/types";
+import { Tooltip } from "@/components/ui/Tooltip";
 
-const CATEGORY_LABEL: Record<ActionCategory, string> = {
-  attend: "Attend",
-  pay: "Pay",
-  submit: "Submit",
-  communicate: "Reply",
-  document: "Prepare",
-  other: "Task",
+const CATEGORY_META: Record<ActionCategory, { label: string; icon: LucideIcon }> = {
+  attend: { label: "Attend", icon: CalendarCheck },
+  pay: { label: "Pay", icon: CreditCard },
+  submit: { label: "Submit", icon: FileUp },
+  communicate: { label: "Reply", icon: Reply },
+  document: { label: "Prepare", icon: ClipboardList },
+  other: { label: "Task", icon: ListTodo },
 };
 
 const URGENCY_DOT: Partial<Record<UrgencyLevel, string>> = {
-  Urgent: "bg-high",
-  Important: "bg-med",
+  Urgent: "bg-ink",
+  Important: "bg-muted",
 };
 
 export default function ActionList({
@@ -41,14 +51,15 @@ export default function ActionList({
   }
 
   return (
-    <ul className="space-y-2.5">
+    <ul className="space-y-3">
       {actions.map((action, i) => {
         const done = checked[i];
         const category = categorizeAction(action);
         const actionUrgency = urgencyForAction(action);
         const dot = URGENCY_DOT[actionUrgency];
+        const CategoryIcon = CATEGORY_META[category].icon;
         return (
-          <li key={i} className="flex items-start gap-3">
+          <li key={i} className="group/action flex items-start gap-3">
             <button
               type="button"
               role="checkbox"
@@ -59,30 +70,42 @@ export default function ActionList({
                   : `Mark "${action}" as done`
               }
               onClick={() => toggle(i)}
-              className={`mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center border transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent ${
+              className={`mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full border transition-all duration-150 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent ${
                 done
-                  ? "border-accent bg-accent-btn text-white"
-                  : "border-line bg-background hover:border-ink"
+                  ? "border-night bg-night text-white"
+                  : "border-line bg-transparent hover:border-ink group-hover/action:border-neutral-400"
               }`}
             >
-              {done && <Check className="h-3.5 w-3.5" />}
+              {done && <Check className="h-3 w-3" strokeWidth={2.5} />}
             </button>
             <span
-              className={`min-w-0 flex-1 text-sm leading-relaxed ${
+              className={`min-w-0 flex-1 text-sm leading-relaxed transition-colors ${
                 done ? "text-muted line-through decoration-line" : "text-ink"
               }`}
             >
               {action}
             </span>
-            {dot && (
-              <span
-                role="img"
-                aria-label={`${actionUrgency} action`}
-                className={`mt-2 h-1.5 w-1.5 shrink-0 rounded-full ${dot}`}
-              />
-            )}
-            <span className="mt-1 shrink-0 font-mono text-xxs uppercase tracking-label-mono text-muted">
-              {CATEGORY_LABEL[category]}
+            <span className="mt-0.5 flex shrink-0 items-center gap-2.5">
+              {dot && (
+                <Tooltip label={`${actionUrgency} action`}>
+                  <span
+                    role="img"
+                    aria-label={`${actionUrgency} action`}
+                    className={`flex h-4 w-4 items-center justify-center`}
+                  >
+                    <span className={`h-1.5 w-1.5 rounded-full ${dot}`} />
+                  </span>
+                </Tooltip>
+              )}
+              <Tooltip label={CATEGORY_META[category].label}>
+                <span
+                  role="img"
+                  aria-label={`${CATEGORY_META[category].label} task`}
+                  className="flex h-4 w-4 cursor-default items-center justify-center text-muted transition-colors hover:text-ink"
+                >
+                  <CategoryIcon className="h-[15px] w-[15px]" strokeWidth={1.8} />
+                </span>
+              </Tooltip>
             </span>
           </li>
         );

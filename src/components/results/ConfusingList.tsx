@@ -5,6 +5,7 @@ import { Check, Clipboard, Minus, Plus } from "lucide-react";
 import type { ConfusingPart, ConfusingPartReason } from "@/app/actions/analyzeText";
 import { copyText } from "@/lib/share";
 import { toast } from "@/lib/toast";
+import { Tooltip } from "@/components/ui/Tooltip";
 
 const REASON_LABEL: Record<ConfusingPartReason, string> = {
   "missing-info": "Missing info",
@@ -12,12 +13,6 @@ const REASON_LABEL: Record<ConfusingPartReason, string> = {
   contradiction: "Contradiction",
   jargon: "Jargon",
   incomplete: "Incomplete",
-};
-
-const SEVERITY_COLOR: Record<string, string> = {
-  low: "text-muted border-line",
-  medium: "text-med border-med",
-  high: "text-high border-high",
 };
 
 export default function ConfusingList({
@@ -49,50 +44,56 @@ export default function ConfusingList({
 
   return (
     <div>
-      <ul id="confusing-list" className="space-y-3">
+      <ul id="confusing-list" className="space-y-4">
         {visible.map((part, i) => {
           const copied = copiedIndex === i;
           return (
-            <li key={i} className="border-l-2 border-med bg-med-bg px-4 py-3">
+            <li key={i} className="group/part">
               <div className="flex flex-wrap items-center gap-2">
                 {part.reason && (
-                  <span className="font-mono text-xxs uppercase tracking-label-mono text-med">
+                  <span className="font-mono text-xxs uppercase tracking-label-mono text-muted">
                     {REASON_LABEL[part.reason]}
                   </span>
                 )}
                 {part.severity && (
-                  <span
-                    className={`border px-1.5 py-0.5 font-mono text-xxs uppercase tracking-label-mono ${
-                      SEVERITY_COLOR[part.severity] ?? SEVERITY_COLOR.low
-                    }`}
-                  >
-                    {part.severity}
-                  </span>
+                  <Tooltip label={`${part.severity} severity`}>
+                    <span className="cursor-default font-mono text-xxs uppercase tracking-label-mono text-muted">
+                      {part.severity}
+                    </span>
+                  </Tooltip>
                 )}
               </div>
-              <p className="mt-1 text-sm italic text-ink">
+              <p className="mt-1.5 text-sm italic leading-relaxed text-ink">
                 &ldquo;{part.sentence}&rdquo;
               </p>
-              <p className="mt-1.5 pl-3 text-sm text-muted">
-                {part.explanation}
-              </p>
+              {part.explanation && (
+                <p className="mt-1 text-sm leading-relaxed text-muted">
+                  {part.explanation}
+                </p>
+              )}
               {part.suggestion && (
-                <button
-                  type="button"
-                  onClick={() => copyClarification(part, i)}
-                  className="mt-2 ml-3 inline-flex items-center gap-1.5 text-xs font-medium text-accent hover:text-accent-dark"
-                >
-                  {copied ? (
-                    <>
-                      <Check className="h-3.5 w-3.5" /> Copied
-                    </>
-                  ) : (
-                    <>
-                      <Clipboard className="h-3.5 w-3.5" /> Copy clarification
-                      question
-                    </>
-                  )}
-                </button>
+                <div className="mt-2">
+                  <Tooltip label={copied ? "Copied" : "Copy clarification question"}>
+                    <button
+                      type="button"
+                      aria-label={
+                        copied
+                          ? "Copied"
+                          : "Copy clarification question"
+                      }
+                      onClick={() => copyClarification(part, i)}
+                      className={`flex h-7 w-7 items-center justify-center rounded-full transition-all duration-150 hover:bg-surface-2 active:scale-90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent ${
+                        copied ? "text-ink" : "text-muted hover:text-ink"
+                      }`}
+                    >
+                      {copied ? (
+                        <Check className="h-3.5 w-3.5" strokeWidth={2} />
+                      ) : (
+                        <Clipboard className="h-3.5 w-3.5" strokeWidth={1.8} />
+                      )}
+                    </button>
+                  </Tooltip>
+                </div>
               )}
             </li>
           );
@@ -104,7 +105,7 @@ export default function ConfusingList({
           aria-expanded={showAll}
           aria-controls="confusing-list"
           onClick={() => setShowAll((v) => !v)}
-          className="mt-3 inline-flex items-center gap-1.5 text-xs font-medium text-accent hover:text-accent-dark"
+          className="mt-4 inline-flex items-center gap-1.5 text-xs font-medium text-muted transition-colors hover:text-ink"
         >
           {showAll ? (
             <>

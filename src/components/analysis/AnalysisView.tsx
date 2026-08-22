@@ -49,7 +49,7 @@ export default function AnalysisView() {
         </p>
       </header>
 
-      <div className="mb-6 border-l-2 border-line bg-surface px-4 py-3">
+      <div className="mb-6">
         <p className="font-mono text-xxs uppercase tracking-label text-muted">
           Original input
         </p>

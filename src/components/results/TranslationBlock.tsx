@@ -131,16 +131,16 @@ export default function TranslationBlock({
   }
 
   return (
-    <div className="border border-line bg-surface">
+    <div>
       <button
         type="button"
         onClick={togglePanel}
-        className="flex w-full items-center justify-between px-4 py-3 text-left"
+        className="group/toggle flex w-full items-center justify-between py-3 text-left"
         aria-expanded={open}
         aria-controls="translation-panel"
       >
         <span className="inline-flex items-center gap-2 text-xs font-semibold text-ink">
-          <Languages className="h-4 w-4 text-muted" />
+          <Languages className="h-4 w-4 text-muted transition-colors group-hover/toggle:text-ink" strokeWidth={1.8} />
           Translate summary
         </span>
         <ChevronDown
@@ -150,7 +150,7 @@ export default function TranslationBlock({
       </button>
 
       {open && (
-        <div id="translation-panel" className="border-t border-line px-4 py-4">
+        <div id="translation-panel" className="pb-1 pt-3">
           <div className="flex flex-wrap items-center gap-1.5">
             {LANGUAGES.map((l) => (
               <button
@@ -168,10 +168,10 @@ export default function TranslationBlock({
                     void translate(l.code);
                   }
                 }}
-                className={`rounded-tm px-2.5 py-1.5 text-xs font-medium transition-colors ${
+                className={`rounded-full px-3 py-1.5 text-xs font-medium transition-colors ${
                   language === l.code
-                    ? "bg-accent-btn text-white"
-                    : "border border-line bg-background text-muted hover:text-ink"
+                    ? "bg-night text-white"
+                    : "bg-surface-2 text-muted hover:text-ink"
                 }`}
               >
                 {l.label}

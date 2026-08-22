@@ -4,14 +4,16 @@ import { useEffect, useState } from "react";
 import {
   CalendarCheck2,
   CalendarClock,
+  CalendarDays,
   CalendarPlus,
+  CalendarRange,
   CalendarX2,
-  ExternalLink,
   BellRing,
   Loader2,
 } from "lucide-react";
 import { downloadIcs } from "@/lib/ics";
 import { Button } from "@/components/ui/Button";
+import { Tooltip } from "@/components/ui/Tooltip";
 import {
   googleCalendarUrl,
   outlookCalendarUrl,
@@ -156,32 +158,44 @@ export default function DeadlineList({
           return (
             <li
               key={i}
-              className="flex flex-wrap items-center gap-3 border-b border-line py-2 font-mono text-sm text-ink first:border-t"
+              className="flex flex-wrap items-center gap-3 py-2.5 font-mono text-sm text-ink"
             >
               {item.date ? (
                 item.overdue ? (
-                  <CalendarX2 className="h-4 w-4 shrink-0 text-high" />
+                  <CalendarX2 className="h-4 w-4 shrink-0 text-ink" strokeWidth={1.8} />
                 ) : (
-                  <CalendarClock className="h-4 w-4 shrink-0 text-muted" />
+                  <CalendarClock className="h-4 w-4 shrink-0 text-muted" strokeWidth={1.8} />
                 )
               ) : (
-                <CalendarCheck2 className="h-4 w-4 shrink-0 text-muted" />
+                <CalendarCheck2 className="h-4 w-4 shrink-0 text-muted" strokeWidth={1.8} />
               )}
               <span className="min-w-0 flex-1">{item.raw}</span>
               {hasReminder && (
-                <span className="inline-flex items-center gap-1 font-mono text-2xs uppercase tracking-label text-accent">
-                  <BellRing className="h-3 w-3" /> Reminder set
-                </span>
+                <Tooltip label="Reminder set">
+                  <span
+                    role="img"
+                    aria-label="Reminder set"
+                    className="flex h-4 w-4 cursor-default items-center justify-center text-ink"
+                  >
+                    <BellRing className="h-[15px] w-[15px]" strokeWidth={1.8} />
+                  </span>
+                </Tooltip>
               )}
               {hasCalendar && (
-                <span className="inline-flex items-center gap-1 font-mono text-2xs uppercase tracking-label text-muted">
-                  <CalendarPlus className="h-3 w-3" /> Added
-                </span>
+                <Tooltip label="Added to calendar">
+                  <span
+                    role="img"
+                    aria-label="Added to calendar file"
+                    className="flex h-4 w-4 cursor-default items-center justify-center text-muted"
+                  >
+                    <CalendarDays className="h-[15px] w-[15px]" strokeWidth={1.8} />
+                  </span>
+                </Tooltip>
               )}
               {item.date && (
                 <span
                   className={`text-xs ${
-                    item.overdue ? "text-high" : "text-muted"
+                    item.overdue ? "font-medium text-ink" : "text-muted"
                   }`}
                 >
                   {item.label}
@@ -189,27 +203,29 @@ export default function DeadlineList({
                 </span>
               )}
               {item.date && (
-                <span className="flex items-center gap-2 text-xs text-muted">
-                  <a
-                    href={googleCalendarUrl(item.raw, item.date)}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    aria-label="Add to Google Calendar"
-                    className="inline-flex items-center gap-1 underline-offset-2 hover:text-ink hover:underline"
-                  >
-                    <ExternalLink className="h-3 w-3" />
-                    Google
-                  </a>
-                  <a
-                    href={outlookCalendarUrl(item.raw, item.date)}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    aria-label="Add to Outlook Calendar"
-                    className="inline-flex items-center gap-1 underline-offset-2 hover:text-ink hover:underline"
-                  >
-                    <ExternalLink className="h-3 w-3" />
-                    Outlook
-                  </a>
+                <span className="flex items-center gap-1.5 text-xs text-muted">
+                  <Tooltip label="Add to Google Calendar">
+                    <a
+                      href={googleCalendarUrl(item.raw, item.date)}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      aria-label="Add to Google Calendar"
+                      className="flex h-4 w-4 items-center justify-center transition-colors hover:text-ink"
+                    >
+                      <CalendarPlus className="h-[15px] w-[15px]" strokeWidth={1.8} />
+                    </a>
+                  </Tooltip>
+                  <Tooltip label="Add to Outlook Calendar">
+                    <a
+                      href={outlookCalendarUrl(item.raw, item.date)}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      aria-label="Add to Outlook Calendar"
+                      className="flex h-4 w-4 items-center justify-center transition-colors hover:text-ink"
+                    >
+                      <CalendarRange className="h-[15px] w-[15px]" strokeWidth={1.8} />
+                    </a>
+                  </Tooltip>
                 </span>
               )}
             </li>

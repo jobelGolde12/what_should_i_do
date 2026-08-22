@@ -229,20 +229,20 @@ export default function ReplyPanel({
       role="group"
       aria-label="Reply drafting"
       tabIndex={open ? 0 : undefined}
-      className="mt-6 border border-line bg-surface outline-none"
+      className="outline-none"
     >
       <button
         type="button"
         onClick={() => setOpen((o) => !o)}
         aria-expanded={open}
         aria-controls="reply-panel"
-        className="flex w-full items-center justify-between px-4 py-3 text-left"
+        className="group/toggle flex w-full items-center justify-between py-3 text-left"
       >
         <span className="inline-flex items-center gap-2 text-xs font-semibold text-ink">
-          <PenLine className="h-4 w-4 text-muted" />
+          <PenLine className="h-4 w-4 text-muted transition-colors group-hover/toggle:text-ink" strokeWidth={1.8} />
           Draft a reply
           {draft && !loading && (
-            <span className="rounded-tm bg-accent-soft px-1.5 py-0.5 font-mono text-xxs uppercase tracking-label text-accent">
+            <span className="rounded-full bg-surface-2 px-2 py-0.5 font-mono text-xxs uppercase tracking-label text-muted">
               {method === "fallback" ? "template draft" : "draft ready"}
             </span>
           )}
@@ -254,7 +254,7 @@ export default function ReplyPanel({
       </button>
 
       {open && (
-        <div id="reply-panel" className="border-t border-line px-4 py-4">
+        <div id="reply-panel" className="pb-1 pt-3">
           {!isPro ? (
             <ProGate feature="Reply drafting" />
           ) : (
@@ -273,10 +273,10 @@ export default function ReplyPanel({
                         if (loading) return;
                         setTone(t);
                       }}
-                      className={`rounded-tm px-2.5 py-1.5 text-xs font-medium capitalize transition-colors ${
+                      className={`rounded-full px-3 py-1.5 text-xs font-medium capitalize transition-colors ${
                         tone === t
-                          ? "bg-accent-btn text-white"
-                          : "border border-line bg-background text-muted hover:text-ink"
+                          ? "bg-night text-white"
+                          : "bg-surface-2 text-muted hover:text-ink"
                       }`}
                     >
                       {t}
@@ -288,6 +288,7 @@ export default function ReplyPanel({
               <div className="mt-3 flex flex-wrap items-center gap-2">
                 <Button
                   size="sm"
+                  variant="dark"
                   onClick={() => void generate(true)}
                   disabled={loading || !message || !analysis}
                 >
@@ -315,7 +316,7 @@ export default function ReplyPanel({
                   </Button>
                 )}
                 {draft && !loading && sendStep === "idle" && sendCtx?.connected && (
-                  <Button size="sm" onClick={openSend}>
+                  <Button size="sm" variant="dark" onClick={openSend}>
                     <Send className="h-3.5 w-3.5" />
                     Send reply
                   </Button>
@@ -325,7 +326,7 @@ export default function ReplyPanel({
                     <FileText className="h-3.5 w-3.5 text-muted" />
                     <select
                       aria-label="Start from a template"
-                      className="rounded-tm border border-line bg-background px-2 py-1.5 text-xs text-ink outline-none focus:border-ink"
+                      className="rounded-tm bg-surface-2 px-2 py-1.5 text-xs text-ink outline-none transition-colors hover:text-ink"
                       onChange={(e) => {
                         const t = templates.find((x) => x.id === e.target.value);
                         if (t) startFromTemplate(t.content);
@@ -371,7 +372,7 @@ export default function ReplyPanel({
                       persistDraft(e.target.value);
                     }}
                     aria-label="Reply draft"
-                    className="block min-h-24 w-full resize-y border border-line bg-background p-3 text-sm leading-relaxed text-ink outline-none focus:border-ink"
+                    className="block min-h-24 w-full resize-y rounded-tm bg-surface-2 p-3 text-sm leading-relaxed text-ink outline-none transition-colors focus:bg-background"
                   />
                 )}
                 {!loading && !error && !draft && (
@@ -382,7 +383,7 @@ export default function ReplyPanel({
               </div>
 
               {(sendStep === "confirm" || sendStep === "sending") && (
-                <div className="mt-4 border-t border-line pt-3">
+                <div className="mt-4 pt-3">
                   <div className="grid gap-2 sm:grid-cols-2">
                     <label className="block">
                       <span className="font-mono text-xxs uppercase tracking-label text-muted">
@@ -393,7 +394,7 @@ export default function ReplyPanel({
                         onChange={(e) => setSendTo(e.target.value)}
                         disabled={sendStep === "sending"}
                         aria-label="Reply recipient"
-                        className="mt-1 block w-full rounded-tm border border-line bg-background px-2.5 py-1.5 text-sm text-ink outline-none focus:border-ink disabled:opacity-60"
+                        className="mt-1 block w-full rounded-tm bg-surface-2 px-2.5 py-1.5 text-sm text-ink outline-none transition-colors focus:bg-background disabled:opacity-60"
                       />
                     </label>
                     <label className="block">
@@ -405,7 +406,7 @@ export default function ReplyPanel({
                         onChange={(e) => setSendSubject(e.target.value)}
                         disabled={sendStep === "sending"}
                         aria-label="Reply subject"
-                        className="mt-1 block w-full rounded-tm border border-line bg-background px-2.5 py-1.5 text-sm text-ink outline-none focus:border-ink disabled:opacity-60"
+                        className="mt-1 block w-full rounded-tm bg-surface-2 px-2.5 py-1.5 text-sm text-ink outline-none transition-colors focus:bg-background disabled:opacity-60"
                       />
                     </label>
                   </div>
@@ -416,6 +417,7 @@ export default function ReplyPanel({
                   <div className="mt-3 flex items-center gap-2">
                     <Button
                       size="sm"
+                      variant="dark"
                       onClick={() => void sendReply()}
                       disabled={
                         sendStep === "sending" || !sendTo || !sendSubject || !draft
@@ -446,7 +448,7 @@ export default function ReplyPanel({
               )}
               {sendStep === "sent" && (
                 <p className="mt-3 flex items-center gap-1.5 text-xs text-ink">
-                  <MailCheck className="h-3.5 w-3.5 text-accent" />
+                  <MailCheck className="h-3.5 w-3.5" strokeWidth={1.8} />
                   Reply sent via Mailgun.
                 </p>
               )}

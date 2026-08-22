@@ -298,10 +298,12 @@ export default function CleanComposer({
 
     onAnalyze(text);
 
+    resetAll();
+
     window.setTimeout(() => {
       setSubmitted(false);
     }, 500);
-  }, [canSubmit, onAnalyze, text]);
+  }, [canSubmit, onAnalyze, resetAll, text]);
 
   /* ------------------------------------------------------------------------ */
   /* Input change                                                             */

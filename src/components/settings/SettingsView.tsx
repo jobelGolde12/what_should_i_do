@@ -656,7 +656,7 @@ export default function SettingsView() {
       </section>
 
       <p className="mt-8 text-center font-mono text-2xs uppercase tracking-label text-muted">
-        TaskMind · Analyses powered by AI, with rule-based fallback
+        TaskMind
       </p>
     </div>
   );

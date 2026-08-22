@@ -2,13 +2,12 @@
 
 import { useEffect, useState } from "react";
 import type { ReactNode } from "react";
-import { Share2, Trash2, Check, ScanLine, Square } from "lucide-react";
+import { Share2, Trash2, Square } from "lucide-react";
 import type { AnalysisRecord } from "@/lib/types";
 import type { AnalysisResult } from "@/app/actions/analyzeText";
 import { formatDateTime } from "@/lib/format";
 import ShareDialog from "@/components/share/ShareDialog";
-import { UrgencyBadge, Badge } from "@/components/ui/Badge";
-import { Button } from "@/components/ui/Button";
+import { IconButton } from "@/components/ui/Tooltip";
 import UrgencyMeter from "./UrgencyMeter";
 import ActionList from "./ActionList";
 import DeadlineList from "./DeadlineList";
@@ -52,7 +51,7 @@ const FIELD_LABELS: Record<Field, string> = {
 function SectionHeading({ children }: { children: ReactNode }) {
   return (
     <h3 className="mb-3 flex items-center gap-2 font-mono text-2xs font-medium uppercase tracking-label text-muted">
-      <span className="inline-block h-px w-6 bg-accent" aria-hidden="true" />
+      <span className="inline-block h-px w-6 bg-ink" aria-hidden="true" />
       {children}
     </h3>
   );
@@ -85,7 +84,7 @@ function FieldProgress({
             <span
               aria-hidden="true"
               className={`h-1 w-1 rounded-full transition-colors ${
-                done ? "bg-accent" : "bg-line"
+                done ? "bg-ink" : "bg-line"
               }`}
             />
             {FIELD_LABELS[field]}
@@ -152,66 +151,46 @@ export default function ResultsPanel({
 
   return (
     <div className="settle-stage">
-      <header className="px-5 py-4 sm:px-6 border-b border-line">
+      <header className="py-2">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
-            <div className="flex flex-wrap items-center gap-2">
-              <h2 className="font-display text-lg font-medium text-ink">
-                Analysis results
-              </h2>
-              {urgency && <UrgencyBadge level={urgency} />}
-              {result && (
-                <Badge tone="neutral">
-                  {result.analysisMethod === "ai" ? "AI analysis" : "Rule-based"}
-                </Badge>
-              )}
-              <span aria-live="polite">
-                <Badge tone={stage === "settled" ? "accent" : "neutral"}>
-                  {stage === "settled" ? (
-                    <>
-                      <Check className="h-3 w-3" /> Resolved
-                    </>
-                  ) : (
-                    <>
-                      <ScanLine className="h-3 w-3 animate-pulse" /> Resolving…
-                    </>
-                  )}
-                </Badge>
-              </span>
-            </div>
-            <p className="mt-1.5 font-mono text-2xs text-muted">
+            <h2 className="font-display text-lg font-medium text-ink">
+              Analysis results
+            </h2>
+            <p className="mt-1 font-mono text-2xs text-muted">
               {record ? formatDateTime(record.timestamp) : "Streaming results…"}
             </p>
           </div>
 
-          {record && (
-            <div className="flex items-center gap-2">
-              <Button variant="outline" size="sm" onClick={handleShare}>
-                <Share2 className="h-3.5 w-3.5" /> Share
-              </Button>
-              {onDelete && (
-                <Button variant="ghost" size="sm" onClick={onDelete}>
-                  <Trash2 className="h-3.5 w-3.5" /> Delete
-                </Button>
-              )}
-            </div>
-          )}
-
-          {isStreaming && onCancel && (
-            <Button variant="ghost" size="sm" onClick={onCancel}>
-              <Square className="h-3.5 w-3.5" /> Cancel
-            </Button>
-          )}
-
-          {isStreaming && (
-            <div className="mt-3 pt-3">
-              <FieldProgress resolved={resolved} />
-            </div>
-          )}
+          <div className="flex items-center gap-0.5">
+            {record && (
+              <>
+                <IconButton label="Share analysis" onClick={handleShare}>
+                  <Share2 className="h-4 w-4" strokeWidth={1.8} />
+                </IconButton>
+                {onDelete && (
+                  <IconButton label="Delete analysis" onClick={onDelete}>
+                    <Trash2 className="h-4 w-4" strokeWidth={1.8} />
+                  </IconButton>
+                )}
+              </>
+            )}
+            {isStreaming && onCancel && (
+              <IconButton label="Cancel analysis" onClick={onCancel}>
+                <Square className="h-4 w-4" strokeWidth={1.8} />
+              </IconButton>
+            )}
+          </div>
         </div>
+
+        {isStreaming && (
+          <div className="mt-3">
+            <FieldProgress resolved={resolved} />
+          </div>
+        )}
       </header>
 
-      <div className="space-y-8 px-5 py-6 sm:px-6">
+      <div className="space-y-8 py-6">
         {/* Summary moved to the top for the "Inverted Pyramid" UX principle */}
         <section className={resolved.summary ? "settle-section revealed" : "settle-section"}>
           <SectionHeading>Summary</SectionHeading>
@@ -288,7 +267,7 @@ export default function ResultsPanel({
       </div>
 
       {record && result && (
-        <div className="px-5 pb-6 sm:px-6">
+        <div className="pb-6">
           <ReplyPanel
             draftKey={record.id}
             message={record.input}

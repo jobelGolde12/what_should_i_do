@@ -26,7 +26,7 @@ export default function SummaryText({ summary }: { summary: string }) {
           (p) => part.toLowerCase() === p.toLowerCase()
         );
         return isPhrase ? (
-          <mark key={i} className="bg-med-bg px-1 text-med">
+          <mark key={i} className="rounded-[2px] bg-surface-2 px-1 text-ink">
             {part}
           </mark>
         ) : (

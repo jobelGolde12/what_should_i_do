@@ -172,17 +172,17 @@ export default function AnalysisChat({
     <div
       role="group"
       aria-label="Ask about this analysis"
-      className="mt-4 border border-line bg-surface"
+      className="mt-1"
     >
       <button
         type="button"
         onClick={() => setOpen((o) => !o)}
         aria-expanded={open}
         aria-controls="analysis-chat-panel"
-        className="flex w-full items-center justify-between px-4 py-3 text-left"
+        className="group/toggle flex w-full items-center justify-between py-3 text-left"
       >
         <span className="inline-flex items-center gap-2 text-xs font-semibold text-ink">
-          <MessageCircleQuestion className="h-4 w-4 text-muted" />
+          <MessageCircleQuestion className="h-4 w-4 text-muted transition-colors group-hover/toggle:text-ink" strokeWidth={1.8} />
           Ask about this analysis
         </span>
         <ChevronDown
@@ -192,7 +192,7 @@ export default function AnalysisChat({
       </button>
 
       {open && (
-        <div id="analysis-chat-panel" className="border-t border-line px-4 py-4">
+        <div id="analysis-chat-panel" className="pb-1 pt-3">
           <div className="flex flex-wrap gap-1.5">
             {CHAT_PRESETS.map((preset) => (
               <button
@@ -200,7 +200,7 @@ export default function AnalysisChat({
                 type="button"
                 disabled={loading}
                 onClick={() => void send(preset)}
-                className="rounded-tm border border-line bg-background px-2.5 py-1.5 text-xs font-medium text-muted transition-colors hover:text-ink disabled:cursor-not-allowed disabled:opacity-50"
+                className="rounded-full bg-surface-2 px-3 py-1.5 text-xs font-medium text-muted transition-colors hover:text-ink disabled:cursor-not-allowed disabled:opacity-50"
               >
                 {preset}
               </button>
@@ -222,14 +222,14 @@ export default function AnalysisChat({
               m.role === "user" ? (
                 <div
                   key={m.id}
-                  className="ml-auto max-w-[85%] whitespace-pre-line break-words rounded-tm bg-accent-btn px-3 py-2 text-xs leading-relaxed text-white"
+                  className="ml-auto max-w-[85%] whitespace-pre-line break-words rounded-2xl rounded-br-sm bg-night px-3.5 py-2 text-xs leading-relaxed text-white"
                 >
                   {m.content}
                 </div>
               ) : (
                 <div
                   key={m.id}
-                  className="mr-auto max-w-[85%] whitespace-pre-line break-words rounded-tm border border-line bg-surface-2 px-3 py-2 text-xs leading-relaxed text-ink"
+                  className="mr-auto max-w-[85%] whitespace-pre-line break-words rounded-2xl rounded-bl-sm bg-surface-2 px-3.5 py-2 text-xs leading-relaxed text-ink"
                 >
                   {m.content || "\u200B"}
                 </div>
@@ -237,7 +237,7 @@ export default function AnalysisChat({
             )}
 
             {loading && (
-              <div className="mr-auto inline-flex items-center gap-1.5 rounded-tm border border-line bg-surface-2 px-3 py-2 text-xs text-muted">
+              <div className="mr-auto inline-flex items-center gap-1.5 rounded-2xl bg-surface-2 px-3.5 py-2 text-xs text-muted">
                 <Loader2 className="h-3 w-3 animate-spin" aria-hidden="true" />
                 Thinking…
               </div>
@@ -259,7 +259,7 @@ export default function AnalysisChat({
               rows={1}
               aria-label="Ask about this analysis"
               placeholder="Ask about this analysis…"
-              className="min-w-0 flex-1 resize-none rounded-tm border border-line bg-background px-2.5 py-2 text-sm text-ink outline-none focus:border-ink disabled:opacity-60"
+              className="min-w-0 flex-1 resize-none rounded-tm bg-surface-2 px-2.5 py-2 text-sm text-ink outline-none transition-colors focus:bg-background disabled:opacity-60"
             />
             {loading ? (
               <Button size="sm" variant="ghost" onClick={stop} aria-label="Stop answering">
@@ -268,6 +268,7 @@ export default function AnalysisChat({
             ) : (
               <Button
                 size="sm"
+                variant="dark"
                 onClick={() => void send(input)}
                 disabled={!input.trim() || !message || !analysis}
                 aria-label="Send question"

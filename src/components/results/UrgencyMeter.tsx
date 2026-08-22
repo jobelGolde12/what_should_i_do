@@ -14,27 +14,29 @@ export default function UrgencyMeter({
   const active = URGENCY_LEVELS[safeIndex];
 
   return (
-    <div>
-      <div className="grid grid-cols-3 gap-1.5">
-        {URGENCY_LEVELS.map((l, i) => (
+    <div className="max-w-md">
+      <div
+        role="img"
+        aria-label={`Urgency: ${active.label}`}
+        className="grid grid-cols-3 gap-1.5"
+      >
+        {URGENCY_LEVELS.map((_, i) => (
           <div
-            key={l.key}
+            key={i}
             aria-hidden="true"
-            className={`h-1.5 ${i <= safeIndex ? l.fill : "bg-line"}`}
+            className={`h-1 ${i <= safeIndex ? "bg-ink" : "bg-line"}`}
           />
         ))}
       </div>
-      <div className="mt-2 flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
-        <span className="text-sm font-medium text-ink">Urgency</span>
-        <span className={`font-mono text-xs ${active.color}`}>
-          {active.label}
+      <div className="mt-2.5 flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
+        <span className="text-sm font-medium text-ink">{active.label}</span>
+        <span className="font-mono text-2xs uppercase tracking-label-tight text-muted">
+          {level}
         </span>
       </div>
-      {(reason || active) && (
-        <p className="mt-1 font-mono text-2xs text-muted">
-          {reason ?? active.help}
-        </p>
-      )}
+      <p className="mt-1 text-xs leading-relaxed text-muted">
+        {reason ?? active.help}
+      </p>
     </div>
   );
 }

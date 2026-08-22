@@ -245,7 +245,7 @@ html.no-js .settle-section:not(.revealed) {
   display: block;
   height: 1px;
   margin-bottom: 0.75rem;
-  background: linear-gradient(90deg, var(--accent) 0%, var(--accent) 42px, var(--line) 42px);
+  background: linear-gradient(90deg, var(--ink) 0%, var(--ink) 42px, var(--line) 42px);
   opacity: 0;
   animation: tm-settle-in 0.4s ease forwards;
   animation-delay: inherit;

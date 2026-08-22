@@ -92,39 +92,80 @@ function isMineruCandidate(extension: string, mimeType: string): boolean {
 /*
  * Server-side MinerU conversion. Any failure here is handled by the
  * caller falling back to the original client-side extraction.
+ *
+ * The request is bounded by a client-side timeout well below the server's
+ * own 90 s ceiling, so a hung connection falls back to local extraction
+ * instead of spinning forever. Passes an AbortSignal so a user-initiated
+ * cancel kills the upload immediately.
  */
+const MINERU_CLIENT_TIMEOUT_MS = 45_000;
+
+function isAbortError(error: unknown): boolean {
+  return (
+    error instanceof DOMException &&
+    error.name === "AbortError"
+  );
+}
+
 async function convertWithMineru(
-  file: File
+  file: File,
+  signal?: AbortSignal
 ): Promise<string> {
   const form = new FormData();
 
   form.append("file", file);
 
-  const res = await fetch("/api/extract", {
-    method: "POST",
-    body: form,
-  });
+  const bounded = new AbortController();
 
-  if (!res.ok) {
-    const body = (await res
-      .json()
-      .catch(() => ({}))) as { error?: string };
+  const abortFromOuter = () =>
+    bounded.abort();
 
-    throw new Error(
-      body.error ??
-        `Conversion failed (${res.status}).`
+  signal?.addEventListener(
+    "abort",
+    abortFromOuter,
+    { once: true }
+  );
+
+  const timer = window.setTimeout(
+    () => bounded.abort(),
+    MINERU_CLIENT_TIMEOUT_MS
+  );
+
+  try {
+    const res = await fetch("/api/extract", {
+      method: "POST",
+      body: form,
+      signal: bounded.signal,
+    });
+
+    if (!res.ok) {
+      const body = (await res
+        .json()
+        .catch(() => ({}))) as { error?: string };
+
+      throw new Error(
+        body.error ??
+          `Conversion failed (${res.status}).`
+      );
+    }
+
+    const data = (await res.json()) as {
+      markdown?: string;
+    };
+
+    if (!data.markdown) {
+      throw new Error("Conversion returned no text.");
+    }
+
+    return data.markdown;
+  } finally {
+    window.clearTimeout(timer);
+
+    signal?.removeEventListener(
+      "abort",
+      abortFromOuter
     );
   }
-
-  const data = (await res.json()) as {
-    markdown?: string;
-  };
-
-  if (!data.markdown) {
-    throw new Error("Conversion returned no text.");
-  }
-
-  return data.markdown;
 }
 
 function getFileIcon(name: string) {
@@ -195,17 +236,45 @@ function formatFileSize(bytes: number): string {
 /* Text extraction                                                            */
 /* -------------------------------------------------------------------------- */
 
+/*
+ * Shared lazy loader for the legacy extractor. Starting this import while
+ * MinerU is still converting means a failed conversion falls back without
+ * paying the chunk-download cost at the worst possible moment.
+ */
+let legacyExtractorPromise: Promise<
+  typeof import("@/components/input/InputArea")
+> | null = null;
+
+function loadLegacyExtractor(): Promise<
+  typeof import("@/components/input/InputArea")
+> {
+  if (!legacyExtractorPromise) {
+    legacyExtractorPromise = import(
+      "@/components/input/InputArea"
+    );
+  }
+
+  return legacyExtractorPromise;
+}
+
 /**
  * Original client-side extraction (pdfjs / mammoth / tesseract).
  * Used as the fallback when MinerU is unavailable or fails.
  */
 async function extractWithLegacyPipeline(
-  file: File
+  file: File,
+  signal?: AbortSignal
 ): Promise<string> {
-  try {
-    const { extractTextFromFile } = await import(
-      "@/components/input/InputArea"
+  if (signal?.aborted) {
+    throw new DOMException(
+      "Extraction cancelled.",
+      "AbortError"
     );
+  }
+
+  try {
+    const { extractTextFromFile } =
+      await loadLegacyExtractor();
 
     return await extractTextFromFile(file);
   } catch (error) {
@@ -223,12 +292,16 @@ async function extractWithLegacyPipeline(
 /**
  * Routing per spec:
  * - `.txt` → plain text, no conversion.
- * - Supported formats → MinerU Markdown, falling back to the
- *   legacy client pipeline when conversion fails.
+ * - Supported formats → MinerU Markdown (bounded by a client timeout),
+ *   falling back to the legacy client pipeline when conversion fails.
  * - Anything else → legacy pipeline (which rejects unknown types).
+ *
+ * Every stage checks the signal so a cancel stops remaining work instead
+ * of running the fallback after the user gave up.
  */
 async function safeExtractFile(
-  file: File
+  file: File,
+  signal?: AbortSignal
 ): Promise<string> {
   const extension = getFileExt(file.name);
 
@@ -242,14 +315,33 @@ async function safeExtractFile(
   if (
     isMineruCandidate(extension, file.type)
   ) {
+    // Warm the fallback extractor in parallel with the upload.
+    void loadLegacyExtractor();
+
     try {
-      return await convertWithMineru(file);
-    } catch {
-      // Fall through to the original extraction flow.
+      return await convertWithMineru(
+        file,
+        signal
+      );
+    } catch (error) {
+      // A user cancel must not trigger the fallback.
+      if (
+        signal?.aborted ||
+        isAbortError(error)
+      ) {
+        throw new DOMException(
+          "Extraction cancelled.",
+          "AbortError"
+        );
+      }
+      // Otherwise fall through to the original extraction flow.
     }
   }
 
-  return extractWithLegacyPipeline(file);
+  return extractWithLegacyPipeline(
+    file,
+    signal
+  );
 }
 
 /* -------------------------------------------------------------------------- */
@@ -275,6 +367,16 @@ export default function CleanComposer({
 
   const composerRef =
     useRef<HTMLDivElement>(null);
+
+  /*
+   * Extraction session tracking: bumping the token invalidates any
+   * in-flight extraction (cancel or supersede), and the controller
+   * aborts the underlying conversion request.
+   */
+  const extractTokenRef = useRef(0);
+
+  const extractAbortRef =
+    useRef<AbortController | null>(null);
 
   /* ------------------------------------------------------------------------ */
   /* State                                                                    */
@@ -386,6 +488,28 @@ export default function CleanComposer({
     if (fileInputRef.current) {
       fileInputRef.current.value = "";
     }
+
+    window.requestAnimationFrame(() => {
+      textareaRef.current?.focus();
+    });
+  }, [onSourceLabel]);
+
+  /* ------------------------------------------------------------------------ */
+  /* Cancel extraction                                                        */
+  /* ------------------------------------------------------------------------ */
+
+  const cancelExtraction = useCallback(() => {
+    extractTokenRef.current += 1;
+
+    extractAbortRef.current?.abort();
+    extractAbortRef.current = null;
+
+    onSourceLabel?.(null);
+
+    setFileName(null);
+    setFileSize(null);
+    setFileStatus("idle");
+    setFileError(null);
 
     window.requestAnimationFrame(() => {
       textareaRef.current?.focus();
@@ -505,9 +629,31 @@ export default function CleanComposer({
 
       onSourceLabel?.(file.name);
 
+      const sessionToken =
+        ++extractTokenRef.current;
+
+      const controller = new AbortController();
+
+      extractAbortRef.current = controller;
+
+      const isCurrent = () =>
+        sessionToken ===
+        extractTokenRef.current;
+
       try {
         const extracted =
-          await safeExtractFile(file);
+          await safeExtractFile(
+            file,
+            controller.signal
+          );
+
+        // Cancelled or superseded mid-flight — drop the result.
+        if (
+          !isCurrent() ||
+          controller.signal.aborted
+        ) {
+          return;
+        }
 
         if (!extracted.trim()) {
           throw new Error(
@@ -523,6 +669,15 @@ export default function CleanComposer({
           textareaRef.current?.focus();
         });
       } catch (error) {
+        // Cancelled or superseded — stay silent, the UI is already reset.
+        if (
+          !isCurrent() ||
+          controller.signal.aborted ||
+          isAbortError(error)
+        ) {
+          return;
+        }
+
         setFileStatus("error");
         setFileName(null);
         setFileSize(null);
@@ -538,7 +693,14 @@ export default function CleanComposer({
           `Couldn't read that file. ${message}`
         );
       } finally {
-        if (fileInputRef.current) {
+        if (
+          extractAbortRef.current ===
+          controller
+        ) {
+          extractAbortRef.current = null;
+        }
+
+        if (isCurrent() && fileInputRef.current) {
           fileInputRef.current.value = "";
         }
       }
@@ -1162,6 +1324,37 @@ export default function CleanComposer({
                         : "Extracting text…"}
                     </p>
                   </div>
+
+                  <button
+                    type="button"
+                    aria-label={`Cancel reading ${fileName}`}
+                    title="Cancel"
+                    onClick={cancelExtraction}
+                    className="
+                      ml-1
+                      flex
+                      h-7
+                      w-7
+                      shrink-0
+                      items-center
+                      justify-center
+                      rounded-full
+                      text-neutral-400
+                      transition-all
+                      duration-150
+                      hover:bg-neutral-200
+                      hover:text-black
+                      active:scale-90
+                      focus:outline-none
+                      focus:ring-2
+                      focus:ring-neutral-200
+                    "
+                  >
+                    <X
+                      className="h-3.5 w-3.5"
+                      strokeWidth={2}
+                    />
+                  </button>
                 </div>
               </div>
             )}

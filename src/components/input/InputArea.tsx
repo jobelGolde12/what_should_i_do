@@ -80,18 +80,25 @@ async function extractPdf(file: File): Promise<string> {
 
   const buffer = await file.arrayBuffer();
   const pdf = await pdfjsLib.getDocument({ data: buffer }).promise;
-  let out = "";
-  for (let i = 1; i <= pdf.numPages; i++) {
-    const page = await pdf.getPage(i);
-    const content = await page.getTextContent();
-    out +=
+
+  // Pages are independent worker tasks, so extract them concurrently
+  // instead of paying the per-page round trip sequentially.
+  const contents = await Promise.all(
+    Array.from({ length: pdf.numPages }, (_, i) =>
+      pdf.getPage(i + 1).then((page) => page.getTextContent())
+    )
+  );
+
+  return contents
+    .map((content) =>
       content.items
         .map((item: TextItem | TextMarkedContent) =>
           "str" in item ? item.str : ""
         )
-        .join(" ") + "\n";
-  }
-  return out.trim();
+        .join(" ")
+    )
+    .join("\n")
+    .trim();
 }
 
 async function extractDocx(file: File): Promise<string> {

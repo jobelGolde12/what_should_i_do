@@ -420,6 +420,8 @@ export default function InputArea({
               id="file-upload"
               type="file"
               accept=".txt,.pdf,.docx,.png,.jpg,.jpeg"
+              aria-label="Upload file"
+              tabIndex={-1}
               className="hidden"
               onChange={(e) => {
                 const file = e.target.files?.[0];

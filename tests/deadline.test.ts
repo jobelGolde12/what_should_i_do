@@ -1,15 +1,22 @@
-import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
+import { describe, it, expect, beforeAll, beforeEach, afterEach, vi } from "vitest";
 import {
   parseDeadline,
   formatDeadline,
   sortDeadlines,
   googleCalendarUrl,
   outlookCalendarUrl,
+  chronoReady,
 } from "@/lib/deadline";
 
 const NOW = new Date("2026-08-10T09:00:00");
 
 describe("deadline", () => {
+  // chrono-node loads lazily; wait for it so natural-language parsing
+  // behaves identically to production.
+  beforeAll(async () => {
+    await chronoReady;
+  });
+
   beforeEach(() => {
     vi.useFakeTimers();
     vi.setSystemTime(NOW);

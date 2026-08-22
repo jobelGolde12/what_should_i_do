@@ -1057,6 +1057,8 @@ export default function CleanComposer({
           ref={fileInputRef}
           type="file"
           accept=".txt,.pdf,.docx,.pptx,.html,.htm,.png,.jpg,.jpeg,.gif,.bmp,.tiff,.tif"
+          aria-label="Attach a file"
+          tabIndex={-1}
           className="hidden"
           onChange={onFileInputChange}
           disabled={loading}

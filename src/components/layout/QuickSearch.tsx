@@ -288,6 +288,7 @@ export default function QuickSearch() {
   return (
     <div
       className="fixed inset-0 z-50 flex items-start justify-center bg-night/40 p-4 pt-24"
+      aria-hidden="true"
       onClick={() => setOpen(false)}
     >
       <div
@@ -386,6 +387,9 @@ export default function QuickSearch() {
                   id={optionId}
                   role="option"
                   aria-selected={active}
+                  // Prevent the input's blur (which closes the listbox)
+                  // from firing before the click registers.
+                  onMouseDown={(e) => e.preventDefault()}
                   onClick={() => selectRow(row)}
                   onMouseEnter={() => setActiveIndex(index)}
                   className={`group flex w-full cursor-pointer items-start gap-3 rounded-tm px-3 py-2.5 text-left ${

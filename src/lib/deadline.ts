@@ -1,9 +1,31 @@
-import * as chrono from "chrono-node";
+import type * as ChronoTypes from "chrono-node";
 
 /* =========================================================
    Deadline parsing — chrono-node first, with regex fallbacks
    for expressions chrono misses (EOD, end of month, …).
    ========================================================= */
+
+type ChronoModule = typeof ChronoTypes;
+
+/*
+ * chrono-node is a large dependency (~150 KB minified) used solely for
+ * natural-language date parsing. Loading it lazily keeps it out of the
+ * initial client bundle: until the chunk resolves, parseDeadline() relies
+ * on the hand-rolled regex fallbacks below, which cover the common
+ * deadline expressions. Await `chronoReady` when deterministic full
+ * parsing is required (tests, server-side batch work).
+ */
+let chronoLib: ChronoModule | null = null;
+
+export const chronoReady: Promise<void> = import("chrono-node").then(
+  (mod) => {
+    const withDefault = mod as { default?: ChronoModule };
+    chronoLib = (withDefault.default ?? mod) as ChronoModule;
+  },
+  () => {
+    /* Chunk failed to load — the regex fallback layer handles parsing. */
+  }
+);
 
 export type ParsedDeadline = {
   raw: string;
@@ -202,7 +224,9 @@ export function parseDeadline(
     if (EOD_LIKE.test(clean) || EOM_LIKE.test(clean)) {
       date = parseFallback(clean);
     } else {
-      date = chrono.parseDate(clean, now, { forwardDate: true });
+      date = chronoLib
+        ? chronoLib.parseDate(clean, now, { forwardDate: true }) ?? null
+        : null;
       if (!date) date = parseFallback(clean);
     }
     if (date) date = applyTime(clean, date);

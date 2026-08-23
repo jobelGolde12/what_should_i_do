@@ -365,15 +365,20 @@ export default function ReplyPanel({
                   </p>
                 )}
                 {!loading && !error && draft && (
-                  <textarea
-                    value={draft}
-                    onChange={(e) => {
-                      setDraft(e.target.value);
-                      persistDraft(e.target.value);
-                    }}
-                    aria-label="Reply draft"
-                    className="block min-h-24 w-full resize-y rounded-tm bg-surface-2 p-3 text-sm leading-relaxed text-ink outline-none transition-colors focus:bg-background"
-                  />
+                  <>
+                    <textarea
+                      value={draft}
+                      onChange={(e) => {
+                        setDraft(e.target.value);
+                        persistDraft(e.target.value);
+                      }}
+                      aria-label="Reply draft"
+                      className="block min-h-24 w-full resize-y rounded-tm bg-surface-2 p-3 text-sm leading-relaxed text-ink outline-none transition-colors focus:bg-background"
+                    />
+                    <p className="mt-1 text-right font-mono text-xxs text-muted">
+                      {draft.length.toLocaleString()} chars
+                    </p>
+                  </>
                 )}
                 {!loading && !error && !draft && (
                   <p className="text-xs text-muted">

@@ -153,6 +153,7 @@ describe("AIClient.analyzeStructured", () => {
       // Isolate this suite to the primary provider (fallback tests live in
       // their own describe block below).
       OPENROUTER_API_KEY: "",
+      ZEN_API_KEY: "",
     };
   });
 
@@ -272,6 +273,7 @@ describe("AIClient provider fallback (TokenRouter → OpenRouter)", () => {
       OPENROUTER_API_KEY: "or-key",
       OPENROUTER_MODEL: "anthropic/claude-3.5-sonnet",
       OPENROUTER_MAX_ATTEMPTS: "1",
+      ZEN_API_KEY: "",
     };
   });
 
@@ -389,6 +391,7 @@ describe("AIClient.streamStructured", () => {
       TOKENROUTER_API_KEY: "test-key",
       TOKENROUTER_MAX_ATTEMPTS: "2",
       OPENROUTER_API_KEY: "",
+      ZEN_API_KEY: "",
     };
   });
 

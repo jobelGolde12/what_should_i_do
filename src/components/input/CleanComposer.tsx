@@ -406,6 +406,9 @@ export default function CleanComposer({
   const [submitted, setSubmitted] =
     useState(false);
 
+  const [shortHint, setShortHint] =
+    useState<string | null>(null);
+
   /* ------------------------------------------------------------------------ */
   /* Derived state                                                            */
   /* ------------------------------------------------------------------------ */
@@ -456,6 +459,7 @@ export default function CleanComposer({
     setFileSize(null);
     setFileStatus("idle");
     setFileError(null);
+    setShortHint(null);
     setDragOver(false);
     setPageDrag(false);
 
@@ -525,6 +529,26 @@ export default function CleanComposer({
       return;
     }
 
+    /*
+     * Short sentences (1–3 words) are too brief for meaningful
+     * analysis. Skip the AI pipeline and show a friendly nudge
+     * so the user can provide more context.
+     */
+    const wordCount = text.trim().split(/\s+/).length;
+
+    if (wordCount <= 3) {
+      setShortHint(
+        "That's pretty brief! Try adding a bit more detail — a full sentence or a short paragraph helps us give you better insights."
+      );
+
+      window.setTimeout(() => {
+        setShortHint(null);
+      }, 5000);
+
+      return;
+    }
+
+    setShortHint(null);
     setSubmitted(true);
 
     onAnalyze(text);
@@ -1564,6 +1588,60 @@ export default function CleanComposer({
             </div>
           </div>
         </div>
+
+        {/* ================================================================ */}
+        {/* Short message hint                                              */}
+        {/* ================================================================ */}
+
+        {shortHint && (
+          <div
+            role="status"
+            aria-live="polite"
+            className="
+              mt-2
+              flex
+              items-start
+              gap-2
+              rounded-2xl
+              border
+              border-neutral-200
+              bg-neutral-50
+              px-3
+              py-2.5
+              text-xs
+              leading-relaxed
+              text-neutral-500
+            "
+          >
+            <span className="mt-0.5 text-[14px]">
+              💡
+            </span>
+
+            <span className="flex-1">
+              {shortHint}
+            </span>
+
+            <button
+              type="button"
+              aria-label="Dismiss"
+              title="Dismiss"
+              onClick={() => setShortHint(null)}
+              className="
+                ml-1
+                shrink-0
+                text-neutral-400
+                transition-colors
+                hover:text-black
+                focus:outline-none
+              "
+            >
+              <X
+                className="h-3.5 w-3.5"
+                strokeWidth={1.8}
+              />
+            </button>
+          </div>
+        )}
 
         {/* ================================================================ */}
         {/* File error                                                       */}

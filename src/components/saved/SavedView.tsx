@@ -103,6 +103,9 @@ export default function SavedView() {
                 rows={5}
                 className="w-full resize-none rounded-tm border border-line bg-background p-3 text-sm leading-relaxed text-ink outline-none placeholder:text-muted focus:border-ink"
               />
+              <p className="mt-1 text-right font-mono text-xxs text-muted">
+                {content.length.toLocaleString()} chars
+              </p>
             </label>
             <div className="flex justify-end gap-2">
               <Button variant="ghost" size="sm" onClick={() => setShowForm(false)}>
@@ -151,6 +154,9 @@ export default function SavedView() {
                         rows={5}
                         className="w-full resize-none rounded-tm border border-line bg-background p-3 text-sm leading-relaxed text-ink outline-none focus:border-ink"
                       />
+                      <p className="mt-1 text-right font-mono text-xxs text-muted">
+                        {editContent.length.toLocaleString()} chars
+                      </p>
                     </label>
                     <div className="flex justify-end gap-2">
                       <Button

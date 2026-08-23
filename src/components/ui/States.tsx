@@ -1,5 +1,5 @@
 import React from "react";
-import { FileText, LoaderCircle, TriangleAlert, Upload, Sparkles, RefreshCw } from "lucide-react";
+import { LoaderCircle, TriangleAlert, Upload, RefreshCw } from "lucide-react";
 import { Button } from "./Button";
 
 export interface EmptyStateProps {
@@ -124,8 +124,8 @@ export function ErrorState({
       className={`p-6 ${className}`}
     >
       <div className="flex items-start gap-4">
-        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-red-500/20 bg-red-500/10 text-red-600 dark:text-red-400">
-          <TriangleAlert className="h-5 w-5" />
+        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-surface-2 text-ink">
+          <TriangleAlert className="h-5 w-5" strokeWidth={1.8} />
         </div>
 
         <div className="flex-1 min-w-0 pt-0.5">

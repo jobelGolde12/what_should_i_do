@@ -79,6 +79,7 @@ const SHORTCUTS: { keys: string; action: string }[] = [
   { keys: "⌘ / Ctrl + Enter", action: "Analyze the current input" },
   { keys: "Esc", action: "Clear the input area" },
   { keys: "⌘ / Ctrl + K", action: "Quick search history and templates" },
+  { keys: "⌘ / Ctrl + ⇧ + C", action: "Copy reply draft (when reply panel is focused)" },
 ];
 
 type DataBackup = {

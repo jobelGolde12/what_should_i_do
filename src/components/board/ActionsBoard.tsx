@@ -8,6 +8,7 @@ import {
   ExternalLink,
   Search,
   Flame,
+  CheckCircle2,
 } from "lucide-react";
 import { useTask } from "@/context/TaskContext";
 import { useNavigation } from "@/lib/navigation";
@@ -212,6 +213,26 @@ export default function ActionsBoard() {
           >
             <Flame className="h-3.5 w-3.5" /> Urgent focus
           </Button>
+          {board.filter((i) => i.status === "done").length > 0 && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => {
+                if (
+                  window.confirm(
+                    "Mark all completed actions as done? They will stay in the board but won't appear in the To Do or In Progress columns."
+                  )
+                ) {
+                  // Set all done items back to todo to allow re-completing
+                  board
+                    .filter((i) => i.status === "done")
+                    .forEach((item) => setItemStatus(item.id, "todo"));
+                }
+              }}
+            >
+              <CheckCircle2 className="h-3.5 w-3.5" /> Reset completed
+            </Button>
+          )}
         </div>
       </div>
 

@@ -36,7 +36,6 @@ import BatchResults, {
 import {
   LoadingState,
   ErrorState,
-  EmptyState,
 } from "@/components/ui/States";
 
 import { Button } from "@/components/ui/Button";
@@ -81,7 +80,7 @@ export function DashboardHome() {
   const [sourceLabel, setSourceLabel] =
     useState<string | null>(null);
 
-  const [deep, setDeep] = useState(false);
+  const [deep] = useState(false);
 
   const [batchItems, setBatchItems] =
     useState<BatchItem[] | null>(null);
@@ -423,8 +422,8 @@ export function DashboardHome() {
     <main
       className="
         min-h-screen
-        bg-white
-        text-black
+        bg-background
+        text-ink
         antialiased
       "
     >
@@ -478,7 +477,7 @@ export function DashboardHome() {
                       text-3xl
                       font-bold
                       tracking-[-0.045em]
-                      text-black
+                      text-ink
                       sm:text-4xl
                       lg:text-5xl
                     "

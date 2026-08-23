@@ -26,6 +26,12 @@ const LANGUAGES = [
   { code: "de", label: "German" },
   { code: "it", label: "Italian" },
   { code: "pt", label: "Portuguese" },
+  { code: "ja", label: "Japanese" },
+  { code: "ko", label: "Korean" },
+  { code: "zh", label: "Chinese" },
+  { code: "ar", label: "Arabic" },
+  { code: "hi", label: "Hindi" },
+  { code: "ru", label: "Russian" },
 ];
 
 export default function TranslationBlock({

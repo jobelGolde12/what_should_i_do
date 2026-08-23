@@ -9,7 +9,7 @@ export default function BottomNav() {
 
   return (
     <nav
-      className="fixed inset-x-0 bottom-0 z-40 border-t border-neutral-200 bg-white/95 backdrop-blur-sm lg:hidden"
+      className="fixed inset-x-0 bottom-0 z-40 border-t border-line bg-background/95 backdrop-blur-sm lg:hidden"
       aria-label="Mobile navigation"
       style={{ paddingBottom: "env(safe-area-inset-bottom)" }}
     >
@@ -36,7 +36,7 @@ export default function BottomNav() {
                 font-medium
                 transition-colors
                 duration-150
-                ${active ? "text-black" : "text-neutral-400"}
+                ${active ? "text-ink" : "text-muted"}
               `}
             >
               <span
@@ -49,7 +49,7 @@ export default function BottomNav() {
                   rounded-xl
                   transition-colors
                   duration-150
-                  ${active ? "bg-black text-white" : ""}
+                  ${active ? "bg-ink text-background" : ""}
                 `}
               >
                 <Icon className="h-5 w-5" />

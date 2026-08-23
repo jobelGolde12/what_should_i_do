@@ -89,6 +89,16 @@ export default function InboxView() {
     }
   }, []);
 
+  // Auto-refresh every 60 seconds when the tab is visible.
+  useEffect(() => {
+    const interval = window.setInterval(() => {
+      if (document.visibilityState === "visible") {
+        void load();
+      }
+    }, 60_000);
+    return () => window.clearInterval(interval);
+  }, [load]);
+
   async function copyForwardAddress() {
     if (!forwardAddress) return;
     const ok = await copyText(forwardAddress);

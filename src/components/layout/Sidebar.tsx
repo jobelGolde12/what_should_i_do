@@ -34,8 +34,8 @@ export default function Sidebar() {
         shrink-0
         flex-col
         border-r
-        border-neutral-200
-        bg-white
+        border-line
+        bg-background
         lg:flex
         ${collapsed ? "w-16" : "w-60"}
         transition-[width]
@@ -50,7 +50,7 @@ export default function Sidebar() {
           h-14
           items-center
           border-b
-          border-neutral-100
+          border-line
           ${collapsed ? "justify-center px-0" : "justify-between px-4"}
         `}
       >
@@ -80,10 +80,10 @@ export default function Sidebar() {
           className="
             rounded-lg
             p-1.5
-            text-neutral-400
+            text-muted
             transition-colors
-            hover:bg-neutral-100
-            hover:text-black
+            hover:bg-surface-2
+            hover:text-ink
           "
         >
           {collapsed ? (
@@ -126,8 +126,8 @@ export default function Sidebar() {
                 ${collapsed ? "justify-center" : ""}
                 ${
                   active
-                    ? "bg-black text-white"
-                    : "text-neutral-500 hover:bg-neutral-100 hover:text-black"
+                    ? "bg-ink text-background"
+                    : "text-muted hover:bg-surface-2 hover:text-ink"
                 }
               `}
             >
@@ -141,7 +141,7 @@ export default function Sidebar() {
                     w-[3px]
                     -translate-y-1/2
                     rounded-full
-                    bg-white
+                    bg-background
                   "
                 />
               )}
@@ -150,7 +150,7 @@ export default function Sidebar() {
                   h-4
                   w-4
                   shrink-0
-                  ${active ? "text-white" : "text-neutral-400 group-hover:text-black"}
+                  ${active ? "text-background" : "text-muted group-hover:text-ink"}
                 `}
               />
               {!collapsed && <span>{item.name}</span>}
@@ -160,13 +160,13 @@ export default function Sidebar() {
       </nav>
 
       {/* ---- Bottom section ---- */}
-      <div className="border-t border-neutral-100 p-3">
+      <div className="        border-t border-line p-3">
         {!collapsed && (
           <div
             className="
               mb-3
               rounded-lg
-              bg-neutral-50
+              bg-surface
               px-3
               py-2.5
             "
@@ -177,7 +177,7 @@ export default function Sidebar() {
                 font-semibold
                 uppercase
                 tracking-widest
-                text-neutral-400
+                text-muted
               "
             >
               Workspace
@@ -187,7 +187,7 @@ export default function Sidebar() {
                 mt-0.5
                 text-[13px]
                 font-medium
-                text-black
+                text-ink
               "
             >
               {PRO_TIER_DISPLAY[tier]} plan
@@ -204,7 +204,7 @@ export default function Sidebar() {
                 items-center
                 gap-2.5
                 rounded-lg
-                bg-neutral-50
+                bg-surface
                 px-3
                 py-2.5
                 ${collapsed ? "justify-center" : ""}
@@ -219,8 +219,8 @@ export default function Sidebar() {
                   items-center
                   justify-center
                   rounded-full
-                  bg-neutral-200
-                  text-neutral-600
+                  bg-surface-2
+                  text-muted
                 "
               >
                 <UserRound className="h-3.5 w-3.5" />
@@ -229,10 +229,10 @@ export default function Sidebar() {
                 <div className="min-w-0 flex-1">
                   <p
                     className="
-                      truncate
-                      text-[13px]
-                      font-medium
-                      text-black
+                    truncate
+                    text-[13px]
+                    font-medium
+                    text-ink
                     "
                   >
                     {user.email}
@@ -246,9 +246,9 @@ export default function Sidebar() {
                       items-center
                       gap-1
                       text-[11px]
-                      text-neutral-400
+                      text-muted
                       transition-colors
-                      hover:text-black
+                      hover:text-ink
                     "
                   >
                     <LogOut className="h-3 w-3" /> Sign out
@@ -268,16 +268,16 @@ export default function Sidebar() {
                 items-center
                 gap-3
                 rounded-lg
-                bg-neutral-50
+                bg-surface
                 px-3
                 py-2.5
                 text-[13px]
                 font-medium
-                text-neutral-500
+                text-muted
                 transition-all
                 duration-150
-                hover:bg-black
-                hover:text-white
+                hover:bg-ink
+                hover:text-background
                 ${collapsed ? "justify-center" : ""}
               `}
             >
@@ -286,8 +286,8 @@ export default function Sidebar() {
                   h-4
                   w-4
                   shrink-0
-                  text-neutral-400
-                  group-hover:text-white
+                  text-muted
+                  group-hover:text-background
                 "
               />
               {!collapsed && <span>Sign in</span>}

@@ -147,7 +147,6 @@ export default function InputArea({
 }: Props) {
   const { saveTemplate } = useTask();
   const { isPro } = usePlan();
-  const [dragOver, setDragOver] = useState(false);
   const [pageDrag, setPageDrag] = useState(false);
   const [batchMode, setBatchMode] = useState(false);
   const [fileName, setFileName] = useState<string | null>(null);
@@ -335,7 +334,7 @@ export default function InputArea({
         <div className="px-4 py-5 sm:p-5">
           <div
             className={`relative border transition-colors ${
-              dragOver
+              pageDrag
                 ? "border-accent bg-accent-soft"
                 : "border-line focus-within:border-ink"
             }`}
@@ -349,7 +348,7 @@ export default function InputArea({
                className="block h-56 w-full resize-none bg-transparent p-4 text-sm leading-relaxed text-ink outline-none placeholder:text-muted font-display"
                aria-labelledby="analysis-input-label"
              />
-            {dragOver && (
+            {pageDrag && (
               <div className="pointer-events-none absolute inset-0 flex items-center justify-center bg-accent-soft/80">
                 <p className="font-mono text-xs uppercase tracking-label text-accent">
                   Drop to upload

@@ -238,6 +238,21 @@ TaskMind routes analysis through a multi-tier fallback cascade with schema-valid
 
 Quota exhaustion errors (HTTP 402/429/out-of-credits) are never silently downgraded — they surface to the user so credits can be topped up.
 
+### Chat Mode (OpenRouter-only)
+
+Chat Mode (`/api/analysis/chat`, grounded Q&A over an analysis) does **not** use the cascade above. It talks to **OpenRouter exclusively** and defaults to [`openrouter/free`](https://openrouter.ai/openrouter/free), OpenRouter's Free Models Router:
+
+```dotenv
+OPENROUTER_CHAT_API_KEY=""   # falls back to OPENROUTER_API_KEY when unset
+OPENROUTER_CHAT_BASE_URL="https://openrouter.ai/api/v1"
+OPENROUTER_CHAT_MODEL="openrouter/free"
+```
+
+- `openrouter/free` is a stable **logical** id: each request is routed to one of the currently available free models (filtered by required capabilities). The underlying model changes over time by design — never hardcode one; pin a specific `model:free` via `OPENROUTER_CHAT_MODEL` only if necessary.
+- Free-tier limits apply server-side (currently 20 req/min, 50 req/day for accounts that haven't purchased ≥10 credits); rate-limit errors surface as friendly usage-limit copy.
+- Keys are server-side only; see [docs/chat-openrouter.md](docs/chat-openrouter.md) for architecture, error handling, and observability details.
+
+
 Mistral-7B-Instruct-v0.2-q4f32_1
 
 RedPajama-INCITE-Chat-3B-v1-q4f32_1

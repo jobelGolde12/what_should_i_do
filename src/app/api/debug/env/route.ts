@@ -42,6 +42,21 @@ export async function GET(request: Request) {
           allOpenRouterKeys: openRouterKeys,
         },
       },
+      chat: {
+        // Chat Mode is OpenRouter-only (see src/lib/chat/config.ts).
+        apiKey:
+          process.env.OPENROUTER_CHAT_API_KEY || process.env.OPENROUTER_API_KEY
+            ? 'exists'
+            : 'missing',
+        apiKeySource: process.env.OPENROUTER_CHAT_API_KEY
+          ? 'OPENROUTER_CHAT_API_KEY'
+          : 'OPENROUTER_API_KEY (fallback)',
+        baseUrl:
+          process.env.OPENROUTER_CHAT_BASE_URL ||
+          process.env.OPENROUTER_BASE_URL ||
+          '(default: https://openrouter.ai/api/v1)',
+        model: process.env.OPENROUTER_CHAT_MODEL || '(default: openrouter/free — Free Models Router)',
+      },
     },
   });
 }

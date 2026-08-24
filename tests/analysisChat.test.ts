@@ -11,12 +11,6 @@ vi.mock("@/lib/auth/cookies", () => ({
   getCurrentUserId: vi.fn(),
 }));
 
-vi.mock("@/lib/ai", () => ({
-  aiClient: {
-    streamText: vi.fn(),
-  },
-}));
-
 vi.mock("@/lib/rateLimit", () => ({
   getClientIp: vi.fn(() => "127.0.0.1"),
   rateLimit: vi.fn(() => ({ allowed: true })),
@@ -58,7 +52,6 @@ vi.mock("@/lib/log", () => ({
 }));
 
 import { getCurrentUserId } from "@/lib/auth/cookies";
-import { aiClient } from "@/lib/ai";
 import { rateLimit } from "@/lib/rateLimit";
 import { tryIncrement } from "@/lib/pro/usage";
 import { logRequest } from "@/lib/log";
@@ -190,7 +183,17 @@ describe("analysis chat prompt builder", () => {
 });
 
 describe("POST /api/analysis/chat", () => {
+  let originalEnv: NodeJS.ProcessEnv;
+
   beforeEach(() => {
+    originalEnv = process.env;
+    // Point the chat provider at the test double (no real network).
+    process.env = {
+      ...originalEnv,
+      OPENROUTER_CHAT_API_KEY: "test-key",
+      OPENROUTER_CHAT_BASE_URL: "https://openrouter.test/api/v1",
+      OPENROUTER_CHAT_TIMEOUT_MS: "5000",
+    };
     vi.mocked(getCurrentUserId).mockResolvedValue("user-1");
     vi.mocked(rateLimit).mockReturnValue({
       allowed: true,
@@ -198,12 +201,35 @@ describe("POST /api/analysis/chat", () => {
       resetAt: Date.now() + 60_000,
     });
     vi.mocked(tryIncrement).mockResolvedValue(true);
-    vi.mocked(aiClient.streamText).mockReset();
   });
 
   afterEach(() => {
+    process.env = originalEnv;
     vi.unstubAllGlobals();
+    vi.restoreAllMocks();
   });
+
+  /** SSE double standing in for the OpenRouter streaming endpoint. */
+  function sseFetch(chunks: string[]) {
+    const body = new ReadableStream<Uint8Array>({
+      start(controller) {
+        for (const c of chunks)
+          controller.enqueue(new TextEncoder().encode(c));
+        controller.close();
+      },
+    });
+    return vi.fn(async () =>
+      new Response(body, { status: 200, headers: { "Content-Type": "text/event-stream" } })
+    );
+  }
+
+  function deltaChunks(text: string): string[] {
+    return [
+      `data: ${JSON.stringify({ choices: [{ delta: { content: text.slice(0, 10) } }] })}\n\n`,
+      `data: ${JSON.stringify({ choices: [{ delta: { content: text.slice(10) } }] })}\n\n`,
+      "data: [DONE]\n\n",
+    ];
+  }
 
   it("rejects an empty question with 400", async () => {
     const res = await chatPOST(
@@ -225,13 +251,8 @@ describe("POST /api/analysis/chat", () => {
   });
 
   it("streams a grounded answer over SSE", async () => {
-    vi.mocked(aiClient.streamText).mockImplementation(
-      async (_messages, onDelta) => {
-        onDelta("Submit the project");
-        onDelta("Submit the project by Friday.");
-        return { content: "Submit the project by Friday.", usage: {} as never };
-      }
-    );
+    const fetchMock = sseFetch(deltaChunks("Submit the project by Friday."));
+    vi.stubGlobal("fetch", fetchMock);
 
     const res = await chatPOST(
       chatRequest({
@@ -250,12 +271,26 @@ describe("POST /api/analysis/chat", () => {
     );
     expect(doneEvent?.text).toBe("Submit the project by Friday.");
     expect(doneEvent?.method).toBe("ai");
+
+    // The upstream call must target the OpenRouter-compatible endpoint.
+    const [url] = fetchMock.mock.calls[0] as unknown as [string];
+    expect(url).toBe("https://openrouter.test/api/v1/chat/completions");
   });
 
   it("sends a friendly quota message — never the raw provider error", async () => {
-    vi.mocked(aiClient.streamText).mockRejectedValue(
-      new Error(
-        "AI streaming failed: User's credit limit is insufficient, remaining credit limit: $0.000000 (request id: abc123)"
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(
+        async () =>
+          new Response(
+            JSON.stringify({
+              error: {
+                message:
+                  "User's credit limit is insufficient (request id: abc123)",
+              },
+            }),
+            { status: 402 }
+          )
       )
     );
     const res = await chatPOST(
@@ -271,13 +306,11 @@ describe("POST /api/analysis/chat", () => {
     expect(errorEvent?.message).toContain("out of credits");
     expect(errorEvent?.message).not.toContain("credit limit");
     expect(errorEvent?.message).not.toContain("request id");
-    expect(errorEvent?.message).not.toContain("AI streaming failed");
   });
 
   it("sends a generic friendly message for other provider failures", async () => {
-    vi.mocked(aiClient.streamText).mockRejectedValue(
-      new Error("upstream 503 gateway timeout (request id: xyz789)")
-    );
+    // Empty stream → invalid-response → generic copy, no retry storm.
+    vi.stubGlobal("fetch", sseFetch(["data: [DONE]\n\n"]));
     const res = await chatPOST(
       chatRequest({
         message: "Why urgent?",
@@ -294,11 +327,32 @@ describe("POST /api/analysis/chat", () => {
     expect(errorEvent?.message).not.toContain("request id");
   });
 
+  it("maps free-tier rate limits to friendly usage-limit copy", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(
+        async () =>
+          new Response(JSON.stringify({ error: { message: "Rate limit exceeded" } }), {
+            status: 429,
+          })
+      )
+    );
+    const res = await chatPOST(
+      chatRequest({
+        message: "Deadline?",
+        originalMessage: MESSAGE,
+        analysis: ANALYSIS,
+      })
+    );
+    const events = await readSSE(res);
+    const errorEvent = events.find((e) => e.type === "error");
+    expect(errorEvent?.message).toBe(
+      "The free AI service has reached its current usage limit. Please try again later."
+    );
+  });
+
   it("logs only metadata, never message or analysis text (zero PII)", async () => {
-    vi.mocked(aiClient.streamText).mockImplementation(async (_m, onDelta) => {
-      onDelta("answer");
-      return { content: "answer", usage: {} as never };
-    });
+    vi.stubGlobal("fetch", sseFetch(deltaChunks("answer")));
     vi.mocked(logRequest).mockClear();
 
     const res = await chatPOST(

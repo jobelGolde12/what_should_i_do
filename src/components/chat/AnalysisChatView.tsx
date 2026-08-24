@@ -8,7 +8,17 @@ import {
   useState,
 } from "react";
 import { useParams } from "next/navigation";
-import { ArrowLeft, Loader2, Send, Square, Trash2 } from "lucide-react";
+import {
+  ArrowLeft,
+  Check,
+  Copy,
+  Loader2,
+  RefreshCw,
+  RotateCcw,
+  Send,
+  Square,
+  Trash2,
+} from "lucide-react";
 import type { ChatTopic } from "@/lib/types";
 import { CHAT_PRESETS } from "@/lib/prompts";
 import {
@@ -20,6 +30,7 @@ import { useAuth } from "@/context/AuthContext";
 import { Button } from "@/components/ui/Button";
 import SmartLink from "@/components/navigation/SmartLink";
 import HighlightedInput from "@/components/results/HighlightedInput";
+import SafeMarkdown from "@/components/chat/SafeMarkdown";
 import { EmptyState } from "@/components/ui/States";
 import { snippet, formatDateTime } from "@/lib/format";
 
@@ -51,7 +62,12 @@ export default function AnalysisChatView() {
   const [loading, setLoading] = useState(false);
   const [streamText, setStreamText] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  // Question whose turn failed — enables one-tap retry.
+  const [lastFailed, setLastFailed] = useState<string | null>(null);
+  // Index of the assistant message currently showing "Copied".
+  const [copiedIdx, setCopiedIdx] = useState<number | null>(null);
   const abortRef = useRef<AbortController | null>(null);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
   const pulledRef = useRef(false);
 
@@ -161,6 +177,7 @@ export default function AnalysisChatView() {
     abortRef.current?.abort();
     setTopic(null);
     setError(null);
+    setLastFailed(null);
     setLoading(false);
     setInput("");
     deleteChats(recordId);
@@ -172,12 +189,25 @@ export default function AnalysisChatView() {
     }
   }
 
-  const send = useCallback(
-    async (question: string) => {
-      const text = question.trim();
+  const runTurn = useCallback(
+    async (
+      questionRaw: string,
+      opts?: { priorTurns?: ChatTopic["messages"]; retry?: boolean }
+    ) => {
+      const text = questionRaw.trim();
       if (!text || loading || !contextInput || !contextAnalysis) return;
 
-      const priorTurns = messages.filter((m) => m.content.trim().length > 0);
+      let turns = opts?.priorTurns ?? messages.filter((m) => m.content.trim().length > 0);
+
+      // Retry/regenerate: the failed attempt's optimistic user bubble is
+      // already persisted — drop one trailing duplicate before re-running.
+      if (opts?.retry) {
+        const last = turns[turns.length - 1];
+        if (last && last.role === "user" && last.content === text) {
+          turns = turns.slice(0, -1);
+        }
+      }
+
       const base: ChatTopic =
         topic ??
         {
@@ -193,7 +223,7 @@ export default function AnalysisChatView() {
         };
 
       const nextMessages = [
-        ...priorTurns,
+        ...turns,
         { role: "user" as const, content: text },
       ];
       // Optimistic user bubble; the answer joins it once streaming resolves.
@@ -205,6 +235,7 @@ export default function AnalysisChatView() {
       });
       setInput("");
       setError(null);
+      setLastFailed(null);
       setLoading(true);
       setStreamText("");
 
@@ -216,10 +247,11 @@ export default function AnalysisChatView() {
           contextInput,
           contextAnalysis,
           text,
-          priorTurns.map((m) => ({ role: m.role, content: m.content })),
+          turns.map((m) => ({ role: m.role, content: m.content })),
           (acc) => setStreamText(acc),
           { signal: controller.signal }
         );
+        setLastFailed(null);
         persistTopic({
           ...base,
           title: base.title ?? titleFor(text),
@@ -230,8 +262,12 @@ export default function AnalysisChatView() {
           updatedAt: Date.now(),
         });
       } catch (err) {
-        const cancelled = err instanceof StreamCancelledError;
+        // Cancellation is silent — including aborts that surface as raw
+        // DOMExceptions when the stop lands before the response headers do.
+        const cancelled =
+          err instanceof StreamCancelledError || controller.signal.aborted;
         if (!cancelled) {
+          setLastFailed(text);
           setError(
             err instanceof Error
               ? err.message
@@ -266,6 +302,52 @@ export default function AnalysisChatView() {
       persistTopic,
     ]
   );
+
+  /** Re-runs the last failed question without duplicating its user bubble. */
+  function retryFailed() {
+    if (!lastFailed) return;
+    void runTurn(lastFailed, { retry: true });
+  }
+
+  /** Discards the latest answer and regenerates it from the same question. */
+  function regenerate() {
+    const msgs = topic?.messages ?? [];
+    if (loading || msgs.length === 0) return;
+    const lastMsg = msgs[msgs.length - 1];
+    if (lastMsg.role !== "assistant") return;
+
+    let qIndex = -1;
+    for (let i = msgs.length - 2; i >= 0; i -= 1) {
+      if (msgs[i].role === "user") {
+        qIndex = i;
+        break;
+      }
+    }
+    if (qIndex === -1) return;
+
+    void runTurn(msgs[qIndex].content, {
+      priorTurns: msgs.slice(0, qIndex),
+      retry: false,
+    });
+  }
+
+  async function copyMessage(idx: number, content: string) {
+    try {
+      await navigator.clipboard.writeText(content);
+      setCopiedIdx(idx);
+      setTimeout(() => setCopiedIdx((cur) => (cur === idx ? null : cur)), 1500);
+    } catch {
+      /* clipboard unavailable — ignore */
+    }
+  }
+
+  // Auto-resizing composer (grows with content up to ~6 rows).
+  useEffect(() => {
+    const el = textareaRef.current;
+    if (!el) return;
+    el.style.height = "auto";
+    el.style.height = `${Math.min(el.scrollHeight, 160)}px`;
+  }, [input]);
 
   const urgency = record?.output.urgency ?? topic?.context.analysis?.urgency;
   const actionCount =
@@ -339,7 +421,7 @@ export default function AnalysisChatView() {
                 key={preset}
                 type="button"
                 disabled={loading}
-                onClick={() => void send(preset)}
+                onClick={() => void runTurn(preset)}
                 className="rounded-full bg-surface-2 px-3 py-1.5 text-xs font-medium text-muted transition-colors hover:text-ink disabled:cursor-not-allowed disabled:opacity-50"
               >
                 {preset}
@@ -360,28 +442,57 @@ export default function AnalysisChatView() {
               </p>
             )}
 
-            {messages.map((m, i) =>
-              m.role === "user" ? (
-                <div
-                  key={`u-${i}`}
-                  className="ml-auto max-w-[85%] whitespace-pre-line break-words rounded-2xl rounded-br-sm bg-night px-3.5 py-2 text-xs leading-relaxed text-white"
-                >
-                  {m.content}
+            {messages.map((m, i) => {
+              const isLast = i === messages.length - 1;
+              if (m.role === "user") {
+                return (
+                  <div
+                    key={`u-${i}`}
+                    className="ml-auto max-w-[85%] whitespace-pre-line break-words rounded-2xl rounded-br-sm bg-night px-3.5 py-2 text-xs leading-relaxed text-white"
+                  >
+                    {m.content}
+                  </div>
+                );
+              }
+              return (
+                <div key={`a-${i}`} className="mr-auto max-w-[85%]">
+                  <div className="break-words rounded-2xl rounded-bl-sm bg-surface-2 px-3.5 py-2 text-xs leading-relaxed text-ink">
+                    <SafeMarkdown text={m.content || "\u200B"} />
+                  </div>
+                  <div className="mt-0.5 flex items-center gap-1">
+                    <button
+                      type="button"
+                      onClick={() => void copyMessage(i, m.content)}
+                      aria-label={copiedIdx === i ? "Answer copied" : "Copy answer"}
+                      className="inline-flex items-center gap-1 rounded px-1 py-0.5 font-mono text-xxs uppercase tracking-label-tight text-muted transition-colors hover:text-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1"
+                    >
+                      {copiedIdx === i ? (
+                        <Check className="h-3 w-3" aria-hidden="true" />
+                      ) : (
+                        <Copy className="h-3 w-3" aria-hidden="true" />
+                      )}
+                      {copiedIdx === i ? "Copied" : "Copy"}
+                    </button>
+                    {isLast && !loading && (
+                      <button
+                        type="button"
+                        onClick={regenerate}
+                        aria-label="Regenerate this answer"
+                        className="inline-flex items-center gap-1 rounded px-1 py-0.5 font-mono text-xxs uppercase tracking-label-tight text-muted transition-colors hover:text-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1"
+                      >
+                        <RefreshCw className="h-3 w-3" aria-hidden="true" />
+                        Regenerate
+                      </button>
+                    )}
+                  </div>
                 </div>
-              ) : (
-                <div
-                  key={`a-${i}`}
-                  className="mr-auto max-w-[85%] whitespace-pre-line break-words rounded-2xl rounded-bl-sm bg-surface-2 px-3.5 py-2 text-xs leading-relaxed text-ink"
-                >
-                  {m.content || "\u200B"}
-                </div>
-              )
-            )}
+              );
+            })}
 
             {(loading || (streamText !== null && streamText.length > 0)) && (
-              <div className="mr-auto max-w-[85%] whitespace-pre-line break-words rounded-2xl rounded-bl-sm bg-surface-2 px-3.5 py-2 text-xs leading-relaxed text-ink">
+              <div className="mr-auto max-w-[85%] break-words rounded-2xl rounded-bl-sm bg-surface-2 px-3.5 py-2 text-xs leading-relaxed text-ink">
                 {streamText ? (
-                  streamText
+                  <SafeMarkdown text={streamText} />
                 ) : (
                   <span className="inline-flex items-center gap-1.5 text-muted">
                     <Loader2 className="h-3 w-3 animate-spin" aria-hidden="true" />
@@ -397,19 +508,20 @@ export default function AnalysisChatView() {
           <div className="sticky bottom-0 mt-3 bg-background pb-2 pt-2">
             <div className="flex items-end gap-2">
               <textarea
+                ref={textareaRef}
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
                 onKeyDown={(e) => {
                   if (e.key === "Enter" && !e.shiftKey) {
                     e.preventDefault();
-                    void send(input);
+                    void runTurn(input);
                   }
                 }}
                 disabled={loading}
                 rows={1}
                 aria-label="Ask about this analysis"
                 placeholder="Ask about this analysis…"
-                className="min-w-0 flex-1 resize-none rounded-tm bg-surface-2 px-2.5 py-2 text-sm text-ink outline-none transition-colors focus:bg-background disabled:opacity-60"
+                className="min-w-0 flex-1 resize-none overflow-hidden rounded-tm bg-surface-2 px-2.5 py-2 text-sm text-ink outline-none transition-colors focus:bg-background disabled:opacity-60"
               />
               {loading ? (
                 <Button size="sm" variant="ghost" onClick={stop} aria-label="Stop answering">
@@ -419,7 +531,7 @@ export default function AnalysisChatView() {
                 <Button
                   size="sm"
                   variant="dark"
-                  onClick={() => void send(input)}
+                  onClick={() => void runTurn(input)}
                   disabled={!input.trim() || !contextInput || !contextAnalysis}
                   aria-label="Send question"
                 >
@@ -429,9 +541,22 @@ export default function AnalysisChatView() {
             </div>
 
             {error && (
-              <p role="alert" className="mt-2 text-xs text-high">
-                {error}
-              </p>
+              <div
+                role="alert"
+                className="mt-2 flex flex-wrap items-center justify-between gap-2"
+              >
+                <p className="text-xs text-high">{error}</p>
+                {lastFailed && !loading && (
+                  <button
+                    type="button"
+                    onClick={retryFailed}
+                    className="inline-flex shrink-0 items-center gap-1 rounded border border-line bg-surface-2 px-2 py-1 font-mono text-xxs uppercase tracking-label-tight text-muted transition-colors hover:text-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1"
+                  >
+                    <RotateCcw className="h-3 w-3" aria-hidden="true" />
+                    Retry
+                  </button>
+                )}
+              </div>
             )}
 
             <div className="mt-2 flex items-center justify-between gap-2">

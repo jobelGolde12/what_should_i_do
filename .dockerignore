@@ -1,0 +1,71 @@
+# Dependencies
+node_modules/
+npm-debug.log*
+
+# Next.js build output
+.next/
+out/
+
+# Build artifacts
+build/
+dist/
+
+# Testing
+coverage/
+test-results/
+playwright-report/
+
+# Development
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Git
+.git/
+.gitignore
+
+# Documentation
+*.md
+!README.md
+
+# Scripts (except self-host-assets which is needed for build)
+scripts/
+!scripts/self-host-assets.mjs
+
+# Tests
+tests/
+*.test.ts
+*.test.tsx
+
+# Data
+.data/
+
+# Docker
+Dockerfile
+docker-compose*.yml
+.dockerignore
+
+# GitHub
+.github/
+
+# Misc
+screenshots/
+design/
+docs/
+evaluation/
+QA-Documentation/
+frontend-test/
+pro-plan/
+enhancement-plan/

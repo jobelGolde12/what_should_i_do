@@ -1,10 +1,14 @@
 /** @type {import('next').NextConfig} */
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+const { withSentryConfig } = require("@sentry/nextjs");
+
 const nextConfig = {
   reactStrictMode: true,
   serverExternalPackages: [
     "@xenova/transformers",
     "onnxruntime-node",
     "pdfjs-dist",
+    "@sentry/node",
   ],
   webpack: (config) => {
     config.externals.push({ 'onnxruntime-node': 'commonjs onnxruntime-node' });
@@ -65,4 +69,13 @@ const nextConfig = {
   },
 };
 
-module.exports = nextConfig;
+module.exports = withSentryConfig(nextConfig, {
+  // Additional config options for Sentry webpack plugin
+  silent: true,
+  org: process.env.SENTRY_ORG,
+  project: process.env.SENTRY_PROJECT,
+  widenClientFileUpload: true,
+  hideSourceMaps: true,
+  disableLogger: true,
+  automaticVercelMonitors: true,
+});

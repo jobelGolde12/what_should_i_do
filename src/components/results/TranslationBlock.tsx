@@ -2,7 +2,6 @@
 
 import { useEffect, useRef, useState } from "react";
 import {
-  ChevronDown,
   Languages,
   Pause,
   Play,
@@ -34,6 +33,11 @@ const LANGUAGES = [
   { code: "ru", label: "Russian" },
 ];
 
+/**
+ * Translation panel for the summary. Purely presentational/controlled — the
+ * toggle lives in the parent's Summary header as an icon button, and the
+ * parent unmounts this panel when closed (which also resets all state).
+ */
 export default function TranslationBlock({
   summary,
 }: {
@@ -43,7 +47,6 @@ export default function TranslationBlock({
   const [translated, setTranslated] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [open, setOpen] = useState(false);
   const [speaking, setSpeaking] = useState<TTSStatus>("idle");
   const [ttsError, setTtsError] = useState<string | null>(null);
   const ttsHandle = useRef<SpeakHandle | null>(null);
@@ -123,126 +126,97 @@ export default function TranslationBlock({
     }
   }
 
-  function togglePanel() {
-    const closing = open;
-    if (closing) {
-      // Reset all output state when collapsing so reopening never shows
-      // stale content with no language highlighted.
-      setLanguage("en");
-      setTranslated(null);
-      setError(null);
-      cancelSpeech();
-    }
-    setOpen(!closing);
-  }
-
   return (
-    <div>
-      <button
-        type="button"
-        onClick={togglePanel}
-        className="group/toggle flex w-full items-center justify-between py-3 text-left"
-        aria-expanded={open}
-        aria-controls="translation-panel"
-      >
-        <span className="inline-flex items-center gap-2 text-xs font-semibold text-ink">
-          <Languages className="h-4 w-4 text-muted transition-colors group-hover/toggle:text-ink" strokeWidth={1.8} />
-          Translate summary
-        </span>
-        <ChevronDown
-          className={`h-4 w-4 text-muted transition-transform ${open ? "rotate-180" : ""}`}
-          aria-hidden="true"
-        />
-      </button>
+    <div id="translation-panel" className="pb-1 pt-1">
+      <p className="mb-2 inline-flex items-center gap-2 font-mono text-xxs uppercase tracking-label text-muted">
+        <Languages className="h-3 w-3" strokeWidth={1.8} aria-hidden="true" />
+        Translate summary
+      </p>
 
-      {open && (
-        <div id="translation-panel" className="pb-1 pt-3">
-          <div className="flex flex-wrap items-center gap-1.5">
-            {LANGUAGES.map((l) => (
-              <button
-                key={l.code}
-                type="button"
-                aria-pressed={language === l.code}
-                onClick={() => {
-                  if (language === l.code && !loading) return;
-                  cancelSpeech();
-                  setLanguage(l.code);
-                  if (l.code === "en") {
-                    setTranslated(null);
-                    setError(null);
-                  } else {
-                    void translate(l.code);
-                  }
-                }}
-                className={`rounded-full px-3 py-1.5 text-xs font-medium transition-colors ${
-                  language === l.code
-                    ? "bg-night text-white"
-                    : "bg-surface-2 text-muted hover:text-ink"
-                }`}
-              >
-                {l.label}
-              </button>
-            ))}
-          </div>
+      <div className="flex flex-wrap items-center gap-1.5">
+        {LANGUAGES.map((l) => (
+          <button
+            key={l.code}
+            type="button"
+            aria-pressed={language === l.code}
+            onClick={() => {
+              if (language === l.code && !loading) return;
+              cancelSpeech();
+              setLanguage(l.code);
+              if (l.code === "en") {
+                setTranslated(null);
+                setError(null);
+              } else {
+                void translate(l.code);
+              }
+            }}
+            className={`rounded-full px-3 py-1.5 text-xs font-medium transition-colors ${
+              language === l.code
+                ? "bg-night text-white"
+                : "bg-surface-2 text-muted hover:text-ink"
+            }`}
+          >
+            {l.label}
+          </button>
+        ))}
+      </div>
 
-          <div className="mt-4 min-h-10" aria-live="polite" aria-atomic="true">
-            {loading && (
-              <p className="font-mono text-xs text-muted">
-                Translating…
-              </p>
-            )}
-            {error && (
-              <p role="alert" className="text-xs text-high">
-                {error}
-              </p>
-            )}
-            {!loading && !error && translated && (
-              <p className="whitespace-pre-line text-sm leading-relaxed text-ink">
-                {translated}
-              </p>
-            )}
-            {!loading && !error && !translated && language === "en" && (
-              <p className="text-xs text-muted">
-                Pick a language above to see the summary translated.
-              </p>
-            )}
-          </div>
+      <div className="mt-4 min-h-10" aria-live="polite" aria-atomic="true">
+        {loading && (
+          <p className="font-mono text-xs text-muted">
+            Translating…
+          </p>
+        )}
+        {error && (
+          <p role="alert" className="text-xs text-high">
+            {error}
+          </p>
+        )}
+        {!loading && !error && translated && (
+          <p className="whitespace-pre-line text-sm leading-relaxed text-ink">
+            {translated}
+          </p>
+        )}
+        {!loading && !error && !translated && language === "en" && (
+          <p className="text-xs text-muted">
+            Pick a language above to see the summary translated.
+          </p>
+        )}
+      </div>
 
-          {!loading && !error && translated && (
-            <div className="mt-3 flex flex-wrap items-center gap-2">
-              <span className="sr-only" aria-live="polite">
-                {speaking === "speaking"
-                  ? "Reading the translation"
-                  : speaking === "paused"
-                    ? "Paused"
-                    : ""}
-              </span>
-              {speaking === "idle" ? (
-                <Button size="sm" variant="outline" onClick={listen}>
-                  <Volume2 className="h-3.5 w-3.5" /> Listen
+      {!loading && !error && translated && (
+        <div className="mt-3 flex flex-wrap items-center gap-2">
+          <span className="sr-only" aria-live="polite">
+            {speaking === "speaking"
+              ? "Reading the translation"
+              : speaking === "paused"
+                ? "Paused"
+                : ""}
+          </span>
+          {speaking === "idle" ? (
+            <Button size="sm" variant="outline" onClick={listen}>
+              <Volume2 className="h-3.5 w-3.5" /> Listen
+            </Button>
+          ) : (
+            <>
+              {speaking === "speaking" ? (
+                <Button size="sm" variant="outline" onClick={pauseSpeech}>
+                  <Pause className="h-3.5 w-3.5" /> Pause
                 </Button>
               ) : (
-                <>
-                  {speaking === "speaking" ? (
-                    <Button size="sm" variant="outline" onClick={pauseSpeech}>
-                      <Pause className="h-3.5 w-3.5" /> Pause
-                    </Button>
-                  ) : (
-                    <Button size="sm" variant="outline" onClick={resumeSpeech}>
-                      <Play className="h-3.5 w-3.5" /> Resume
-                    </Button>
-                  )}
-                  <Button size="sm" variant="ghost" onClick={cancelSpeech}>
-                    <Square className="h-3.5 w-3.5" /> Stop
-                  </Button>
-                </>
+                <Button size="sm" variant="outline" onClick={resumeSpeech}>
+                  <Play className="h-3.5 w-3.5" /> Resume
+                </Button>
               )}
-              {ttsError && (
-                <p role="alert" className="w-full text-xs text-high">
-                  {ttsError}
-                </p>
-              )}
-            </div>
+              <Button size="sm" variant="ghost" onClick={cancelSpeech}>
+                <Square className="h-3.5 w-3.5" /> Stop
+              </Button>
+            </>
+          )}
+          {ttsError && (
+            <p role="alert" className="w-full text-xs text-high">
+              {ttsError}
+            </p>
           )}
         </div>
       )}

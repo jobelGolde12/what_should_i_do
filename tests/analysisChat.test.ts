@@ -147,8 +147,32 @@ describe("analysis chat prompt builder", () => {
       question: "And the deadline?",
     });
     const roles = messages.map((m) => m.role);
-    expect(roles).toEqual(["system", "user", "assistant", "user"]);
+    expect(roles).toEqual(["system", "user", "assistant", "system", "user"]);
     expect(messages[2].content).toBe("It means submit by Friday.");
+    expect(messages[4]).toEqual({
+      role: "user",
+      content: "And the deadline?",
+    });
+  });
+
+  it("sandwiches a topic-lock reminder between history and question", () => {
+    const messages = buildChatMessages({
+      message: MESSAGE,
+      analysis: ANALYSIS,
+      history: [
+        { role: "user", content: "First question?" },
+        { role: "assistant", content: "Grounded answer." },
+      ],
+      question: "Second question?",
+    });
+    // The head system prompt carries the grounding; the reminder re-states it
+    // right before the turn being answered so long histories can't dilute it.
+    expect(messages[0].content).toContain(CHAT_SYSTEM_PROMPT);
+    expect(messages[3].role).toBe("system");
+    expect(messages[3].content.toLowerCase()).toContain("one topic");
+    expect(messages[3].content.length).toBeLessThan(
+      messages[0].content.length
+    );
   });
 
   it("enforces out-of-scope refusal in the system prompt", () => {

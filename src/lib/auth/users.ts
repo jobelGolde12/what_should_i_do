@@ -12,7 +12,12 @@
  */
 import { getDb, ensureSchema } from "@/lib/db";
 import { uid } from "@/lib/storage";
-import type { AnalysisRecord, Template, BoardItem } from "@/lib/types";
+import type {
+  AnalysisRecord,
+  Template,
+  BoardItem,
+  ChatTopic,
+} from "@/lib/types";
 
 export type StoredUser = {
   id: string;
@@ -474,6 +479,93 @@ export async function deleteSetting(userId: string, key: string): Promise<void> 
     key,
   ]);
 }
+/* =========================================================
+   Analysis chat topics (persisted conversations)
+   ========================================================= */
+
+/** Defensive cap on stored turns per topic (malicious-input guard). */
+export const MAX_CHAT_MESSAGES = 200;
+
+function chatTopicFromRow(r: RawRow): ChatTopic | null {
+  const id = r.id as string;
+  if (typeof id !== "string" || !id) return null;
+  const messages = safeJsonParse(r.messages);
+  return {
+    id,
+    recordId: String(r.record_id ?? ""),
+    ...(r.title ? { title: String(r.title) } : {}),
+    createdAt: Number(r.created_at ?? 0),
+    updatedAt: Number(r.updated_at ?? 0),
+    context: {
+      input: String(r.context_input ?? ""),
+      analysis: (safeJsonParse(r.context_analysis) ?? {}) as ChatTopic["context"]["analysis"],
+    },
+    messages: Array.isArray(messages)
+      ? (messages as ChatTopic["messages"]).filter(
+          (m) =>
+            m &&
+            typeof m === "object" &&
+            (m.role === "user" || m.role === "assistant") &&
+            typeof m.content === "string"
+        )
+      : [],
+  };
+}
+
+export async function upsertChatTopic(
+  userId: string,
+  topic: ChatTopic
+): Promise<void> {
+  const database = await db();
+  await database.execute(
+    "INSERT INTO chat_topics(id, user_id, record_id, title, context_input, context_analysis, messages, created_at, updated_at, deleted_at) " +
+      "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NULL) " +
+      "ON CONFLICT(user_id, id) DO UPDATE SET record_id = excluded.record_id, title = excluded.title, " +
+      "context_input = excluded.context_input, context_analysis = excluded.context_analysis, " +
+      "messages = excluded.messages, updated_at = excluded.updated_at, deleted_at = NULL",
+    [
+      topic.id.slice(0, 200),
+      userId,
+      topic.recordId.slice(0, 200),
+      (topic.title ?? "").slice(0, 120),
+      topic.context.input,
+      JSON.stringify(topic.context.analysis ?? {}),
+      JSON.stringify((topic.messages ?? []).slice(-MAX_CHAT_MESSAGES)),
+      topic.createdAt,
+      Date.now(),
+    ]
+  );
+}
+
+export async function getChatTopicsByRecord(
+  userId: string,
+  recordId: string
+): Promise<ChatTopic[]> {
+  const database = await db();
+  const res = await database.execute(
+    "SELECT * FROM chat_topics WHERE user_id = ? AND record_id = ? AND deleted_at IS NULL ORDER BY updated_at DESC",
+    [userId, recordId]
+  );
+  const out: ChatTopic[] = [];
+  for (const row of res.rows ?? []) {
+    const topic = chatTopicFromRow(row as RawRow);
+    if (topic) out.push(topic);
+  }
+  return out;
+}
+
+export async function deleteChatTopicsByRecord(
+  userId: string,
+  recordId: string
+): Promise<number> {
+  const database = await db();
+  const res = await database.execute(
+    "DELETE FROM chat_topics WHERE user_id = ? AND record_id = ?",
+    [userId, recordId]
+  );
+  return Number(res.rowsAffected);
+}
+
 /* =========================================================
    Incremental sync (Pro): per-record deltas + tombstones.
    ========================================================= */

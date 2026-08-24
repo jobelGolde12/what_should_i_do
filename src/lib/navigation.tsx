@@ -141,6 +141,10 @@ export function pathToRouteKey(pathname: string): {
   if (analysis) {
     return { route: "/analysis/[id]", params: { id: analysis[1] } };
   }
+  const chat = pathname.match(/^\/analysis\/([^/]+)\/chat$/);
+  if (chat) {
+    return { route: "/analysis/[id]/chat", params: { id: chat[1] } };
+  }
   const share = pathname.match(/^\/share\/([^/]+)$/);
   if (share) {
     return { route: "/share/[id]", params: { id: share[1] } };

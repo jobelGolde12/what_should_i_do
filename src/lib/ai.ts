@@ -25,8 +25,13 @@ import type { AnalysisResult } from "@/app/actions/analyzeText";
 import { buildAnalysisMessages, PROMPT_VERSION } from "@/lib/prompts";
 import { analyzeRawResponse } from "@/lib/validateAnalysis";
 import { createError, getErrorMessage, AnalysisError } from "@/lib/errors";
+import { isAiMockEnabled, mockStreamText } from "@/lib/ai-mock";
 
-export type ProviderName = "tokenrouter" | "openrouter" | "opencodezen";
+export type ProviderName =
+  | "tokenrouter"
+  | "openrouter"
+  | "opencodezen"
+  | "mock";
 
 const DEFAULT_BASE_URL = "https://api.tokenrouter.com/v1";
 const OPENROUTER_BASE_URL = "https://openrouter.ai/api/v1";
@@ -1010,6 +1015,9 @@ export class AIClient {
       count: 0,
     },
     opencodezen: {
+      count: 0,
+    },
+    mock: {
       count: 0,
     },
   };
@@ -2095,6 +2103,28 @@ export class AIClient {
       maxTokens?: number;
     } = {}
   ): Promise<AIStreamResult> {
+    // Dev-only offline mode (AI_MOCK=1, never in production): answer without
+    // touching any provider. See src/lib/ai-mock.ts for scope and limits.
+    if (isAiMockEnabled()) {
+      const mock = await mockStreamText(
+        messages,
+        onDelta
+      );
+
+      return {
+        content: mock.content,
+        usage: {
+          provider: "mock",
+          model: "heuristic-mock",
+          attempt: 1,
+          attempts: 1,
+          latencyMs: 0,
+          repaired: false,
+          tokenUsage: mock.tokenUsage,
+        },
+      };
+    }
+
     return this.streamWithFallback(
       messages,
       onDelta,

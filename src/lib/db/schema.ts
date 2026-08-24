@@ -7,7 +7,7 @@
  */
 
 /** Bump this when you add/modify tables; ensureSchema() applies the delta. */
-export const SCHEMA_VERSION = 6;
+export const SCHEMA_VERSION = 7;
 
 /**
  * Versioned migrations for databases that already exist. Each key is the target
@@ -51,6 +51,18 @@ export const SCHEMA_MIGRATIONS: Record<number, string[]> = {
     // security-relevant event (password change, token issue/consume) so any
     // session or email link signed with an older version is rejected.
     "ALTER TABLE users ADD COLUMN auth_version INTEGER NOT NULL DEFAULT 0",
+  ],
+  7: [
+    // Analysis chat topics: persisted conversations per analysis record.
+    // `context_*` snapshots keep the chat self-grounding across devices even
+    // when the underlying analysis isn't in the device's localStorage.
+    "CREATE TABLE IF NOT EXISTS chat_topics (" +
+      "id TEXT NOT NULL, user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE, " +
+      "record_id TEXT NOT NULL, title TEXT NOT NULL DEFAULT '', " +
+      "context_input TEXT NOT NULL DEFAULT '', context_analysis TEXT NOT NULL DEFAULT '{}', " +
+      "messages TEXT NOT NULL DEFAULT '[]', created_at INTEGER NOT NULL, " +
+      "updated_at INTEGER NOT NULL, deleted_at INTEGER, PRIMARY KEY (user_id, id))",
+    "CREATE INDEX IF NOT EXISTS idx_chat_topics_record ON chat_topics(user_id, record_id, updated_at)",
   ],
 };
 
@@ -235,6 +247,22 @@ export const SCHEMA_DDL: string[] = [
     tag TEXT NOT NULL,
     PRIMARY KEY (user_id, target_type, target_id, tag)
   )`,
+
+  // —— Analysis chat topics (persisted conversations, all signed-up users) ——
+  `CREATE TABLE IF NOT EXISTS chat_topics (
+    id TEXT NOT NULL,
+    user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    record_id TEXT NOT NULL,
+    title TEXT NOT NULL DEFAULT '',
+    context_input TEXT NOT NULL DEFAULT '',
+    context_analysis TEXT NOT NULL DEFAULT '{}',
+    messages TEXT NOT NULL DEFAULT '[]',
+    created_at INTEGER NOT NULL,
+    updated_at INTEGER NOT NULL,
+    deleted_at INTEGER,
+    PRIMARY KEY (user_id, id)
+  )`,
+  `CREATE INDEX IF NOT EXISTS idx_chat_topics_record ON chat_topics(user_id, record_id, updated_at)`,
 
   // —— Shared rate limiting (DB-backed for multi-instance deployments) ——
   `CREATE TABLE IF NOT EXISTS rate_limits (

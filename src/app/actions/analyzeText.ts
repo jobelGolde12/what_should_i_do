@@ -40,7 +40,7 @@ export type AnalysisResult = {
   summary: string;
   analysisMethod: "ai" | "fallback";
   /** Which AI provider produced the result (set when analysisMethod is "ai"). */
-  aiProviderUsed?: "tokenrouter" | "openrouter" | "opencodezen";
+  aiProviderUsed?: "tokenrouter" | "openrouter" | "opencodezen" | "mock";
 };
 
 /* =========================================================

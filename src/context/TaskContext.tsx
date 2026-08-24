@@ -15,6 +15,7 @@ import type {
   Template,
   BoardItem,
   BoardStatus,
+  ChatTopic,
 } from "@/lib/types";
 import { readStorage, writeStorage, storageKeys, uid } from "@/lib/storage";
 import { urgencyForAction } from "@/lib/urgency";
@@ -25,6 +26,11 @@ type TaskContextValue = {
   history: AnalysisRecord[];
   templates: Template[];
   board: BoardItem[];
+  chats: ChatTopic[];
+  /** Upserts a chat topic (matched by id) into the local chats slice. */
+  saveChatTopic: (topic: ChatTopic) => void;
+  /** Removes every chat topic for an analysis record. */
+  deleteChats: (recordId: string) => void;
   saveAnalysis: (
     input: string,
     output: AnalysisResult,
@@ -64,6 +70,7 @@ export function TaskProvider({ children }: { children: ReactNode }) {
   const [history, setHistory] = useState<AnalysisRecord[]>([]);
   const [templates, setTemplates] = useState<Template[]>([]);
   const [board, setBoard] = useState<BoardItem[]>([]);
+  const [chats, setChats] = useState<ChatTopic[]>([]);
 
   useEffect(() => {
     // Reading from localStorage must happen post-hydration to keep the
@@ -76,17 +83,18 @@ export function TaskProvider({ children }: { children: ReactNode }) {
       readStorage<Template[]>(storageKeys().templates, [])
     );
     setBoard(readStorage<BoardItem[]>(storageKeys().board, []));
+    setChats(readStorage<ChatTopic[]>(storageKeys().chats, []));
   }, []);
 
   // Track the last-persisted slices so a save that touches two slices (e.g.
   // `saveAnalysis` updates history AND board) does a single localStorage write
   // round + one cache sync instead of one effect per slice (which re-parsed the
   // whole snapshot for each).
-  const prevPersisted = useRef({ history, templates, board });
+  const prevPersisted = useRef({ history, templates, board, chats });
 
   useEffect(() => {
     const prev = prevPersisted.current;
-    const next = { history, templates, board };
+    const next = { history, templates, board, chats };
     let changed = false;
     if (prev.history !== history) {
       writeStorage(storageKeys().history, history);
@@ -100,11 +108,15 @@ export function TaskProvider({ children }: { children: ReactNode }) {
       writeStorage(storageKeys().board, board);
       changed = true;
     }
+    if (prev.chats !== chats) {
+      writeStorage(storageKeys().chats, chats);
+      changed = true;
+    }
     prevPersisted.current = next;
     if (changed && isInstantNavEnabled()) {
       getDataCacheStore().syncFromStorage();
     }
-  }, [history, templates, board]);
+  }, [history, templates, board, chats]);
 
   const saveAnalysis = useCallback(
     (input: string, output: AnalysisResult, sourceLabel?: string): AnalysisRecord => {
@@ -136,6 +148,22 @@ export function TaskProvider({ children }: { children: ReactNode }) {
   const deleteAnalysis = useCallback((id: string) => {
     setHistory((prev) => prev.filter((r) => r.id !== id));
     setBoard((prev) => prev.filter((item) => item.sourceId !== id));
+    // Chat topics are per-analysis; drop them with the analysis.
+    setChats((prev) => prev.filter((c) => c.recordId !== id));
+  }, []);
+
+  const saveChatTopic = useCallback((topic: ChatTopic) => {
+    setChats((prev) => {
+      const idx = prev.findIndex((c) => c.id === topic.id);
+      if (idx < 0) return [topic, ...prev];
+      const out = [...prev];
+      out[idx] = topic;
+      return out;
+    });
+  }, []);
+
+  const deleteChats = useCallback((recordId: string) => {
+    setChats((prev) => prev.filter((c) => c.recordId !== recordId));
   }, []);
 
   const clearHistory = useCallback(() => {
@@ -278,6 +306,9 @@ export function TaskProvider({ children }: { children: ReactNode }) {
         history,
         templates,
         board,
+        chats,
+        saveChatTopic,
+        deleteChats,
         saveAnalysis,
         deleteAnalysis,
         clearHistory,

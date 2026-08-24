@@ -29,6 +29,30 @@ export type BoardItem = {
   createdAt: number;
 };
 
+/** One persisted turn in an analysis chat topic (no UI-only fields). */
+export type ChatTopicMessage = {
+  role: "user" | "assistant";
+  content: string;
+};
+
+/**
+ * A saved conversation about one analysis. The `context` snapshot keeps the
+ * chat self-grounding so it can be restored on any device even if the
+ * underlying analysis record isn't available locally.
+ */
+export type ChatTopic = {
+  id: string;
+  recordId: string;
+  title?: string;
+  createdAt: number;
+  updatedAt: number;
+  context: {
+    input: string;
+    analysis: AnalysisResult;
+  };
+  messages: ChatTopicMessage[];
+};
+
 export type ThemePreference = "light" | "dark" | "system";
 
 export type SharePayload = {
@@ -49,6 +73,7 @@ export type RouteKey =
   | "/"
   | "/analysis"
   | "/analysis/[id]"
+  | "/analysis/[id]/chat"
   | "/history"
   | "/saved"
   | "/actions"

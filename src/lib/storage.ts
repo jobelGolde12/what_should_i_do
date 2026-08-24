@@ -1,6 +1,7 @@
 const HISTORY_KEY = "taskmind:history";
 const TEMPLATES_KEY = "taskmind:templates";
 const BOARD_KEY = "taskmind:board";
+const CHATS_KEY = "taskmind:chats";
 const THEME_KEY = "taskmind:theme";
 
 export function readStorage<T>(key: string, fallback: T): T {
@@ -37,6 +38,7 @@ export function storageKeys() {
     history: HISTORY_KEY,
     templates: TEMPLATES_KEY,
     board: BOARD_KEY,
+    chats: CHATS_KEY,
     theme: THEME_KEY,
     adsConsent: "taskmind:ads-consent",
   };

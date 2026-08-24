@@ -2,12 +2,19 @@
 
 import { useEffect, useState } from "react";
 import type { ReactNode } from "react";
-import { Share2, Trash2, Square } from "lucide-react";
+import {
+  Languages,
+  MessageCircleQuestion,
+  Share2,
+  Trash2,
+  Square,
+} from "lucide-react";
 import type { AnalysisRecord } from "@/lib/types";
 import type { AnalysisResult } from "@/app/actions/analyzeText";
 import { formatDateTime } from "@/lib/format";
 import ShareDialog from "@/components/share/ShareDialog";
-import { IconButton } from "@/components/ui/Tooltip";
+import { IconButton, IconLink } from "@/components/ui/Tooltip";
+import { useOptionalTask } from "@/context/TaskContext";
 import UrgencyMeter from "./UrgencyMeter";
 import ActionList from "./ActionList";
 import DeadlineList from "./DeadlineList";
@@ -16,7 +23,6 @@ import NextStepCard from "./NextStepCard";
 import TranslationBlock from "./TranslationBlock";
 import SummaryText from "./SummaryText";
 import ReplyPanel from "./ReplyPanel";
-import AnalysisChat from "./AnalysisChat";
 
 type Stage = "streaming" | "settling" | "settled";
 type Field = Exclude<
@@ -119,6 +125,9 @@ export default function ResultsPanel({
   );
   const [prevStreaming, setPrevStreaming] = useState(isStreaming);
   const [showShare, setShowShare] = useState(false);
+  const [translateOpen, setTranslateOpen] = useState(false);
+  // Null outside the interactive app (share pages) — chat is gated on it.
+  const task = useOptionalTask();
 
   // When a streaming panel finishes (streaming prop dropped), run the
   // one-shot scanline settle so the resolved content locks in. Adjusted
@@ -193,17 +202,44 @@ export default function ResultsPanel({
       <div className="space-y-8 py-6">
         {/* Summary moved to the top for the "Inverted Pyramid" UX principle */}
         <section className={resolved.summary ? "settle-section revealed" : "settle-section"}>
-          <SectionHeading>Summary</SectionHeading>
-          <SummaryText summary={result?.summary ?? streaming?.summary ?? ""} />
-          <div className="mt-4">
-            <TranslationBlock summary={result?.summary ?? streaming?.summary ?? ""} />
+          <div className="flex items-center justify-between gap-2">
+            <SectionHeading>Summary</SectionHeading>
+            <div className="flex items-center gap-0.5">
+              <IconButton
+                label="Translate summary"
+                aria-expanded={translateOpen}
+                aria-controls="translation-panel"
+                onClick={() => setTranslateOpen((o) => !o)}
+              >
+                <Languages
+                  className={`h-4 w-4 transition-colors ${translateOpen ? "text-ink" : ""}`}
+                  strokeWidth={1.8}
+                />
+              </IconButton>
+              {/* Chat opens in a new tab; a real anchor keeps middle-click /
+                  open-in-new-tab browser behavior working. Hidden on shared
+                  pages (no TaskProvider) and while still streaming (no saved
+                  record to ground the conversation on yet). */}
+              {record && result && task && (
+                <IconLink
+                  label="Ask about this analysis"
+                  href={`/analysis/${record.id}/chat`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  <MessageCircleQuestion className="h-4 w-4" strokeWidth={1.8} />
+                </IconLink>
+              )}
+            </div>
           </div>
-          {record && result && (
-            <AnalysisChat
-              recordId={record.id}
-              message={record.input}
-              analysis={result as Record<string, unknown>}
-            />
+          <SummaryText summary={result?.summary ?? streaming?.summary ?? ""} />
+          {translateOpen && (
+            <div className="mt-3">
+              <TranslationBlock
+                key={record?.id ?? "streaming"}
+                summary={result?.summary ?? streaming?.summary ?? ""}
+              />
+            </div>
           )}
         </section>
 

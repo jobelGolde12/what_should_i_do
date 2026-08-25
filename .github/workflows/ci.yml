@@ -160,12 +160,19 @@ jobs:
       - name: Deploy to staging
         run: |
           echo "Deploying to staging..."
-          # Add your deployment commands here
-          # Examples:
-          # - rsync to staging server
-          # - docker build and push
-          # - deploy to Vercel/Railway/Fly.io
-          echo "Staging deployment placeholder - add actual deployment steps"
+          # Option 1: SSH deploy to staging server
+          # ssh deploy@staging.example.com "cd /opt/taskmind && git pull && npm ci && npm run build && pm2 restart taskmind"
+          #
+          # Option 2: Docker deploy
+          # docker build -t taskmind-staging .
+          # docker push ghcr.io/$GITHUB_REPOSITORY:staging
+          # docker-compose -f docker-compose.staging.yml up -d
+          #
+          # Option 3: Railway/Fly.io/Vercel
+          # railway up --service staging
+          # fly deploy --app taskmind-staging
+          #
+          echo "Staging deployment placeholder - configure your deployment target"
 
   deploy-production:
     name: Deploy to Production
@@ -200,15 +207,27 @@ jobs:
       - name: Deploy to production
         run: |
           echo "Deploying to production..."
-          # Add your deployment commands here
-          # Examples:
-          # - rsync to production server
-          # - docker build and push
-          # - deploy to Vercel/Railway/Fly.io
-          echo "Production deployment placeholder - add actual deployment steps"
+          # Option 1: SSH deploy to production server
+          # ssh deploy@prod.example.com "cd /opt/taskmind && git pull && npm ci && npm run build && pm2 restart taskmind"
+          #
+          # Option 2: Docker deploy
+          # docker build -t taskmind:latest -t taskmind:$GITHUB_SHA .
+          # docker push ghcr.io/$GITHUB_REPOSITORY:latest
+          # docker push ghcr.io/$GITHUB_REPOSITORY:$GITHUB_SHA
+          # ssh deploy@prod.example.com "docker pull ghcr.io/$GITHUB_REPOSITORY:latest && docker-compose up -d"
+          #
+          # Option 3: Railway/Fly.io/Vercel
+          # railway up --service production
+          # fly deploy --app taskmind
+          #
+          echo "Production deployment placeholder - configure your deployment target"
 
       - name: Notify deployment
         if: success()
         run: |
           echo "Production deployment successful"
-          # Add notification commands here (Slack, email, etc.)
+          # Option 1: Slack notification
+          # curl -X POST $SLACK_WEBHOOK_URL -H 'Content-type: application/json' -d '{"text":"TaskMind deployed to production: $GITHUB_SHA"}'
+          #
+          # Option 2: Discord webhook
+          # curl -X POST $DISCORD_WEBHOOK_URL -H 'Content-type: application/json' -d '{"content":"TaskMind production deploy: $GITHUB_SHA"}'

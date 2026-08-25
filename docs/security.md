@@ -156,5 +156,9 @@ persisted to Turso, ensuring rate limits hold across multi-instance deployments.
 
 - Structured request logs contain request id, endpoint, byte counts, latency —
   never raw text. See `src/lib/log.ts`.
-- Sentry/error tracking is not yet integrated; add it without logging text
-  (Feature 21 deferral).
+- Sentry error tracking is integrated (client, server, edge). PII is scrubbed
+  before events are sent — analyzed text, cookies, and raw provider messages
+  are stripped. See `sentry.client.config.ts`, `sentry.server.config.ts`,
+  `src/lib/sentry.ts`. DSN configured via `NEXT_PUBLIC_SENTRY_DSN` / `SENTRY_DSN`.
+- Error boundary (`src/components/ui/ErrorBoundary.tsx`) wraps the root layout
+  to capture and report client-side render errors.
